@@ -5,9 +5,9 @@ license = "MIT"
 clientSideOnly = true
 
 [[mods]]
-modId = "s_lib"
+modId = "s-lib"
 version = "${version}"
-displayName = "StaleLib"
+displayName = "S-Lib"
 authors = "Stalemated"
 description = '''
 Client-side library with shared code across my mods.
@@ -15,21 +15,21 @@ Client-side library with shared code across my mods.
 logoFile = "META-INF/icon.jpg"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
 
-[[dependencies.s_lib]]
+[[dependencies.s-lib]]
 modId = "forge"
 mandatory = true
 versionRange = "[47,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.s_lib]]
+[[dependencies.s-lib]]
 modId = "minecraft"
 mandatory = true
 versionRange = "[1.20.1,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.s_lib]]
+[[dependencies.s-lib]]
 modId = "yet_another_config_lib_v3"
 mandatory = true
 versionRange = "[3.6.2,)"
