@@ -7,7 +7,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'stalelib'
+rootProject.name = 's-lib'
 
 include 'common'
 include 'fabric'

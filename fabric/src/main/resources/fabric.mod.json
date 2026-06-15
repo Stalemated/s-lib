@@ -1,8 +1,8 @@
 {
     "schemaVersion": 1,
-    "id": "stalelib",
+    "id": "s-lib",
     "version": "${version}",
-    "name": "StaleLib",
+    "name": "S-Lib",
     "description": "Client-side library with shared code across my mods.",
     "authors": [
         "Stalemated"
@@ -17,11 +17,11 @@
     "environment": "client",
     "entrypoints": {
         "client": [
-            "com.stalemated.lib.fabric.StaleLibFabricClient"
+            "com.stalemated.lib.fabric.SLibFabricClient"
         ]
     },
     "mixins": [
-        "stalelib.mixins.json"
+        "s-lib.mixins.json"
     ],
     "depends": {
         "fabricloader": ">=0.16.10",

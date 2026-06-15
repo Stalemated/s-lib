@@ -4,7 +4,7 @@ plugins {
 
 loom {
     forge {
-        mixinConfig "stalelib.mixins.json"
+        mixinConfig "s-lib.mixins.json"
     }
 }
 
