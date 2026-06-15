@@ -31,7 +31,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
 
     // YACL
-    modImplementation "dev.isxander:yet-another-config-lib:${rootProject.yacl_version}-fabric"
+    modCompileOnly "dev.isxander:yet-another-config-lib:${rootProject.yacl_version}-fabric"
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')

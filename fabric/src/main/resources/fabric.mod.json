@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "s-lib",
+    "id": "s_lib",
     "version": "${version}",
     "name": "S-Lib",
     "description": "A core utility library providing shared code for Stalemated's mods.",
@@ -27,8 +27,7 @@
         "fabricloader": ">=0.16.10",
         "minecraft": "~1.20.1",
         "java": ">=17",
-        "fabric-api": "*",
-        "yet_another_config_lib_v3": ">=3.6.2"
+        "fabric-api": "*"
     },
     "suggests": {
         "another-mod": "*"
