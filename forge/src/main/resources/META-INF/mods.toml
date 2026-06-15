@@ -10,9 +10,9 @@ version = "${version}"
 displayName = "S-Lib"
 authors = "Stalemated"
 description = '''
-Client-side library with shared code across my mods.
+A core utility library providing shared code for Stalemated's mods.
 '''
-logoFile = "META-INF/icon.jpg"
+logoFile = "META-INF/icon.png"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
 
 [[dependencies.s-lib]]

@@ -3,14 +3,14 @@
     "id": "s-lib",
     "version": "${version}",
     "name": "S-Lib",
-    "description": "Client-side library with shared code across my mods.",
+    "description": "A core utility library providing shared code for Stalemated's mods.",
     "authors": [
         "Stalemated"
     ],
     "contact": {
-        "homepage": "https://www.curseforge.com/minecraft/mc-mods/stalelib",
-        "sources": "https://github.com/Stalemated/stalelib",
-        "issues": "https://github.com/Stalemated/stalelib/issues"
+        "homepage": "https://www.curseforge.com/minecraft/mc-mods/s-lib",
+        "sources": "https://github.com/Stalemated/s-lib",
+        "issues": "https://github.com/Stalemated/s-lib/issues"
     },
     "license": "MIT",
     "icon": "icon.png",
