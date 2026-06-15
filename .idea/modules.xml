@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/stalelib.common.iml" filepath="$PROJECT_DIR$/.idea/modules/common/stalelib.common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/stalelib.common.main.iml" filepath="$PROJECT_DIR$/.idea/modules/common/stalelib.common.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/stalelib.common.test.iml" filepath="$PROJECT_DIR$/.idea/modules/common/stalelib.common.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/fabric/stalelib.fabric.main.iml" filepath="$PROJECT_DIR$/.idea/modules/fabric/stalelib.fabric.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/fabric/stalelib.fabric.test.iml" filepath="$PROJECT_DIR$/.idea/modules/fabric/stalelib.fabric.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge/stalelib.forge.main.iml" filepath="$PROJECT_DIR$/.idea/modules/forge/stalelib.forge.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge/stalelib.forge.test.iml" filepath="$PROJECT_DIR$/.idea/modules/forge/stalelib.forge.test.iml" />
+    </modules>
+  </component>
+</project>
