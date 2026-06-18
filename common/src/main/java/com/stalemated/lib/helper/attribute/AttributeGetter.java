@@ -12,7 +12,7 @@ import net.minecraft.item.ItemStack;
 import java.util.*;
 
 public class AttributeGetter {
-    private static String getEnchantments(ItemStack stack) {
+    public static String getEnchantments(ItemStack stack) {
         ItemEnchantmentsComponent enchantments = EnchantmentHelper.getEnchantments(stack);
         if (enchantments.isEmpty()) return "";
 
@@ -24,7 +24,7 @@ public class AttributeGetter {
         return String.join("\n", formattedEnchants);
     }
 
-    private static String calculateWeaponDamage(ItemStack stack) {
+    public static String calculateWeaponDamage(ItemStack stack) {
         AttributeModifiersComponent modifiers = stack.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
 
         double damage = 1.0;
@@ -39,7 +39,7 @@ public class AttributeGetter {
         return formatString((float) damage);
     }
 
-    private static String calculateWeaponSpeed(ItemStack stack) {
+    public static String calculateWeaponSpeed(ItemStack stack) {
         AttributeModifiersComponent modifiers = stack.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
 
         double speed = 4.0;
@@ -54,7 +54,7 @@ public class AttributeGetter {
         return formatString((float) speed);
     }
 
-    private static String getSaturation(ItemStack stack) {
+    public static String getSaturation(ItemStack stack) {
         FoodComponent food = stack.get(DataComponentTypes.FOOD);
         if (food != null) {
             return formatString(food.saturation());
@@ -62,7 +62,7 @@ public class AttributeGetter {
         return "";
     }
 
-    private static String getHunger(ItemStack stack) {
+    public static String getHunger(ItemStack stack) {
         FoodComponent food = stack.get(DataComponentTypes.FOOD);
         if (food != null) {
             return String.valueOf(food.nutrition());
