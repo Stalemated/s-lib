@@ -9,9 +9,7 @@ import net.minecraft.util.Identifier;
 
 public class TagStrategy implements TargetMatcher {
     private final TagKey<Item> tagKey;
-    public TagStrategy(String tagId) {
-        this.tagKey = TagKey.of(RegistryKeys.ITEM, new Identifier(tagId));
-    }
+    public TagStrategy(String tagId) { this.tagKey = TagKey.of(RegistryKeys.ITEM, Identifier.of(tagId)); }
 
     @Override
     public boolean matches(ItemStack stack) { return stack.isIn(tagKey); }

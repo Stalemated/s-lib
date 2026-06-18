@@ -1,5 +1,6 @@
 package com.stalemated.lib.util.color;
 
+import com.mojang.serialization.DataResult;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Formatting;
 
@@ -15,8 +16,8 @@ public class ColorUtils {
     public static final java.util.List<Integer> DEFAULT_BORDER_COLORS = new ArrayList<>(java.util.List.of(0x505000FF, 0x5028007F));
     public static final java.util.List<Integer> DEFAULT_BACKGROUND_COLORS = new ArrayList<>(java.util.List.of(0xF0100010, 0xF0100010));
     public static final String DEFAULT_COLOR_STRING = "#" + Integer.toHexString(DEFAULT_COLOR).toUpperCase();
-    public static final java.util.List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(java.util.List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
-    public static final java.util.List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
+    public static final java.util.List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(java.util.List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.getFirst()).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
+    public static final java.util.List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.getFirst()).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
 
     private static TextColor resolveTextColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) return null;
@@ -44,7 +45,8 @@ public class ColorUtils {
         else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
 
         if (hex.matches("^[0-9a-fA-F]{6}$")) {
-            return TextColor.parse("#" + hex);
+            DataResult<TextColor> dataResult = TextColor.parse("#" + hex);
+            return dataResult.getOrThrow();
         }
 
         return null;

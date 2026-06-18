@@ -100,7 +100,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         this.currentItemIcon = ItemStack.EMPTY;
         if (!isSpecialTarget(this.inputField)) {
             try {
-                Item item = Registries.ITEM.get(new Identifier(this.inputField));
+                Item item = Registries.ITEM.get(Identifier.of(this.inputField));
                 if (item != Items.AIR) {
                     this.currentItemIcon = new ItemStack(item);
                 }
@@ -111,7 +111,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         for (String id : identifiers) {
             if (!isSpecialTarget(id)) {
                 try {
-                    Item item = Registries.ITEM.get(new Identifier(id));
+                    Item item = Registries.ITEM.get(Identifier.of(id));
                     if (item != Items.AIR) {
                         this.itemCache.put(id, new ItemStack(item));
                     }
@@ -125,11 +125,11 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     @Override
     protected void renderDropdownEntry(DrawContext graphics, Dimension<Integer> entryDimension, String value) {
         int leftEdge = entryDimension.x() + this.getDecorationPadding();
-        
+
         Text text = formatTargetText(value);
 
         int maxTextWidth = entryDimension.width() - this.getDecorationPadding() - 24;
-        
+
         if (this.textRenderer.getWidth(text) > maxTextWidth) {
             String shortenedString = this.textRenderer.trimToWidth(text.getString(), maxTextWidth - this.textRenderer.getWidth("...")) + "...";
             text = formatTargetText(shortenedString);
@@ -154,14 +154,14 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
             if (isSpecialTarget(this.inputField)) {
                 return formatTargetText(this.inputField);
             }
-            
+
             try {
-                Item item = Registries.ITEM.get(new Identifier(this.inputField));
+                Item item = Registries.ITEM.get(Identifier.of(this.inputField));
                 if (item != Items.AIR) {
                     return item.getName();
                 }
             } catch (Exception ignored) {}
-            
+
             return Text.literal(this.inputField);
         }
         return super.getValueText();

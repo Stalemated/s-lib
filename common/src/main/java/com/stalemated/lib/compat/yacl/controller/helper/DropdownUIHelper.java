@@ -44,11 +44,14 @@ public class DropdownUIHelper {
 
     public static boolean handleMouseClicked(AbstractDropdownControllerElement<?, ?> element, double mouseX, double mouseY) {
         if (element.isMouseOver(mouseX, mouseY)) {
-            element.setFocused(true);
-            if (!element.isDropdownVisible()) element.createDropdownWidget();
-            else element.removeDropdownWidget();
+            if (!element.isDropdownVisible()) {
+                element.createDropdownWidget();
+            }
             return true;
+        } else {
+            element.unfocus();
         }
+
         return false;
     }
 }

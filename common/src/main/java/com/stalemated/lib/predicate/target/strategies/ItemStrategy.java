@@ -8,10 +8,9 @@ import net.minecraft.util.Identifier;
 
 public class ItemStrategy implements TargetMatcher {
     private final Item item;
-    public ItemStrategy(String itemId) { this.item = Registries.ITEM.get(new Identifier(itemId)); }
+    public ItemStrategy(String itemId) { this.item = Registries.ITEM.get(Identifier.of(itemId)); }
 
-    @Override
-    public boolean matches(ItemStack stack) {
+    @Override public boolean matches(ItemStack stack) {
         if (item == null) return false;
         return stack.isOf(item);
     }

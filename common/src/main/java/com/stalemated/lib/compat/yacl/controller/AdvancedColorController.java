@@ -163,7 +163,7 @@ public class AdvancedColorController extends ColorController {
         @Override
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
             if (!this.inputFieldFocused) return false;
-            
+
             if (Screen.isSelectAll(keyCode)) { this.doSelectAll(); return true; }
             if (Screen.isCopy(keyCode)) { this.doCopy(); return true; }
             if (Screen.isPaste(keyCode)) { this.write(MinecraftClient.getInstance().keyboard.getClipboard()); return true; }
@@ -197,15 +197,32 @@ public class AdvancedColorController extends ColorController {
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            boolean handled = super.mouseClicked(mouseX, mouseY, button);
-            if (handled) {
-                if (this.inputField.isEmpty()) {
-                    this.caretPos = 0;
-                } else if (this.caretPos == 1 && mouseX < this.getDimension().x() + this.getXPadding() + 4) {
-                    this.caretPos = 0;
+        public boolean onMouseClicked(double mouseX, double mouseY, int button) {
+            boolean handled = super.onMouseClicked(mouseX, mouseY, button);
+
+            if (this.inputFieldBounds != null && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) && !this.isMouseOverColorPreview(mouseX, mouseY)) {
+                this.setFocused(true);
+                int clickOffset = (int) mouseX - this.inputFieldBounds.x();
+                String renderedText = this.textRenderer.trimToWidth(this.inputField, this.inputFieldBounds.width() * 2);
+                this.caretPos = this.textRenderer.trimToWidth(renderedText, clickOffset).length();
+
+                int clickX = this.inputFieldBounds.x();
+                int bestCaret = 0;
+                int minDistance = Integer.MAX_VALUE;
+
+                for (int i = 0; i <= this.inputField.length(); i++) {
+                    int charX = clickX + this.textRenderer.getWidth(this.inputField.substring(0, i));
+                    int distance = Math.abs(charX - (int) mouseX);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestCaret = i;
+                    }
                 }
+
+                this.caretPos = bestCaret;
+                this.selectionLength = 0;
             }
+
             return handled;
         }
     }

@@ -1,64 +1,71 @@
 package com.stalemated.lib.helper.attribute;
 
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.AttributeModifiersComponent;
+import net.minecraft.component.type.FoodComponent;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.EntityGroup;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.item.ItemStack;
 
 import java.util.*;
 
 public class AttributeGetter {
-    public static String getEnchantments(ItemStack stack) {
-        Map<Enchantment, Integer> enchantments = EnchantmentHelper.get(stack);
+    private static String getEnchantments(ItemStack stack) {
+        ItemEnchantmentsComponent enchantments = EnchantmentHelper.getEnchantments(stack);
         if (enchantments.isEmpty()) return "";
 
         List<String> formattedEnchants = new ArrayList<>();
-        for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
-            formattedEnchants.add(entry.getKey().getName(entry.getValue()).getString());
+        for (var entry : enchantments.getEnchantmentEntries()) {
+            formattedEnchants.add(Enchantment.getName(entry.getKey(), entry.getIntValue()).getString());
         }
 
         return String.join("\n", formattedEnchants);
     }
 
-    public static String calculateWeaponDamage(ItemStack stack) {
-        Collection<EntityAttributeModifier> modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND).get(EntityAttributes.GENERIC_ATTACK_DAMAGE);
-        double enchantDamage = EnchantmentHelper.getAttackDamage(stack, EntityGroup.DEFAULT);
-        if (modifiers.isEmpty() && enchantDamage == 0) return "0";
+    private static String calculateWeaponDamage(ItemStack stack) {
+        AttributeModifiersComponent modifiers = stack.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
 
         double damage = 1.0;
-        for (EntityAttributeModifier modifier : modifiers) {
-            damage += modifier.getValue();
+        boolean hasModifiers = false;
+        for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
+            if (entry.attribute().equals(EntityAttributes.GENERIC_ATTACK_DAMAGE)) {
+                damage += entry.modifier().value();
+                hasModifiers = true;
+            }
         }
-        damage += enchantDamage;
+        if (!hasModifiers) return "0";
         return formatString((float) damage);
     }
 
-    public static String calculateWeaponSpeed(ItemStack stack) {
-        Collection<EntityAttributeModifier> modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND).get(EntityAttributes.GENERIC_ATTACK_SPEED);
-        if (modifiers.isEmpty()) return "0";
+    private static String calculateWeaponSpeed(ItemStack stack) {
+        AttributeModifiersComponent modifiers = stack.getOrDefault(DataComponentTypes.ATTRIBUTE_MODIFIERS, AttributeModifiersComponent.DEFAULT);
 
         double speed = 4.0;
-        for (EntityAttributeModifier modifier : modifiers) {
-            speed += modifier.getValue();
+        boolean hasModifiers = false;
+        for (AttributeModifiersComponent.Entry entry : modifiers.modifiers()) {
+            if (entry.attribute().equals(EntityAttributes.GENERIC_ATTACK_SPEED)) {
+                speed += entry.modifier().value();
+                hasModifiers = true;
+            }
         }
+        if (!hasModifiers) return "0";
         return formatString((float) speed);
     }
 
-    public static String getSaturation(ItemStack stack) {
-        if (stack.getItem().isFood()) {
-            assert stack.getItem().getFoodComponent() != null;
-            return formatString(stack.getItem().getFoodComponent().getSaturationModifier());
+    private static String getSaturation(ItemStack stack) {
+        FoodComponent food = stack.get(DataComponentTypes.FOOD);
+        if (food != null) {
+            return formatString(food.saturation());
         }
         return "";
     }
 
-    public static String getHunger(ItemStack stack) {
-        if (stack.getItem().isFood()) {
-            assert stack.getItem().getFoodComponent() != null;
-            return String.valueOf(stack.getItem().getFoodComponent().getHunger());
+    private static String getHunger(ItemStack stack) {
+        FoodComponent food = stack.get(DataComponentTypes.FOOD);
+        if (food != null) {
+            return String.valueOf(food.nutrition());
         }
         return "";
     }

@@ -41,25 +41,8 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
     }
 
     @Override
-    public boolean isValueValid(String value) {
-        String lowerVal = value.toLowerCase();
-        for (String constant : this.getAllowedValues()) {
-            if (constant.toLowerCase().equals(lowerVal)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    protected String getValidValue(String value, int offset) {
-        return this.getAllowedValues().stream().skip(offset).findFirst().orElseGet(this::getString);
-    }
-
-    @Override
     public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
         return new AbstractDropdownControllerElement<String, String>(this, screen, widgetDimension) {
-
             @Override
             public List<String> computeMatchingValues() {
                 return SimpleStringDropdownController.this.getAllowedValues();
@@ -71,17 +54,17 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
             }
 
             @Override
-            public boolean charTyped(char chr, int modifiers) {
+            public boolean onCharTyped(char chr, String cpStr, int modifiers) {
                 return false;
             }
 
             @Override
             public void setFocused(boolean focused) {
-                if (focused) {
-                    super.setFocused(true);
-                    this.inputFieldFocused = false;
-                } else {
-                    this.unfocus();
+                this.focused = focused;
+                this.inputFieldFocused = focused;
+
+                if (!focused && this.isDropdownVisible()) {
+                    this.removeDropdownWidget();
                 }
             }
 
@@ -89,12 +72,17 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
             public void unfocus() {
                 if (this.isDropdownVisible()) {
                     int index = this.dropdownWidget().selectedIndex();
-                    if (index >= 0 && index < SimpleStringDropdownController.this.getAllowedValues().size()) {
-                        this.inputField = SimpleStringDropdownController.this.getAllowedValues().get(index);
+                    if (this.matchingValues == null) this.matchingValues = this.computeMatchingValues();
+
+                    if (index >= 0 && index < this.matchingValues.size()) {
+                        this.inputField = this.getString(this.matchingValues.get(index));
+                        SimpleStringDropdownController.this.setFromString(this.inputField);
                     }
                     this.removeDropdownWidget();
                 }
-                super.unfocus();
+
+                this.inputFieldFocused = false;
+                this.renderOffset = 0;
             }
 
             @Override
@@ -102,15 +90,20 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
                 this.screen.clearPopupControllerWidget();
                 this.dropdownVisible = false;
                 this.dropdownWidget = null;
+                this.inputFieldFocused = false;
             }
 
             @Override
-            public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+                if (!this.inputFieldFocused && !this.isFocused()) return false;
+
                 return DropdownUIHelper.handleKeyPressed(this, keyCode);
             }
 
             @Override
-            public boolean modifyInput(Consumer<StringBuilder> builder) { return false; }
+            public boolean modifyInput(Consumer<StringBuilder> builder) {
+                return false;
+            }
 
             @Override
             public boolean doSelectAll() {
@@ -118,12 +111,9 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
             }
 
             @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            public boolean onMouseClicked(double mouseX, double mouseY, int button) {
                 return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
             }
-
-            @Override
-            public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) { return false; }
         };
     }
 }

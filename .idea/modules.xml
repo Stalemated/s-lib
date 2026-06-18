@@ -7,8 +7,8 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/common/s-lib.common.test.iml" filepath="$PROJECT_DIR$/.idea/modules/common/s-lib.common.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/fabric/s-lib.fabric.main.iml" filepath="$PROJECT_DIR$/.idea/modules/fabric/s-lib.fabric.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/fabric/s-lib.fabric.test.iml" filepath="$PROJECT_DIR$/.idea/modules/fabric/s-lib.fabric.test.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge/s-lib.forge.main.iml" filepath="$PROJECT_DIR$/.idea/modules/forge/s-lib.forge.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/forge/s-lib.forge.test.iml" filepath="$PROJECT_DIR$/.idea/modules/forge/s-lib.forge.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/neoforge/s-lib.neoforge.main.iml" filepath="$PROJECT_DIR$/.idea/modules/neoforge/s-lib.neoforge.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/neoforge/s-lib.neoforge.test.iml" filepath="$PROJECT_DIR$/.idea/modules/neoforge/s-lib.neoforge.test.iml" />
     </modules>
   </component>
 </project>

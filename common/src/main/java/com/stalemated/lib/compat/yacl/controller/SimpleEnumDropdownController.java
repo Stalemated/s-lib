@@ -28,17 +28,17 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
     public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
         return new EnumDropdownControllerElement<>(this, screen, widgetDimension) {
             @Override
-            public boolean charTyped(char chr, int modifiers) {
+            public boolean onCharTyped(char chr, String cpStr, int modifiers) {
                 return false;
             }
 
             @Override
             public void setFocused(boolean focused) {
-                if (focused) {
-                    super.setFocused(true);
-                    this.inputFieldFocused = false;
-                } else {
-                    this.unfocus();
+                this.focused = focused;
+                this.inputFieldFocused = focused;
+
+                if (!focused && this.isDropdownVisible()) {
+                    this.removeDropdownWidget();
                 }
             }
 
@@ -46,12 +46,17 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             public void unfocus() {
                 if (this.isDropdownVisible()) {
                     int index = this.dropdownWidget().selectedIndex();
-                    if (index >= 0 && index < SimpleEnumDropdownController.this.getAllowedValues().size()) {
-                        this.inputField = SimpleEnumDropdownController.this.getAllowedValues().get(index);
+                    if (this.matchingValues == null) this.matchingValues = this.computeMatchingValues();
+
+                    if (index >= 0 && index < this.matchingValues.size())  {
+                        this.inputField = this.getString(this.matchingValues.get(index));
+                        SimpleEnumDropdownController.this.setFromString(this.inputField);
                     }
                     this.removeDropdownWidget();
                 }
-                super.unfocus();
+
+                this.inputFieldFocused = false;
+                this.renderOffset = 0;
             }
 
             @Override
@@ -59,10 +64,13 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
                 this.screen.clearPopupControllerWidget();
                 this.dropdownVisible = false;
                 this.dropdownWidget = null;
+                this.inputFieldFocused = false;
             }
 
             @Override
-            public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+                if (!this.inputFieldFocused && !this.isFocused()) return false;
+
                 return DropdownUIHelper.handleKeyPressed(this, keyCode);
             }
 
@@ -77,13 +85,13 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             }
 
             @Override
-            public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            public boolean onMouseClicked(double mouseX, double mouseY, int button) {
                 return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
             }
 
             @Override
-            public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-                return false;
+            protected int getValueColor() {
+                return this.isAvailable() ? -1 : this.inactiveColor;
             }
         };
     }

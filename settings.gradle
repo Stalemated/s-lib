@@ -11,4 +11,4 @@ rootProject.name = 's-lib'
 
 include 'common'
 include 'fabric'
-include 'forge'
+include 'neoforge'
