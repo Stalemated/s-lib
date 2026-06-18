@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1+1.21.1
+
+### Fix
+- Changed AttributeGetter methods from private to public
+
 ## 1.0.0+1.21.1
 
 **First release of S-Lib, a shared library designed to provide Stalemated's mods with common code.**
