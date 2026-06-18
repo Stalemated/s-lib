@@ -62,11 +62,11 @@ Once published, other local projects will be able to resolve `com.stalemated.lib
 
 ## 🌍 Platform Support
 
-| Platform | Versions             |
-|----------|----------------------|
-| Fabric   | 1.20.1, 1.21.1 (WIP) |
-| Forge    | 1.20.1               |
-| NeoForge | 1.21.1 (WIP)         |
+| Platform | Versions       |
+|----------|----------------|
+| Fabric   | 1.20.1, 1.21.1 |
+| Forge    | 1.20.1         |
+| NeoForge | 1.21.1         |
 
 ---
 
