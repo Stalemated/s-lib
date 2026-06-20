@@ -15,6 +15,9 @@ A core utility library providing shared code for Stalemated's mods.
 logoFile = "META-INF/icon.png"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
 
+[[mixins]]
+config = "s-lib.mixins.json"
+
 [[dependencies.s_lib]]
 modId = "forge"
 mandatory = true

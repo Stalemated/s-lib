@@ -3,6 +3,7 @@ package com.stalemated.lib.forge;
 import com.stalemated.lib.helper.PlatformHelper;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.fml.loading.LoadingModList;
 
 import java.nio.file.Path;
 
@@ -20,5 +21,10 @@ public class ForgePlatformHelper implements PlatformHelper {
     @Override
     public boolean isModLoaded(String modId) {
         return ModList.get().isLoaded(modId);
+    }
+
+    @Override
+    public boolean isModLoadedAtLaunch(String modId) {
+        return LoadingModList.get().getModFileById(modId) != null;
     }
 }
