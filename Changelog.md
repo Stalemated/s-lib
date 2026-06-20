@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2+1.20.1
+
+- Version bump to have parity with 1.21's version
+
+## 1.0.1+1.20.1
+
+### Fix
+- Updated isModLoaded() in Forge to get the loading mod list (Fixes crashes with mixin plugins)
+- Fixed mixins not being applied in Forge
+
 ## 1.0.0
 
 **First release of S-Lib, a shared library designed to provide Stalemated's mods with common code.**
