@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2+1.21.1
+
+### Fix
+- Updated isModLoaded() in NeoForge to get the loading mod list (Fixes crashes with mixin plugins)
+
 ## 1.0.1+1.21.1
 
 ### Fix
