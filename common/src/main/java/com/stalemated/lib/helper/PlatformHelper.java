@@ -14,4 +14,6 @@ public interface PlatformHelper {
     Path getGameDir();
 
     boolean isModLoaded(String modId);
+
+    boolean isModLoadedAtLaunch(String modId);
 }

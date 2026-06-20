@@ -20,4 +20,9 @@ public class FabricPlatformHelper implements PlatformHelper {
     public boolean isModLoaded(String modId) {
         return FabricLoader.getInstance().isModLoaded(modId);
     }
+
+    @Override
+    public boolean isModLoadedAtLaunch(String modId) {
+        return FabricLoader.getInstance().isModLoaded(modId);
+    }
 }
