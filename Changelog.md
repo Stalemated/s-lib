@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3+1.20.1
+
+### New feature
+
+- Regex strategy can now match tags (e.g. `regex:#c:(swords|bows)` will match the `#c:swords` and the `#c:bows` tags.)
+  - The `#` symbol **ALWAYS** needs to be prefixed when matching tags in regex mode.
+
 ## 1.0.2+1.20.1
 
 - Version bump to have parity with 1.21's version
