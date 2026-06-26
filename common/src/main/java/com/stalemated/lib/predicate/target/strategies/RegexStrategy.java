@@ -13,6 +13,10 @@ public class RegexStrategy implements TargetMatcher {
 
     @Override
     public boolean matches(ItemStack stack) {
-        return pattern.matcher(Registries.ITEM.getId(stack.getItem()).toString()).matches();
+        if (pattern.matcher(Registries.ITEM.getId(stack.getItem()).toString()).matches()) {
+            return true;
+        }
+
+        return stack.streamTags().anyMatch(tag -> pattern.matcher("#" + tag.id().toString()).matches());
     }
 }
