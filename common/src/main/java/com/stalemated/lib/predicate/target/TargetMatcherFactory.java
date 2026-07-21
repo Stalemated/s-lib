@@ -9,6 +9,10 @@ public class TargetMatcherFactory {
 
         if (target.equals("*")) return new AllItemsStrategy();
 
+        if (target.startsWith("!")) {
+            return new NotStrategy(TargetMatcherFactory.create(target.substring(1)));
+        }
+
         if (target.startsWith("regex:")) {
             try { return new RegexStrategy(target.substring(6)); }
             catch (Exception e) { return new NoneStrategy(); }
