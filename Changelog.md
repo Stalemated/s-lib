@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.4+1.21.1
+
+### New feature
+
+- A new Not strategy was implemented, allowing to negate any condition from any other tag. This allows for matching all but one item, one but one namespace, or effectively negating a regex pattern (e.g. `!regex:#c:(swords|bows)` will match everything EXCEPT the `#c:swords` and the `#c:bows` tags.)
+
 ## 1.0.3+1.21.1
 
 ### New feature
