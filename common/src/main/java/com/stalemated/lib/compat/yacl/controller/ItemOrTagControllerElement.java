@@ -28,11 +28,12 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     }
 
     private boolean isSpecialTarget(String value) {
-        return value.equals("*") || value.startsWith("regex:") || value.endsWith(":*") || value.startsWith("#");
+        return value.equals("*") || value.startsWith("!") || value.startsWith("regex:") || value.endsWith(":*") || value.startsWith("#");
     }
 
     private Text formatTargetText(String value) {
         if (value.equals("*")) return Text.literal(value).formatted(Formatting.AQUA);
+        if (value.startsWith("!")) return Text.literal(value).formatted(Formatting.RED);
         if (value.startsWith("regex:")) return Text.literal(value).formatted(Formatting.GREEN);
         if (value.endsWith(":*")) return Text.literal(value).formatted(Formatting.YELLOW);
         if (value.startsWith("#")) return Text.literal(value).formatted(Formatting.GOLD);
