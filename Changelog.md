@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.5+1.21.1
+
+### Feature
+
+- Added color formatting (red) for the new Not Strategy in the ItemOrTagController
+
 ## 1.0.4+1.21.1
 
 ### New feature
