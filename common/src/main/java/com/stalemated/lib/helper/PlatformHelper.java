@@ -1,5 +1,6 @@
 package com.stalemated.lib.helper;
 
+import net.minecraft.client.option.KeyBinding;
 import java.nio.file.Path;
 import java.util.ServiceLoader;
 
@@ -16,4 +17,6 @@ public interface PlatformHelper {
     boolean isModLoaded(String modId);
 
     boolean isModLoadedAtLaunch(String modId);
+
+    void registerKeyBinding(KeyBinding keyBinding);
 }
