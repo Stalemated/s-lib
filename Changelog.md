@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.6+1.20.1
+
+### Features
+
+- Added an easy way to register keybinds for both Fabric and Forge (`PlatformHelper.registerKeyBinding(KeyBinding keyBinding);`)
+- Added 3 different easing functions (lerp, ease out cubic, ease out expo) to MathUtils
+
+
 ## 1.0.5+1.20.1
 
 ### Feature
