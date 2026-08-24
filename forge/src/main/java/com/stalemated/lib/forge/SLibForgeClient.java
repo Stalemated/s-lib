@@ -1,21 +1,17 @@
 package com.stalemated.lib.forge;
 
+import com.stalemated.lib.forge.helper.ForgePlatformHelper;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
-import com.stalemated.lib.SLibClient;
-
-@Mod(SLibClient.MOD_ID)
 @SuppressWarnings("removal")
 public final class SLibForgeClient {
-    public SLibForgeClient() {
-        SLibClient.init();
-        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onRegisterKeyMappings);
+    public static void init() {
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibForgeClient::onRegisterKeyMappings);
     }
 
-    private void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+    private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         for (KeyBinding kb : ForgePlatformHelper.KEYBINDINGS) {
             event.register(kb);
         }

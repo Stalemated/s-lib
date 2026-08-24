@@ -14,10 +14,10 @@
     },
     "license": "MIT",
     "icon": "icon.png",
-    "environment": "client",
+    "environment": "*",
     "entrypoints": {
-        "client": [
-            "com.stalemated.lib.fabric.SLibFabricClient"
+        "main": [
+            "com.stalemated.lib.fabric.SLibFabric"
         ]
     },
     "mixins": [

@@ -2,7 +2,6 @@ modLoader = "javafml"
 loaderVersion = "[47,)"
 issueTrackerURL = "https://github.com/Stalemated/s-lib/issues"
 license = "MIT"
-clientSideOnly = true
 
 [[mods]]
 modId = "s_lib"
@@ -23,11 +22,11 @@ modId = "forge"
 mandatory = true
 versionRange = "[47,)"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
 
 [[dependencies.s_lib]]
 modId = "minecraft"
 mandatory = true
 versionRange = "[1.20.1,)"
 ordering = "NONE"
-side = "CLIENT"
+side = "BOTH"
