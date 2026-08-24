@@ -1,4 +1,4 @@
-package com.stalemated.lib.fabric;
+package com.stalemated.lib.fabric.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;

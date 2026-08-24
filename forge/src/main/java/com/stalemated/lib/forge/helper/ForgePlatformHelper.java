@@ -1,4 +1,4 @@
-package com.stalemated.lib.forge;
+package com.stalemated.lib.forge.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
 import net.minecraftforge.fml.ModList;
