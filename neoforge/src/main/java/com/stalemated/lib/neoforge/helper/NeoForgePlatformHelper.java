@@ -1,4 +1,4 @@
-package com.stalemated.lib.neoforge;
+package com.stalemated.lib.neoforge.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
 import net.minecraft.client.option.KeyBinding;

@@ -1,6 +1,7 @@
 package com.stalemated.lib.neoforge;
 
 import com.stalemated.lib.SLib;
+import com.stalemated.lib.neoforge.helper.NeoForgePlatformHelper;
 import net.minecraft.client.option.KeyBinding;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
