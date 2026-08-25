@@ -1,11 +1,9 @@
 package com.stalemated.lib.neoforge.network;
 
-import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.network.AbstractNetworkHelper;
+import com.stalemated.lib.network.WrapperPayload;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -18,23 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 @EventBusSubscriber(modid = "s_lib")
-public class NeoForgeNetworkHelper implements NetworkHelper {
-    private static final Map<Identifier, ServerReceiver> SERVER_RECEIVERS = new HashMap<>();
-    private static final Map<Identifier, ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
-
-    public record WrapperPayload(Identifier channelId, byte[] data) implements CustomPayload {
-        public static final CustomPayload.Id<WrapperPayload> ID = new CustomPayload.Id<>(Identifier.of("s_lib", "network"));
-        public static final PacketCodec<PacketByteBuf, WrapperPayload> CODEC = PacketCodec.tuple(
-                Identifier.PACKET_CODEC, WrapperPayload::channelId,
-                PacketCodecs.BYTE_ARRAY, WrapperPayload::data,
-                WrapperPayload::new
-        );
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
-    }
+public class NeoForgeNetworkHelper extends AbstractNetworkHelper {
+    public static final Map<Identifier, ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
@@ -74,11 +57,6 @@ public class NeoForgeNetworkHelper implements NetworkHelper {
         byte[] data = new byte[buf.readableBytes()];
         buf.readBytes(data);
         PacketDistributor.sendToServer(new WrapperPayload(id, data));
-    }
-
-    @Override
-    public void registerServerReceiver(Identifier id, ServerReceiver receiver) {
-        SERVER_RECEIVERS.put(id, receiver);
     }
 
     @Override
