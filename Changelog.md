@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.0+1.20.1
+
+### Major Architecture Changes & Features
+
+- **Serverside Support:** S-Lib is no longer a clientside exclusively mod! The entire architecture has been refactored to run on both clients and servers.
+- **Cross-Platform Networking API:** Introduced `NetworkHelper`, a multi loader abstraction to send and receive packets between clients and servers.
+- **Developer Experience & Cleanup:**
+    - Added complete Javadocs to `PlatformHelper` and `NetworkHelper`.
+    - Cleaned up redundant multi-loader initialization classes (e.g., completely purged the functionally useless `SLibClient` class).
+
+
 ## 1.0.6+1.21.1
 
 ### Features
