@@ -1,21 +1,19 @@
 package com.stalemated.lib.neoforge;
 
-import com.stalemated.lib.SLibClient;
+import com.stalemated.lib.SLib;
 import net.minecraft.client.option.KeyBinding;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 
-@Mod(SLibClient.MOD_ID)
+@EventBusSubscriber(modid = SLib.MOD_ID, value = Dist.CLIENT)
 public final class SLibNeoForgeClient {
-    public SLibNeoForgeClient(IEventBus modEventBus) {
-        SLibClient.init();
-        modEventBus.addListener(this::onRegisterKeyMappings);
-    }
 
-    private void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        for (KeyBinding kb : NeoForgePlatformHelper.KEYBINDINGS) {
-            event.register(kb);
+    @SubscribeEvent
+    public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        for (KeyBinding keyBinding : NeoForgePlatformHelper.KEYBINDINGS) {
+            event.register(keyBinding);
         }
     }
 }
