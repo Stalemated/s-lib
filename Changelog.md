@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1+1.20.1
+
+### Fix
+- Fixed race condition in Forge making modded items not match when matching exact items using ItemStrategy
+
 ## 2.0.0+1.20.1
 
 ### Major Architecture Changes & Features
