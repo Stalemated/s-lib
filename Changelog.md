@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1+1.21.1
+
+### Fix
+- Fixed race condition in NeoForge making modded items not match when matching exact items using ItemStrategy
+
 ## 2.0.0+1.21.1
 
 ### Major Architecture Changes & Features
