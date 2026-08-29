@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.0+1.21.1
+
+### Features
+
+- Created SyncedConfigManager, a specialized ConfigManager that handles network sync between client and server configs
+    - It allows for custom permissions to edit configs in game (such as OP only, etc...)
+    - Same syntax as the recently added BaseConfigManager class (or even simpler)
+    - Whenever a config file is edited in a server, the config applies instantly and gets automagically sent to all players
+
 ## 2.0.1+1.21.1
 
 ### Fix
