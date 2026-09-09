@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1+1.20.1
+
+### Fix
+- Fixed Forge version not letting the user login to servers if the mod is not installed server-side and the player has a server-side mod that depends on it installed on the client
+  - New behavior should allow the client to join but make the server-side features of the mod unusable
+
 ## 2.1.0+1.20.1
 
 ### Features
