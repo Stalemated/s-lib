@@ -24,8 +24,8 @@ public class ForgeNetworkHelper implements NetworkHelper {
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new Identifier("s_lib", "network"),
             () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
+            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
+            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION)
     );
 
     static {

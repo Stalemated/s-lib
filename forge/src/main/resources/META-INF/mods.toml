@@ -13,6 +13,7 @@ A core utility library providing shared code for Stalemated's mods.
 '''
 logoFile = "META-INF/icon.png"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
+displayTest = "IGNORE_SERVER_VERSION"
 
 [[mixins]]
 config = "s-lib.mixins.json"
