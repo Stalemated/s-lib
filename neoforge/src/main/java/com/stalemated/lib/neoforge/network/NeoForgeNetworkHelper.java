@@ -21,7 +21,7 @@ public class NeoForgeNetworkHelper extends AbstractNetworkHelper {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("s_lib");
+        PayloadRegistrar registrar = event.registrar("s_lib").optional();
         registrar.playBidirectional(
             WrapperPayload.ID,
             WrapperPayload.CODEC,
