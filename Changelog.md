@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1+1.21.1
+
+### Fix
+- Fixed NeoForge version not letting the user login to servers if the mod is not installed server-side
+  - New behavior should allow the client to join as usual
+
 ## 2.1.0+1.21.1
 
 ### Features
