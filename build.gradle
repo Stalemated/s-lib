@@ -24,6 +24,7 @@ subprojects {
     }
 
     repositories {
+        mavenCentral()
         maven { url 'https://maven.isxander.dev/releases' }
         maven { url 'https://maven.quiltmc.org/repository/release' }
     }
