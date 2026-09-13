@@ -1,6 +1,7 @@
 package com.stalemated.lib.fabric.network;
 
 import com.stalemated.lib.network.NetworkHelper;
+import io.netty.buffer.Unpooled;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.api.FabricLoader;
@@ -31,7 +32,11 @@ public class FabricNetworkHelper implements NetworkHelper {
                         handler,
                         buf,
                         responseSender
-                ) -> receiver.receive(player, buf)
+                ) -> {
+                    byte[] data = new byte[buf.readableBytes()];
+                    buf.readBytes(data);
+                    server.execute(() -> receiver.receive(player, new PacketByteBuf(Unpooled.wrappedBuffer(data))));
+                }
         );
     }
 
