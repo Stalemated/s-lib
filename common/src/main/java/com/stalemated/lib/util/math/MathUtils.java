@@ -2,6 +2,22 @@ package com.stalemated.lib.util.math;
 
 public class MathUtils {
     public static int clamp(int value, int min, int max) {
+        if (min > max) throw new IllegalArgumentException();
+
+        if (value < min) return min;
+        return Math.min(value, max);
+    }
+
+    public static float clamp(float value, float min, float max) {
+        if (min > max) throw new IllegalArgumentException();
+
+        if (value < min) return min;
+        return Math.min(value, max);
+    }
+
+    public static double clamp(double value, double min, double max) {
+        if (min > max) throw new IllegalArgumentException();
+
         if (value < min) return min;
         return Math.min(value, max);
     }
