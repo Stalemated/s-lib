@@ -20,4 +20,10 @@ public interface ConfigProvider<T> {
      * @return The configuration instance.
      */
     T instance();
+
+    /**
+     * Sets the active configuration instance in memory.
+     * @param instance The new configuration instance.
+     */
+    default void setInstance(T instance) {}
 }
