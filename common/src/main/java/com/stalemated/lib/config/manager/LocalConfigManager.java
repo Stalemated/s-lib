@@ -1,6 +1,6 @@
-package com.stalemated.lib.config;
+package com.stalemated.lib.config.manager;
 
-import com.stalemated.lib.helper.PlatformHelper;
+import com.stalemated.lib.config.ConfigProvider;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -9,11 +9,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Base abstract class for Config Managers.
+ * Base class for Config Managers, in this case, local only.
  * 
- * @param <T> The configuration instance type.
+ * @param <T> The config instance type.
  */
-public abstract class BaseConfigManager<T> {
+public class LocalConfigManager<T> {
     
     protected final ConfigProvider<T> provider;
     protected final Path configPath;
@@ -22,34 +22,20 @@ public abstract class BaseConfigManager<T> {
     public boolean configLoadFailed = false;
 
     /**
-     * Simplifies path creation by resolving segments against the game's config directory.
-     * 
-     * @param paths Subdirectories and filename segments (e.g., "my_mod", "config.json5").
-     * @return The fully resolved absolute Path.
-     */
-    public static Path buildPath(String... paths) {
-        Path current = PlatformHelper.INSTANCE.getConfigDir();
-        for (String p : paths) {
-            current = current.resolve(p);
-        }
-        return current;
-    }
-
-    /**
-     * Constructs a new BaseConfigManager.
+     * Constructs a new LocalConfigManager.
      * 
      * @param provider A config provider.
-     * @param configPath The absolute path to the configuration file.
+     * @param configPath The absolute path to the config file.
      * @param logger The mod's logger used for warnings and error reporting.
      */
-    public BaseConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger) {
+    public LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger) {
         this.provider = provider;
         this.configPath = configPath;
         this.logger = logger;
     }
 
     /**
-     * Registers the configuration.
+     * Registers the config.
      * This handles file verification, loading the config, creating backups if loading fails,
      * saving defaults if the file is new, and invoking lifecycle hooks.
      */
@@ -89,6 +75,15 @@ public abstract class BaseConfigManager<T> {
     }
 
     /**
+     * Retrieves the active config instance. For local configs, this is identical to {@link #getConfig()}.
+     *
+     * @return The active config object.
+     */
+    public T getActiveConfig() {
+        return getConfig();
+    }
+
+    /**
      * Hook method invoked after the config is successfully registered (loaded or created).
      * Subclasses can override this to execute custom logic like reloading registries.
      * 
@@ -98,7 +93,7 @@ public abstract class BaseConfigManager<T> {
     }
 
     /**
-     * Hook method invoked after the configuration is successfully saved to disk.
+     * Hook method invoked after the config is successfully saved to disk.
      * Subclasses can override this to trigger events or reload logic.
      */
     protected void onSaveSuccess() {
