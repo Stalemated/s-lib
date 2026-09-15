@@ -4,6 +4,7 @@ import blue.endless.jankson.Jankson;
 import com.stalemated.lib.config.ConfigProvider;
 import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -74,7 +75,12 @@ public class Json5Provider<T> implements ConfigProvider<T> {
             DeserializationResult<T> result = serializer.deserialize(content, defaultFactory);
             this.instance = result.instance();
 
-            // If new fields were added or values were clamped, rewrite the file
+            if (result.partialCorruptionDetected()) {
+                logger.error("Syntax or type errors detected in {}. Creating a backup before salvaging...", configPath.getFileName());
+                FileUtils.createBackupSafe(configPath, logger);
+            }
+
+            // If new fields were added, values were clamped, or corrupted types were salvaged, rewrite the file
             if (result.requiresSave()) {
                 logger.info("Updating config file format for: {}", configPath.getFileName());
                 save();

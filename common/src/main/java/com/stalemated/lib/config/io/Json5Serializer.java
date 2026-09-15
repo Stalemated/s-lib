@@ -1,9 +1,8 @@
 package com.stalemated.lib.config.io;
 
-import blue.endless.jankson.Jankson;
-import blue.endless.jankson.JsonElement;
-import blue.endless.jankson.JsonGrammar;
-import blue.endless.jankson.JsonObject;
+import blue.endless.jankson.*;
+import blue.endless.jankson.api.DeserializationException;
+import blue.endless.jankson.api.Marshaller;
 import blue.endless.jankson.api.SyntaxError;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
@@ -13,6 +12,7 @@ import com.stalemated.lib.config.model.OptionTree;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -38,6 +38,9 @@ public class Json5Serializer<T> {
         this.configClass = configClass;
         this.optionTree = optionTree;
         Jankson.Builder builder = Jankson.builder();
+        
+        registerDoubleSerializer(builder);
+
         if (customizer != null) {
             customizer.accept(builder);
         }
@@ -67,6 +70,13 @@ public class Json5Serializer<T> {
 
         processCommentsAndIgnores("", rootObject);
         return rootObject.toJson(grammar);
+    }
+
+    private void registerDoubleSerializer(Jankson.Builder builder) {
+        BiFunction<Float, Marshaller, JsonElement> floatSerializer =
+                (f, m) -> new JsonPrimitive(Double.parseDouble(String.valueOf(f)));
+        builder.registerSerializer(Float.class, floatSerializer);
+        builder.registerSerializer(float.class, floatSerializer);
     }
 
     private void processCommentsAndIgnores(String prefix, JsonObject jsonObject) {
@@ -127,7 +137,7 @@ public class Json5Serializer<T> {
      */
     public DeserializationResult<T> deserialize(String json5Content, Supplier<T> defaultFactory) {
         if (json5Content == null || json5Content.trim().isEmpty()) {
-            return new DeserializationResult<>(defaultFactory.get(), true);
+            return new DeserializationResult<>(defaultFactory.get(), true, false);
         }
 
         JsonObject rootObject;
@@ -140,54 +150,83 @@ public class Json5Serializer<T> {
         T instance = jankson.fromJson(rootObject, configClass);
         if (instance == null) instance = defaultFactory.get();
 
-        boolean schemaMigrationNeeded = processClampingAndMigration(rootObject, instance);
-
-        return new DeserializationResult<>(instance, schemaMigrationNeeded);
+        return processClampingAndMigration(rootObject, instance);
     }
 
-    private boolean processClampingAndMigration(JsonObject rootObject, Object instance) {
+    private DeserializationResult<T> processClampingAndMigration(JsonObject rootObject, T instance) {
         boolean migrationNeeded = false;
+        boolean partialCorruptionDetected = false;
 
         for (OptionInfo option : optionTree.all()) {
-            if (isMissingInJson(rootObject, option.getKey())) {
+            JsonElement elem = getElementFromJson(rootObject, option.getKey());
+
+            if (elem == null) {
                 option.setValue(instance, option.getDefaultValue());
                 migrationNeeded = true;
-            } else if (applyClampingIfChanged(option, instance)) {
-                migrationNeeded = true;
+            } else {
+                ProcessResult result = processExistingOption(instance, option, elem);
+
+                if (result == ProcessResult.CORRUPTED) {
+                    partialCorruptionDetected = true;
+                } else if (result == ProcessResult.CLAMPED) {
+                    migrationNeeded = true;
+                }
             }
         }
-        
-        return migrationNeeded;
+
+        return new DeserializationResult<>(instance, migrationNeeded || partialCorruptionDetected, partialCorruptionDetected);
     }
 
-    private boolean isMissingInJson(JsonObject rootObject, String optionKey) {
+    private ProcessResult processExistingOption(Object instance, OptionInfo option, JsonElement elem) {
+        try {
+            Object parsed = jankson.getMarshaller().marshallCarefully(option.getType(), elem);
+            Object clamped = option.clampValue(parsed);
+            option.setValue(instance, clamped);
+            
+            if (parsed == null || !parsed.equals(clamped)) {
+                return ProcessResult.CLAMPED;
+            }
+
+            if (isSilentlyMutated(elem, parsed)) {
+                return ProcessResult.CLAMPED;
+            }
+            
+            return ProcessResult.OK;
+        } catch (DeserializationException e) {
+            option.setValue(instance, option.getDefaultValue());
+            return ProcessResult.CORRUPTED;
+        }
+    }
+
+    private boolean isSilentlyMutated(JsonElement elem, Object parsed) {
+        if (!(elem instanceof JsonPrimitive)) return false;
+
+        JsonElement reMarshalled = jankson.toJson(parsed);
+        String originalJson = elem.toJson(false, false);
+        String newJson = reMarshalled.toJson(false, false);
+
+        return !originalJson.equals(newJson);
+    }
+
+    private JsonElement getElementFromJson(JsonObject rootObject, String optionKey) {
         String[] path = optionKey.split("\\.");
         JsonObject current = rootObject;
         
         for (int i = 0; i < path.length; i++) {
             if (current == null || !current.containsKey(path[i])) {
-                return true;
+                return null;
             }
 
             JsonElement elem = current.get(path[i]);
-            if (elem instanceof JsonObject) {
+            if (i == path.length - 1) {
+                return elem;
+            } else if (elem instanceof JsonObject) {
                 current = (JsonObject) elem;
-            } else if (i < path.length - 1) {
-                // Hitting a primitive
-                return true;
+            } else {
+                return null; // Path breaks prematurely
             }
         }
-        return false;
+        return null;
     }
 
-    private boolean applyClampingIfChanged(OptionInfo option, Object instance) {
-        Object currentVal = option.getValue(instance);
-        Object clamped = option.clampValue(currentVal);
-
-        if (currentVal != null && !currentVal.equals(clamped)) {
-            option.setValue(instance, clamped);
-            return true;
-        }
-        return false;
-    }
 }
