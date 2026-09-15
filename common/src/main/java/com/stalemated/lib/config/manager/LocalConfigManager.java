@@ -1,6 +1,8 @@
 package com.stalemated.lib.config.manager;
 
 import com.stalemated.lib.config.io.ConfigProvider;
+import com.stalemated.lib.config.model.OptionInfo;
+import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
@@ -8,15 +10,17 @@ import java.io.File;
 import java.nio.file.Path;
 
 /**
- * Base class for Config Managers, in this case, local only.
- * 
- * @param <T> The config instance type.
+ * Base config manager for handling local configs.
+ * Provides default disk read/write strategies via a {@link ConfigProvider}.
+ *
+ * @param <T> The config data model class.
  */
 public class LocalConfigManager<T> {
     
     protected final ConfigProvider<T> provider;
     protected final Path configPath;
     protected final Logger logger;
+    protected final OptionTree optionTree;
     
     public boolean configLoadFailed = false;
 
@@ -26,11 +30,13 @@ public class LocalConfigManager<T> {
      * @param provider A config provider.
      * @param configPath The absolute path to the config file.
      * @param logger The mod's logger used for warnings and error reporting.
+     * @param optionTree The option tree mapping the configuration model.
      */
-    public LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger) {
+    public LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger, OptionTree optionTree) {
         this.provider = provider;
         this.configPath = configPath;
         this.logger = logger;
+        this.optionTree = optionTree;
     }
 
     /**
@@ -58,6 +64,13 @@ public class LocalConfigManager<T> {
      * Saves the current config instance to disk and invokes the post-save hook.
      */
     public final void save() {
+        T instance = provider.instance();
+        if (instance != null && optionTree != null) {
+            for (OptionInfo option : optionTree.all()) {
+                option.enforceLimits(instance);
+            }
+        }
+        
         provider.save();
         onSaveSuccess();
     }

@@ -105,6 +105,23 @@ public class OptionInfo {
     }
 
     /**
+     * Reads the current value from the root instance, applies clamping rules,
+     * and sets it back if the clamped value differs from the original.
+     * 
+     * @param rootInstance The root config instance.
+     */
+    public void enforceLimits(Object rootInstance) {
+        if (rootInstance == null) return;
+        
+        Object current = getValue(rootInstance);
+        Object clamped = clampValue(current);
+        
+        if (current != null && !current.equals(clamped)) {
+            setValue(rootInstance, clamped);
+        }
+    }
+
+    /**
      * Clamps a numeric value according to any {@link RangeInt} or {@link RangeFloat} annotations.
      *
      * @param value The candidate value.

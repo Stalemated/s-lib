@@ -38,7 +38,6 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     private final Class<T> configClass;
     private final Predicate<ServerPlayerEntity> serverPermissionCheck;
     private final Supplier<T> defaultFactory;
-    private final OptionTree optionTree;
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
 
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
@@ -65,13 +64,12 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             Predicate<ServerPlayerEntity> serverPermissionCheck,
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
-        super(provider, configPath, logger);
+        super(provider, configPath, logger, optionTree);
         this.s2cPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
         this.c2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
         this.configClass = configClass;
         this.serverPermissionCheck = serverPermissionCheck;
         this.defaultFactory = defaultFactory;
-        this.optionTree = optionTree;
     }
 
     public OptionTree getOptionTree() {
