@@ -11,6 +11,12 @@ public final class FileUtils {
 
     private FileUtils() {}
 
+    /**
+     * Deletes a file if it is empty.
+     *
+     * @param file The file to check and delete.
+     * @param logger The {@link Logger} to report any errors.
+     */
     public static void deleteIfEmpty(File file, Logger logger) {
         if (file.exists() && file.length() == 0) {
             try {
@@ -21,6 +27,12 @@ public final class FileUtils {
         }
     }
 
+    /**
+     * Checks if a file does not exist or is empty.
+     *
+     * @param file The file to check.
+     * @return True if the file does not exist or is empty.
+     */
     public static boolean isNewOrEmpty(File file) {
         return !file.exists() || file.length() == 0;
     }
