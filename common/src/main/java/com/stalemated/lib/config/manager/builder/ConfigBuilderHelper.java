@@ -5,7 +5,7 @@ import com.stalemated.lib.config.ConfigProvider;
 import com.stalemated.lib.config.io.Json5Provider;
 import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.util.path.PathUtils;
+import com.stalemated.lib.util.io.PathUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

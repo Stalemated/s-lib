@@ -1,4 +1,4 @@
-package com.stalemated.lib.util.path;
+package com.stalemated.lib.util.io;
 
 import com.stalemated.lib.helper.PlatformHelper;
 import java.nio.file.Path;

@@ -1,12 +1,11 @@
 package com.stalemated.lib.config.manager;
 
 import com.stalemated.lib.config.ConfigProvider;
+import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 /**
  * Base class for Config Managers, in this case, local only.
@@ -41,19 +40,17 @@ public class LocalConfigManager<T> {
      */
     public final void register() {
         File configFile = configPath.toFile();
-        boolean isNewOrEmpty = isNewOrEmpty(configFile);
+        boolean isNewOrEmpty = FileUtils.isNewOrEmpty(configFile);
 
-        deleteIfEmpty(configFile);
-
+        FileUtils.deleteIfEmpty(configFile, logger);
         boolean loaded = provider.load();
 
         if (!loaded && !isNewOrEmpty) {
             configLoadFailed = true;
-            createBackup(configFile);
+            FileUtils.createBackupSafe(configFile.toPath(), logger);
         }
 
         if (isNewOrEmpty) save();
-        
         onRegisterSuccess(isNewOrEmpty);
     }
 
@@ -97,36 +94,5 @@ public class LocalConfigManager<T> {
      * Subclasses can override this to trigger events or reload logic.
      */
     protected void onSaveSuccess() {
-    }
-
-    private boolean isNewOrEmpty(File configFile) {
-        return !configFile.exists() || configFile.length() == 0;
-    }
-
-    private void deleteIfEmpty(File configFile) {
-        if (configFile.exists() && configFile.length() == 0) {
-            try {
-                boolean ignored = configFile.delete();
-            } catch (Exception e) {
-                logger.warn("Failed to delete empty config file: ", e);
-            }
-        }
-    }
-
-    private void createBackup(File configFile) {
-        String fileName = configPath.getFileName().toString();
-
-        int dotIndex = fileName.lastIndexOf('.');
-        String backupFileName = dotIndex > 0 
-            ? fileName.substring(0, dotIndex) + "_backup" + fileName.substring(dotIndex)
-            : fileName + "_backup";
-            
-        File configBackup = configPath.getParent().resolve(backupFileName).toFile();
-        try {
-            Files.copy(configFile.toPath(), configBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            logger.error("A backup of your broken config was saved to: {}", configBackup.getName());
-        } catch (Exception e) {
-            logger.error("Failed to create backup of the broken config!", e);
-        }
     }
 }
