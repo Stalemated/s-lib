@@ -100,9 +100,7 @@ public class Json5Provider<T> implements ConfigProvider<T> {
                 Files.createDirectories(configPath.getParent());
             }
 
-            if (instance == null) instance = defaultFactory.get();
-
-            String serialized = serializer.serialize(instance);
+            String serialized = serializer.serialize(instance());
             Files.writeString(
                     configPath,
                     serialized,
@@ -118,12 +116,14 @@ public class Json5Provider<T> implements ConfigProvider<T> {
 
     @Override
     public T instance() {
-        if (instance == null) instance = defaultFactory.get();
         return instance;
     }
 
     @Override
     public void setInstance(T instance) {
+        if (instance == null) {
+            throw new IllegalArgumentException("Config instance cannot be null");
+        }
         this.instance = instance;
     }
 }
