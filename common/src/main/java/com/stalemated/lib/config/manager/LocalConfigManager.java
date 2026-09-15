@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.manager;
 
-import com.stalemated.lib.config.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 

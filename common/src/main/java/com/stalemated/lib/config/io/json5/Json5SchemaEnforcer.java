@@ -1,4 +1,4 @@
-package com.stalemated.lib.config.io;
+package com.stalemated.lib.config.io.json5;
 
 import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
@@ -14,13 +14,19 @@ import com.stalemated.lib.config.model.OptionTree;
  * Responsible for clamping values, assigning defaults to missing keys,
  * detecting silent mutations, and identifying partial corruption.
  */
-public class SchemaEnforcer<T> {
+class Json5SchemaEnforcer<T> {
+
+    private enum ProcessResult {
+        OK,
+        CLAMPED,
+        CORRUPTED
+    }
 
     private final OptionTree optionTree;
     private final Jankson jankson;
-    private final ConfigSchemaValidator schemaValidator;
+    private final Json5SchemaValidator schemaValidator;
 
-    public SchemaEnforcer(OptionTree optionTree, Jankson jankson, ConfigSchemaValidator schemaValidator) {
+    public Json5SchemaEnforcer(OptionTree optionTree, Jankson jankson, Json5SchemaValidator schemaValidator) {
         this.optionTree = optionTree;
         this.jankson = jankson;
         this.schemaValidator = schemaValidator;

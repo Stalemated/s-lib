@@ -1,4 +1,4 @@
-package com.stalemated.lib.config.io;
+package com.stalemated.lib.config.io.json5;
 
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
@@ -9,10 +9,10 @@ import com.stalemated.lib.config.model.OptionTree;
  * Validates the structure of a parsed JSON config against the expected OptionTree schema.
  * Ensures no orphaned/garbage keys are left in the configuration file.
  */
-public class ConfigSchemaValidator {
+class Json5SchemaValidator {
     private final OptionTree optionTree;
 
-    public ConfigSchemaValidator(OptionTree optionTree) {
+    public Json5SchemaValidator(OptionTree optionTree) {
         this.optionTree = optionTree;
     }
 

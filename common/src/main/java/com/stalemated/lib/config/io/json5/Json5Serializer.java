@@ -1,10 +1,11 @@
-package com.stalemated.lib.config.io;
+package com.stalemated.lib.config.io.json5;
 
 import blue.endless.jankson.*;
 import blue.endless.jankson.api.Marshaller;
 import blue.endless.jankson.api.SyntaxError;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
+import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -16,20 +17,20 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * JSON5 serializer that supports line comments via {@link Comment}, boundary validation via
- * {@link OptionTree} metadata, arbitrary recursive nesting via {@link Nest}, and automatic
- * schema migration when new options are added.
+ * Pure JSON5 serializer that supports line comments via {@link Comment},
+ * arbitrary recursive nesting via {@link Nest}, and delegates strict
+ * validation/auto-migration to internal enforcers.
  *
  * @param <T> The config data model class.
  */
-public class Json5Serializer<T> {
+public class Json5Serializer<T> implements ConfigSerializer<T> {
 
     private final Class<T> configClass;
     private final OptionTree optionTree;
     private final Jankson jankson;
     private final JsonGrammar grammar;
-    private final ConfigSchemaValidator schemaValidator;
-    private final SchemaEnforcer<T> schemaEnforcer;
+    private final Json5SchemaValidator schemaValidator;
+    private final Json5SchemaEnforcer<T> schemaEnforcer;
 
     public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
         this(configClass, optionTree, null);
@@ -38,7 +39,7 @@ public class Json5Serializer<T> {
     public Json5Serializer(Class<T> configClass, OptionTree optionTree, Consumer<Jankson.Builder> customizer) {
         this.configClass = configClass;
         this.optionTree = optionTree;
-        this.schemaValidator = new ConfigSchemaValidator(optionTree);
+        this.schemaValidator = new Json5SchemaValidator(optionTree);
         
         Jankson.Builder builder = Jankson.builder();
         registerDoubleSerializer(builder);
@@ -52,7 +53,7 @@ public class Json5Serializer<T> {
                 .printWhitespace(true)
                 .build();
                 
-        this.schemaEnforcer = new SchemaEnforcer<>(optionTree, jankson, schemaValidator);
+        this.schemaEnforcer = new Json5SchemaEnforcer<>(optionTree, jankson, schemaValidator);
     }
 
     public Jankson getJankson() {
@@ -66,6 +67,7 @@ public class Json5Serializer<T> {
      * @param instance The config instance to serialize.
      * @return Formatted JSON5 string.
      */
+    @Override
     public String serialize(T instance) {
         JsonElement element = jankson.toJson(instance);
         if (!(element instanceof JsonObject rootObject)) {
@@ -74,6 +76,33 @@ public class Json5Serializer<T> {
 
         formatAndCleanAst("", rootObject);
         return rootObject.toJson(grammar);
+    }
+
+    /**
+     * Deserializes JSON5 text into a config instance, clamping numeric bounds and
+     * detecting schema migrations across all nesting levels based on the OptionTree.
+     *
+     * @param json5Content The raw JSON5 string content.
+     * @param defaultFactory Factory to create the default instance if content is empty or corrupt.
+     * @return Result containing the deserialized instance and whether disk resave is required.
+     */
+    @Override
+    public DeserializationResult<T> deserialize(String json5Content, Supplier<T> defaultFactory) {
+        if (json5Content == null || json5Content.trim().isEmpty()) {
+            return new DeserializationResult<>(defaultFactory.get(), true, false);
+        }
+
+        JsonObject rootObject;
+        try {
+            rootObject = jankson.load(json5Content);
+        } catch (SyntaxError e) {
+            throw new RuntimeException("Syntax error while parsing JSON5 config: " + e.getMessage(), e);
+        }
+
+        T instance = jankson.fromJson(rootObject, configClass);
+        if (instance == null) instance = defaultFactory.get();
+
+        return schemaEnforcer.enforce(rootObject, instance);
     }
 
     private void registerDoubleSerializer(Jankson.Builder builder) {
@@ -119,31 +148,5 @@ public class Json5Serializer<T> {
                 parentObject.remove(localKey);
             }
         }
-    }
-
-    /**
-     * Deserializes JSON5 text into a config instance, clamping numeric bounds and
-     * detecting schema migrations across all nesting levels based on the OptionTree.
-     *
-     * @param json5Content The raw JSON5 string content.
-     * @param defaultFactory Factory to create the default instance if content is empty or corrupt.
-     * @return Result containing the deserialized instance and whether disk resave is required.
-     */
-    public DeserializationResult<T> deserialize(String json5Content, Supplier<T> defaultFactory) {
-        if (json5Content == null || json5Content.trim().isEmpty()) {
-            return new DeserializationResult<>(defaultFactory.get(), true, false);
-        }
-
-        JsonObject rootObject;
-        try {
-            rootObject = jankson.load(json5Content);
-        } catch (SyntaxError e) {
-            throw new RuntimeException("Syntax error while parsing JSON5 config: " + e.getMessage(), e);
-        }
-
-        T instance = jankson.fromJson(rootObject, configClass);
-        if (instance == null) instance = defaultFactory.get();
-
-        return schemaEnforcer.enforce(rootObject, instance);
     }
 }

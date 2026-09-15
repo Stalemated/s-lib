@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.manager.builder.record;
 
-import com.stalemated.lib.config.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.model.OptionTree;
 import org.slf4j.Logger;
 

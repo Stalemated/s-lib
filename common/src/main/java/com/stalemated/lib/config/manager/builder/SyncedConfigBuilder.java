@@ -1,7 +1,7 @@
 package com.stalemated.lib.config.manager.builder;
 
 import blue.endless.jankson.Jankson;
-import com.stalemated.lib.config.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;

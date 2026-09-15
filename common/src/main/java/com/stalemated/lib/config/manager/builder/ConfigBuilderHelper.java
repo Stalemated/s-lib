@@ -1,8 +1,9 @@
 package com.stalemated.lib.config.manager.builder;
 
 import blue.endless.jankson.Jankson;
-import com.stalemated.lib.config.ConfigProvider;
-import com.stalemated.lib.config.io.Json5Provider;
+import com.stalemated.lib.config.io.ConfigProvider;
+import com.stalemated.lib.config.io.FileConfigProvider;
+import com.stalemated.lib.config.io.json5.Json5Serializer;
 import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.io.PathUtils;
@@ -43,13 +44,11 @@ public final class ConfigBuilderHelper {
 
         OptionTree tree = new OptionTree(configClass, resolvedFactory);
         ConfigProvider<T> resolvedProvider = provider != null ? provider :
-                new Json5Provider<>(
-                        configClass,
+                new FileConfigProvider<>(
                         resolvedPath,
                         resolvedFactory,
                         resolvedLogger,
-                        tree,
-                        janksonCustomizer
+                        new Json5Serializer<>(configClass, tree, janksonCustomizer)
                 );
 
         return new ResolvedConfig<>(

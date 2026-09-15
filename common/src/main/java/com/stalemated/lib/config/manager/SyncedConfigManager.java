@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.manager;
 
-import com.stalemated.lib.config.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.permissions.ClientConfigPermissions;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;

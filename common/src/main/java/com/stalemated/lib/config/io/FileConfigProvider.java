@@ -1,9 +1,6 @@
 package com.stalemated.lib.config.io;
 
-import blue.endless.jankson.Jankson;
-import com.stalemated.lib.config.ConfigProvider;
 import com.stalemated.lib.config.io.record.DeserializationResult;
-import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
@@ -12,52 +9,32 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * {@link ConfigProvider} implementation that serializes and deserializes configs to JSON5 files with comments.
+ * {@link ConfigProvider} implementation that serializes and deserializes configs to files.
  *
  * @param <T> The config data model class.
  */
-public class Json5Provider<T> implements ConfigProvider<T> {
+public class FileConfigProvider<T> implements ConfigProvider<T> {
 
     private final Path configPath;
     private final Supplier<T> defaultFactory;
     private final Logger logger;
-    private final Json5Serializer<T> serializer;
+    private final ConfigSerializer<T> serializer;
 
     private volatile T instance;
 
-    public Json5Provider(
-            Class<T> configClass,
+    public FileConfigProvider(
             Path configPath,
             Supplier<T> defaultFactory,
             Logger logger,
-            OptionTree optionTree
-    ) {
-        this(
-                configClass,
-                configPath,
-                defaultFactory,
-                logger,
-                optionTree,
-                null
-        );
-    }
-
-    public Json5Provider(
-            Class<T> configClass,
-            Path configPath,
-            Supplier<T> defaultFactory,
-            Logger logger,
-            OptionTree optionTree,
-            Consumer<Jankson.Builder> janksonCustomizer
+            ConfigSerializer<T> serializer
     ) {
         this.configPath = configPath;
         this.defaultFactory = defaultFactory;
         this.logger = logger;
-        this.serializer = new Json5Serializer<>(configClass, optionTree, janksonCustomizer);
+        this.serializer = serializer;
         this.instance = defaultFactory.get();
     }
 
