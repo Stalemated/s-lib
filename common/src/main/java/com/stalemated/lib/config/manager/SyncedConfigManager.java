@@ -7,6 +7,7 @@ import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.config.network.ConfigNetworkPayload;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.config.network.ConnectionState;
+import com.stalemated.lib.config.registry.ConfigRegistry;
 import com.stalemated.lib.network.NetworkHelper;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import io.netty.buffer.Unpooled;
@@ -79,6 +80,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     @Override
     protected void onRegisterSuccess(boolean isNewOrEmpty) {
         super.onRegisterSuccess(isNewOrEmpty);
+        ConfigRegistry.register(this);
 
         registerClientReceivers();
         registerServerReceivers();

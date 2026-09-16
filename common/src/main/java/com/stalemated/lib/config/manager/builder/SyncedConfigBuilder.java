@@ -5,7 +5,6 @@ import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;
-import com.stalemated.lib.config.registry.ConfigRegistry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -125,15 +124,13 @@ public class SyncedConfigBuilder<T> {
     }
 
     /**
-     * Builds the manager, invokes {@link SyncedConfigManager#register()} to perform initial disk loading/creation,
-     * and registers it with {@link ConfigRegistry} for automatic network lifecycle handling.
+     * Builds the manager and invokes {@link SyncedConfigManager#register()} to perform initial disk loading/creation.
      *
      * @return The fully initialized and registered manager.
      */
     public SyncedConfigManager<T> register() {
         SyncedConfigManager<T> manager = build();
         manager.register();
-        ConfigRegistry.register(manager);
         return manager;
     }
 }
