@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.manager.builder;
 
 import blue.endless.jankson.Jankson;
+import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
@@ -31,6 +32,7 @@ public class SyncedConfigBuilder<T> {
     private Supplier<T> defaultFactory;
     private ConfigProvider<T> provider;
     private Consumer<Jankson.Builder> janksonCustomizer;
+    private Consumer<GsonBuilder> gsonCustomizer;
     private final List<Consumer<T>> syncListeners = new ArrayList<>();
 
     public SyncedConfigBuilder(Class<T> configClass) {
@@ -67,6 +69,11 @@ public class SyncedConfigBuilder<T> {
         return this;
     }
 
+    public SyncedConfigBuilder<T> gsonCustomizer(Consumer<GsonBuilder> customizer) {
+        this.gsonCustomizer = customizer;
+        return this;
+    }
+
     public SyncedConfigBuilder<T> defaultFactory(Supplier<T> defaultFactory) {
         this.defaultFactory = defaultFactory;
         return this;
@@ -98,6 +105,7 @@ public class SyncedConfigBuilder<T> {
                 defaultFactory,
                 provider,
                 janksonCustomizer,
+                gsonCustomizer,
                 "SyncedConfigBuilder"
         );
         SyncedConfigManager<T> manager = getSyncedConfigManager(resolved);

@@ -1,11 +1,9 @@
 package com.stalemated.lib.config.io.json5;
 
 import blue.endless.jankson.*;
-import blue.endless.jankson.api.Marshaller;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializer;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
@@ -13,9 +11,9 @@ import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -34,38 +32,42 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final JsonGrammar grammar;
     private final Json5SchemaValidator schemaValidator;
     private final Json5SchemaEnforcer<T> schemaEnforcer;
-
-    public static final Gson GSON = new GsonBuilder()
-            .registerTypeAdapter(String.class, (JsonDeserializer<String>) (json, typeOfT, context) -> {
-                if (json.isJsonObject() && json.getAsJsonObject().has("value")) {
-                    return json.getAsJsonObject().get("value").getAsString();
-                }
-                return json.getAsString();
-            })
-            .create();
+    private final Gson gson;
 
     public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
-        this(configClass, optionTree, null);
+        this(configClass, optionTree, null, null);
     }
 
-    public Json5Serializer(Class<T> configClass, OptionTree optionTree, Consumer<Jankson.Builder> customizer) {
+    public Json5Serializer(
+            Class<T> configClass,
+            OptionTree optionTree,
+            Consumer<Jankson.Builder> janksonCustomizer,
+            Consumer<GsonBuilder> gsonCustomizer
+    ) {
         this.configClass = configClass;
         this.optionTree = optionTree;
         this.schemaValidator = new Json5SchemaValidator(optionTree);
         
-        Jankson.Builder builder = Jankson.builder();
-        registerDoubleSerializer(builder);
-
-        if (customizer != null) {
-            customizer.accept(builder);
+        Jankson.Builder jBuilder = Jankson.builder();
+        SLibJanksonDefaults.apply(jBuilder);
+        if (janksonCustomizer != null) {
+            janksonCustomizer.accept(jBuilder);
         }
-        this.jankson = builder.build();
+        this.jankson = jBuilder.build();
+
+        GsonBuilder gBuilder = new GsonBuilder();
+        SLibGsonDefaults.apply(gBuilder);
+        if (gsonCustomizer != null) {
+            gsonCustomizer.accept(gBuilder);
+        }
+        this.gson = gBuilder.create();
+
         this.grammar = JsonGrammar.builder()
                 .withComments(true)
                 .printWhitespace(true)
                 .build();
                 
-        this.schemaEnforcer = new Json5SchemaEnforcer<>(optionTree, jankson, schemaValidator);
+        this.schemaEnforcer = new Json5SchemaEnforcer<>(optionTree, jankson, schemaValidator, gson);
     }
 
     public Jankson getJankson() {
@@ -111,17 +113,18 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
             throw new RuntimeException("Syntax error while parsing JSON5 config: " + e.getMessage(), e);
         }
 
-        T instance = GSON.fromJson(rootObject.toJson(false, false), configClass);
+        T instance = gson.fromJson(rootObject.toJson(false, false), configClass);
         if (instance == null) instance = defaultFactory.get();
 
         return schemaEnforcer.enforce(rootObject, instance);
     }
 
-    private void registerDoubleSerializer(Jankson.Builder builder) {
-        BiFunction<Float, Marshaller, JsonElement> floatSerializer =
-                (f, m) -> new JsonPrimitive(Double.parseDouble(String.valueOf(f)));
-        builder.registerSerializer(Float.class, floatSerializer);
-        builder.registerSerializer(float.class, floatSerializer);
+    @Override
+    public Object deserializeType(Object rawAstNode, Type targetType) throws IllegalArgumentException {
+        if (rawAstNode instanceof JsonElement elem) {
+            return gson.fromJson(elem.toJson(false, false), targetType);
+        }
+        throw new IllegalArgumentException("Expected JsonElement, got " + rawAstNode.getClass().getName());
     }
 
     private void formatAndCleanAst(String prefix, JsonObject jsonObject) {

@@ -3,7 +3,7 @@ package com.stalemated.lib.config.network;
 import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
-import com.stalemated.lib.config.io.json5.Json5Serializer;
+import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 import net.minecraft.network.PacketByteBuf;
@@ -97,8 +97,9 @@ public final class ConfigNetworkPayload {
      * @param json The raw flat JSON payload received.
      * @param tree The option schema tree.
      * @param targetInstance The target config POJO to update.
+     * @param serializer The config serializer to parse custom types.
      */
-    public static void applyFromJson(String json, OptionTree tree, Object targetInstance) {
+    public static void applyFromJson(String json, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
         if (json == null || json.trim().isEmpty() || targetInstance == null) {
             return;
         }
@@ -124,7 +125,9 @@ public final class ConfigNetworkPayload {
 
                 Object rawValue;
                 try {
-                    rawValue = Json5Serializer.GSON.fromJson(elem.toJson(false, false), option.getGenericType());
+                    rawValue = serializer != null 
+                        ? serializer.deserializeType(elem, option.getGenericType())
+                        : JANKSON.getMarshaller().marshallCarefully(option.getType(), elem); // fallback
                 } catch (Exception e) {
                     LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
                     continue;
@@ -144,9 +147,10 @@ public final class ConfigNetworkPayload {
      * @param buf The incoming packet buffer.
      * @param tree The option schema tree.
      * @param targetInstance The target config POJO to update.
+     * @param serializer The config serializer.
      */
-    public static void readAndApply(PacketByteBuf buf, OptionTree tree, Object targetInstance) {
+    public static void readAndApply(PacketByteBuf buf, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
         String json = buf.readString(MAX_PAYLOAD_SIZE);
-        applyFromJson(json, tree, targetInstance);
+        applyFromJson(json, tree, targetInstance, serializer);
     }
 }

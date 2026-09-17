@@ -1,6 +1,8 @@
 package com.stalemated.lib.config.io;
 
 import com.stalemated.lib.config.io.record.DeserializationResult;
+
+import java.lang.reflect.Type;
 import java.util.function.Supplier;
 
 /**
@@ -26,4 +28,15 @@ public interface ConfigSerializer<T> {
      * @return Result containing the deserialized instance and whether a disk resave is required.
      */
     DeserializationResult<T> deserialize(String content, Supplier<T> defaultFactory);
+
+    /**
+     * Deserializes a specific option value from a raw AST node.
+     * Useful for network synchronization where only specific fields are transmitted.
+     *
+     * @param rawAstNode The raw AST element (e.g., JsonElement)
+     * @param targetType The generic type to deserialize into
+     * @return The deserialized Java object
+     * @throws Exception If deserialization fails
+     */
+    Object deserializeType(Object rawAstNode, Type targetType) throws Exception;
 }

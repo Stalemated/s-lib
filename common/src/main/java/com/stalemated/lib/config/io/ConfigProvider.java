@@ -26,4 +26,12 @@ public interface ConfigProvider<T> {
      * @param instance The new config instance.
      */
     default void setInstance(T instance) {}
+
+    /**
+     * Gets the associated config serializer if available.
+     * @return The serializer, or null if not supported.
+     */
+    default ConfigSerializer<T> getSerializer() {
+        return null;
+    }
 }

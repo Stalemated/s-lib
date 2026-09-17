@@ -91,7 +91,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     protected void registerClientReceivers() {
         NetworkHelper.INSTANCE.registerClientReceiver(s2cPacket, buf -> {
             T target = cloneConfig(getConfig());
-            ConfigNetworkPayload.readAndApply(buf, optionTree, target);
+            ConfigNetworkPayload.readAndApply(buf, optionTree, target, provider.getSerializer());
             this.serverConfig = target;
             setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
             notifySyncListeners(target);
@@ -101,7 +101,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     protected void registerServerReceivers() {
         NetworkHelper.INSTANCE.registerServerReceiver(c2sPacket, (player, buf) -> {
             if (serverPermissionCheck.test(player)) {
-                ConfigNetworkPayload.readAndApply(buf, optionTree, getConfig());
+                ConfigNetworkPayload.readAndApply(buf, optionTree, getConfig(), provider.getSerializer());
                 super.save();
                 notifySyncListeners(getConfig());
 

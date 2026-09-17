@@ -103,4 +103,9 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
         }
         this.instance = instance;
     }
+
+    @Override
+    public ConfigSerializer<T> getSerializer() {
+        return serializer;
+    }
 }

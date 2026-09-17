@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.manager.builder;
 
 import blue.endless.jankson.Jankson;
+import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.io.FileConfigProvider;
 import com.stalemated.lib.config.io.json5.Json5Serializer;
@@ -29,6 +30,7 @@ public final class ConfigBuilderHelper {
             Supplier<T> defaultFactory,
             ConfigProvider<T> provider,
             Consumer<Jankson.Builder> janksonCustomizer,
+            Consumer<GsonBuilder> gsonCustomizer,
             String builderName
     ) {
         if (modId == null && configPath == null) {
@@ -48,7 +50,7 @@ public final class ConfigBuilderHelper {
                         resolvedPath,
                         resolvedFactory,
                         resolvedLogger,
-                        new Json5Serializer<>(configClass, tree, janksonCustomizer)
+                        new Json5Serializer<>(configClass, tree, janksonCustomizer, gsonCustomizer)
                 );
 
         return new ResolvedConfig<>(

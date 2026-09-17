@@ -4,6 +4,7 @@ import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.JsonPrimitive;
+import com.google.gson.Gson;
 import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -24,11 +25,13 @@ class Json5SchemaEnforcer<T> {
     private final OptionTree optionTree;
     private final Jankson jankson;
     private final Json5SchemaValidator schemaValidator;
+    private final Gson gson;
 
-    public Json5SchemaEnforcer(OptionTree optionTree, Jankson jankson, Json5SchemaValidator schemaValidator) {
+    public Json5SchemaEnforcer(OptionTree optionTree, Jankson jankson, Json5SchemaValidator schemaValidator, Gson gson) {
         this.optionTree = optionTree;
         this.jankson = jankson;
         this.schemaValidator = schemaValidator;
+        this.gson = gson;
     }
 
     /**
@@ -70,7 +73,7 @@ class Json5SchemaEnforcer<T> {
 
     private ProcessResult processExistingOption(Object instance, OptionInfo option, JsonElement elem) {
         try {
-            Object parsed = Json5Serializer.GSON.fromJson(elem.toJson(false, false), option.getGenericType());
+            Object parsed = gson.fromJson(elem.toJson(false, false), option.getGenericType());
             Object clamped = option.clampValue(parsed);
             option.setValue(instance, clamped);
 
