@@ -4,7 +4,6 @@ import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.JsonPrimitive;
-import blue.endless.jankson.api.DeserializationException;
 import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -71,7 +70,7 @@ class Json5SchemaEnforcer<T> {
 
     private ProcessResult processExistingOption(Object instance, OptionInfo option, JsonElement elem) {
         try {
-            Object parsed = jankson.getMarshaller().marshallCarefully(option.getType(), elem);
+            Object parsed = Json5Serializer.GSON.fromJson(elem.toJson(false, false), option.getGenericType());
             Object clamped = option.clampValue(parsed);
             option.setValue(instance, clamped);
 
@@ -84,7 +83,7 @@ class Json5SchemaEnforcer<T> {
             }
 
             return ProcessResult.OK;
-        } catch (DeserializationException e) {
+        } catch (Exception e) {
             option.setValue(instance, option.getDefaultValue());
             return ProcessResult.CORRUPTED;
         }

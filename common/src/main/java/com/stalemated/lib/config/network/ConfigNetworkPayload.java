@@ -3,7 +3,7 @@ package com.stalemated.lib.config.network;
 import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
-import blue.endless.jankson.api.DeserializationException;
+import com.stalemated.lib.config.io.json5.Json5Serializer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 import net.minecraft.network.PacketByteBuf;
@@ -120,10 +120,12 @@ public final class ConfigNetworkPayload {
                 }
 
                 JsonElement elem = jsonObject.get(key);
+                if (elem == null) continue;
+
                 Object rawValue;
                 try {
-                    rawValue = JANKSON.getMarshaller().marshallCarefully(option.getType(), elem);
-                } catch (DeserializationException e) {
+                    rawValue = Json5Serializer.GSON.fromJson(elem.toJson(false, false), option.getGenericType());
+                } catch (Exception e) {
                     LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
                     continue;
                 }

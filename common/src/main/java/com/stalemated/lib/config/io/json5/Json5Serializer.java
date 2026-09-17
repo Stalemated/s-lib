@@ -3,6 +3,9 @@ package com.stalemated.lib.config.io.json5;
 import blue.endless.jankson.*;
 import blue.endless.jankson.api.Marshaller;
 import blue.endless.jankson.api.SyntaxError;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
@@ -31,6 +34,15 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final JsonGrammar grammar;
     private final Json5SchemaValidator schemaValidator;
     private final Json5SchemaEnforcer<T> schemaEnforcer;
+
+    public static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(String.class, (JsonDeserializer<String>) (json, typeOfT, context) -> {
+                if (json.isJsonObject() && json.getAsJsonObject().has("value")) {
+                    return json.getAsJsonObject().get("value").getAsString();
+                }
+                return json.getAsString();
+            })
+            .create();
 
     public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
         this(configClass, optionTree, null);
@@ -99,7 +111,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
             throw new RuntimeException("Syntax error while parsing JSON5 config: " + e.getMessage(), e);
         }
 
-        T instance = jankson.fromJson(rootObject, configClass);
+        T instance = GSON.fromJson(rootObject.toJson(false, false), configClass);
         if (instance == null) instance = defaultFactory.get();
 
         return schemaEnforcer.enforce(rootObject, instance);

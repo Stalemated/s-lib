@@ -8,6 +8,7 @@ import com.stalemated.lib.util.reflection.ReflectionUtils;
 import com.stalemated.lib.util.math.MathUtils;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 
@@ -54,6 +55,8 @@ public class OptionInfo {
     public Field getField() { return field; }
 
     public List<Field> getFieldPath() { return fieldPath; }
+    
+    public Type getGenericType() { return field.getGenericType(); }
 
     public Class<?> getType() { return type; }
 
