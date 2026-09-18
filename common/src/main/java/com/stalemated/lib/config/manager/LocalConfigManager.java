@@ -8,6 +8,10 @@ import org.slf4j.Logger;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * Base config manager for handling local configs.
@@ -22,6 +26,9 @@ public class LocalConfigManager<T> {
     protected final Logger logger;
     protected final OptionTree optionTree;
     
+    protected final List<Consumer<T>> loadListeners = new ArrayList<>();
+    protected final List<Consumer<T>> saveListeners = new ArrayList<>();
+
     public boolean configLoadFailed = false;
 
     /**
@@ -40,9 +47,23 @@ public class LocalConfigManager<T> {
     }
 
     /**
+     * Registers a listener to be invoked when the config is successfully loaded or initialized.
+     */
+    public void onConfigLoaded(Consumer<T> listener) {
+        loadListeners.add(listener);
+    }
+
+    /**
+     * Registers a listener to be invoked when the config is successfully saved to disk.
+     */
+    public void onConfigSaved(Consumer<T> listener) {
+        saveListeners.add(listener);
+    }
+
+    /**
      * Registers the config.
      * This handles file verification, loading the config, creating backups if loading fails,
-     * saving defaults if the file is new, and invoking lifecycle hooks.
+     * saving defaults if the file is new, and invoking lifecycle listeners.
      */
     public final void register() {
         File configFile = configPath.toFile();
@@ -57,11 +78,36 @@ public class LocalConfigManager<T> {
         }
 
         if (isNewOrEmpty) save();
-        onRegisterSuccess(isNewOrEmpty);
+        
+        for (Consumer<T> listener : loadListeners) {
+            listener.accept(getConfig());
+        }
     }
 
     /**
-     * Saves the current config instance to disk and invokes the post-save hook.
+     * Updates an option locally if the value has changed.
+     * Respects metadata boundaries (clamping) and triggers disk save and listeners.
+     *
+     * @param optionKey The dot-separated option path.
+     * @param value The new value.
+     */
+    public void updateOption(String optionKey, Object value) {
+        OptionInfo option = optionTree.get(optionKey);
+        if (option == null) {
+            throw new IllegalArgumentException("Unknown config option: " + optionKey);
+        }
+
+        Object clampedValue = option.clampValue(value);
+        if (Objects.equals(option.getValue(getConfig()), clampedValue)) {
+            return;
+        }
+
+        option.setValue(getConfig(), clampedValue);
+        save();
+    }
+
+    /**
+     * Saves the current config instance to disk and invokes the save listeners.
      */
     public final void save() {
         T instance = provider.instance();
@@ -72,7 +118,18 @@ public class LocalConfigManager<T> {
         }
         
         provider.save();
-        onSaveSuccess();
+        for (Consumer<T> listener : saveListeners) {
+            listener.accept(getConfig());
+        }
+    }
+
+    /**
+     * Retrieves the config provider handling this manager's I/O.
+     *
+     * @return The config provider.
+     */
+    public ConfigProvider<T> getProvider() {
+        return provider;
     }
 
     /**
@@ -91,21 +148,5 @@ public class LocalConfigManager<T> {
      */
     public T getActiveConfig() {
         return getConfig();
-    }
-
-    /**
-     * Hook method invoked after the config is successfully registered (loaded or created).
-     * Subclasses can override this to execute custom logic like reloading registries.
-     * 
-     * @param isNewOrEmpty true if the config file did not exist or was empty before this registration.
-     */
-    protected void onRegisterSuccess(boolean isNewOrEmpty) {
-    }
-
-    /**
-     * Hook method invoked after the config is successfully saved to disk.
-     * Subclasses can override this to trigger events or reload logic.
-     */
-    protected void onSaveSuccess() {
     }
 }

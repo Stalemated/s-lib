@@ -1,17 +1,12 @@
 package com.stalemated.lib.config.manager;
 
 import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.permissions.ClientConfigPermissions;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.config.network.ConfigNetworkPayload;
-import com.stalemated.lib.config.network.SyncMode;
+import com.stalemated.lib.config.network.ConfigNetworkHandler;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.registry.ConfigRegistry;
-import com.stalemated.lib.network.NetworkHelper;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
-import io.netty.buffer.Unpooled;
-import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -35,9 +30,6 @@ import java.util.function.Supplier;
  */
 public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
-    private final Identifier s2cPacket;
-    private final Identifier c2sPacket;
-    private final Identifier informC2sPacket;
     private final Class<T> configClass;
     private final Predicate<ServerPlayerEntity> serverPermissionCheck;
     private final Supplier<T> defaultFactory;
@@ -47,6 +39,8 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
     private volatile T defaultConfig = null;
+
+    private final ConfigNetworkHandler<T> networkHandler;
 
     /**
      * Constructs a new SyncedConfigManager.
@@ -69,69 +63,58 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
         super(provider, configPath, logger, optionTree);
-        this.s2cPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
-        this.c2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
-        this.informC2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
         this.configClass = configClass;
         this.serverPermissionCheck = serverPermissionCheck;
         this.defaultFactory = defaultFactory;
+
+        Identifier s2cPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
+        Identifier c2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
+        Identifier informC2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        this.networkHandler = new ConfigNetworkHandler<>(this, s2cPacket, c2sPacket, informC2sPacket);
+
+        this.onConfigLoaded(config -> {
+            ConfigRegistry.register(this);
+            this.networkHandler.registerReceivers();
+            notifySyncListeners(config);
+        });
     }
 
     public OptionTree getOptionTree() {
         return optionTree;
     }
 
-    @Override
-    protected void onRegisterSuccess(boolean isNewOrEmpty) {
-        super.onRegisterSuccess(isNewOrEmpty);
-        ConfigRegistry.register(this);
-
-        registerClientReceivers();
-        registerServerReceivers();
-
-        notifySyncListeners(getConfig());
+    public ConfigNetworkHandler<T> getNetworkHandler() {
+        return networkHandler;
     }
 
-    protected void registerClientReceivers() {
-        NetworkHelper.INSTANCE.registerClientReceiver(s2cPacket, buf -> {
-            if (this.state == ConnectionState.SINGLEPLAYER) {
-                return; // Ignore network loopback in singleplayer
-            }
-            T target = cloneConfig(getConfig());
-            ConfigNetworkPayload.readAndApply(buf, optionTree, target, provider.getSerializer());
-            this.serverConfig = target;
-            setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
-            notifySyncListeners(target);
-        });
+    public ConnectionState getConnectionState() {
+        return state;
     }
 
-    protected void registerServerReceivers() {
-        NetworkHelper.INSTANCE.registerServerReceiver(c2sPacket, (player, buf) -> {
-            if (serverPermissionCheck.test(player)) {
-                ConfigNetworkPayload.readAndApply(buf, optionTree, getConfig(), provider.getSerializer());
-                super.save();
-                notifySyncListeners(getConfig());
+    public T getServerConfig() {
+        return serverConfig;
+    }
 
-                for (ServerPlayerEntity p : player.server.getPlayerManager().getPlayerList()) {
-                    sendConfigToPlayer(p);
-                }
-            } else {
-                // If rejected, send back the config to avoid desyncs
-                sendConfigToPlayer(player);
-            }
-        });
+    public void setServerConfig(T serverConfig) {
+        this.serverConfig = serverConfig;
+    }
 
-        NetworkHelper.INSTANCE.registerServerReceiver(informC2sPacket, (player, buf) -> {
-            // Read informed data into a temporary clone of the default config
-            // We use defaultFactory so we don't pollute the global config with missing fields
-            T tempConfig = defaultFactory != null ? defaultFactory.get() : cloneConfig(getConfig());
-            ConfigNetworkPayload.readAndApply(buf, optionTree, tempConfig, provider.getSerializer());
-            
-            // Notify listeners about this player's specific choices
-            for (BiConsumer<ServerPlayerEntity, T> listener : informListeners) {
-                listener.accept(player, tempConfig);
+    public boolean checkServerPermission(ServerPlayerEntity player) {
+        return serverPermissionCheck.test(player);
+    }
+
+    public T createDefaultOrClone() {
+        return defaultFactory != null ? defaultFactory.get() : cloneConfig(getConfig());
+    }
+
+    public void notifyInformListeners(ServerPlayerEntity player, T config) {
+        for (BiConsumer<ServerPlayerEntity, T> listener : informListeners) {
+            try {
+                listener.accept(player, config);
+            } catch (Exception e) {
+                logger.error("Error notifying inform listener: {}", e.getMessage(), e);
             }
-        });
+        }
     }
 
     /**
@@ -161,7 +144,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      *
      * @param config The updated config instance.
      */
-    protected void notifySyncListeners(T config) {
+    public void notifySyncListeners(T config) {
         for (Consumer<T> listener : syncListeners) {
             try {
                 listener.accept(config);
@@ -233,19 +216,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         notifySyncListeners(getConfig());
     }
 
-    /**
-     * Handles local saves and dispatches the C2S sync packet to the server if applicable.
-     */
-    public void sendOverridePacketToServer() {
-        if (serverConfig != null) {
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            ConfigNetworkPayload.writeSynced(buf, optionTree, serverConfig);
-            NetworkHelper.INSTANCE.sendToServer(c2sPacket, buf);
-        } else {
-            super.save();
-            notifySyncListeners(getConfig());
-        }
-    }
+
 
     /**
      * Serializes the current server config and pushes it to a specific player.
@@ -254,104 +225,69 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      * @param player The target player to sync the config to.
      */
     public void sendConfigToPlayer(ServerPlayerEntity player) {
-        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-        ConfigNetworkPayload.writeSynced(buf, optionTree, getConfig());
-        NetworkHelper.INSTANCE.sendToClient(player, s2cPacket, buf);
+        networkHandler.sendConfigToPlayer(player);
     }
 
     /**
      * Updates an option identified by its dot-separated key (e.g. {@code "attackDamage"} or {@code "combat.attackSpeed"}).
-     * <p>
-     * If the option is local-only ({@link SyncMode#NONE}), it updates the local config and saves
-     * immediately to disk without requiring OP permissions in multiplayer.
-     * <p>
-     * If the option is synchronized with the server ({@link SyncMode#OVERRIDE_CLIENT}), it updates the local
-     * model and, if connected to a multiplayer server, dispatches a C2S update packet.
      *
      * @param optionKey The dot-separated option path.
      * @param value The new value to set.
      */
+    @Override
     public void updateOption(String optionKey, Object value) {
         OptionInfo option = optionTree.get(optionKey);
         if (option == null) {
             throw new IllegalArgumentException("Unknown config option: " + optionKey);
         }
 
-        // Diff-Check to prevent I/O and Network spam
+        // Diff check against ACTIVE config to prevent I/O and network spam
         Object clampedValue = option.clampValue(value);
         if (Objects.equals(option.getValue(getActiveConfig()), clampedValue)) {
             return;
         }
 
         switch (option.getSyncMode()) {
-            case NONE -> processLocalOnlyOption(option, clampedValue);
-            case INFORM_SERVER -> processInformServerOption(option, clampedValue);
-            case OVERRIDE_CLIENT -> processOverrideClientOption(option, clampedValue);
+            case NONE -> processLocalOnlyOption(optionKey, option, clampedValue);
+            case INFORM_SERVER -> processInformServerOption(optionKey, option, clampedValue);
+            case OVERRIDE_CLIENT -> processOverrideClientOption(optionKey, option, clampedValue);
         }
     }
 
-    private void applyToLocalAndCache(OptionInfo option, Object value) {
-        option.setValue(getConfig(), value);
+    private void applyToLocalAndCache(String optionKey, OptionInfo option, Object value) {
+        super.updateOption(optionKey, value);
+
         if (this.serverConfig != null) {
             option.setValue(this.serverConfig, value);
         }
-        super.save();
+
         notifySyncListeners(getActiveConfig());
     }
 
-    private void processLocalOnlyOption(OptionInfo option, Object value) {
-        applyToLocalAndCache(option, value);
+    private void processLocalOnlyOption(String optionKey, OptionInfo option, Object value) {
+        applyToLocalAndCache(optionKey, option, value);
     }
 
-    private void processInformServerOption(OptionInfo option, Object value) {
-        applyToLocalAndCache(option, value);
+    private void processInformServerOption(String optionKey, OptionInfo option, Object value) {
+        applyToLocalAndCache(optionKey, option, value);
 
         if (this.state == ConnectionState.MULTIPLAYER_MODDED) {
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            ConfigNetworkPayload.write(buf, optionTree, getConfig(), SyncMode.INFORM_SERVER);
-            NetworkHelper.INSTANCE.sendToServer(informC2sPacket, buf);
+            networkHandler.sendInformPacketToServer();
         }
     }
 
-    private void processOverrideClientOption(OptionInfo option, Object value) {
+    private void processOverrideClientOption(String optionKey, OptionInfo option, Object value) {
         if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
+            // Apply to cache and send to server.
             option.setValue(this.serverConfig, value);
-            sendOverridePacketToServer();
+            networkHandler.sendOverridePacketToServer();
+            notifySyncListeners(this.serverConfig);
         } else {
-            option.setValue(getConfig(), value);
-            if (this.serverConfig != null) {
-                option.setValue(this.serverConfig, value);
-                sendOverridePacketToServer();
-            } else {
-                super.save();
-                notifySyncListeners(getActiveConfig());
-            }
+            applyToLocalAndCache(optionKey, option, value);
         }
     }
 
-    /**
-     * Safely changes a field on both the local config and the cached server config at the same time.
-     *
-     * @param setter A consumer describing how to apply the value to a config instance.
-     * @param value The new value to apply.
-     * @param clientPermissionCheck A supplier confirming the local client possesses the authority to edit the field. You can use defaults from {@link ClientConfigPermissions}.
-     * @param <V> The type of the field being modified.
-     */
-    public <V> void updateField(BiConsumer<T, V> setter, V value, Supplier<Boolean> clientPermissionCheck) {
-        if (clientPermissionCheck.get()) {
-            if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
-                setter.accept(this.serverConfig, value);
-            } else {
-                setter.accept(getConfig(), value);
-                T currentServer = this.serverConfig;
-                if (currentServer != null) {
-                    setter.accept(currentServer, value);
-                }
-            }
-        }
-    }
-
-    private T cloneConfig(T source) {
+    public T cloneConfig(T source) {
         T copy = defaultFactory != null ? defaultFactory.get() : ReflectionUtils.tryInstantiate(configClass);
         optionTree.copyAllValues(source, copy);
         return copy;
