@@ -45,7 +45,7 @@ public final class ConfigNetworkPayload {
         JsonObject jsonObject = new JsonObject();
 
         for (OptionInfo option : tree.getSyncedOptions()) {
-            if (option.getSyncMode() == targetMode || (targetMode == SyncMode.OVERRIDE_CLIENT && option.getSyncMode().isSynced())) {
+            if (option.getSyncMode() == targetMode) {
                 Object val = option.getValue(configInstance);
 
                 if (val != null) {

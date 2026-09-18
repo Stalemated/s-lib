@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -36,10 +37,12 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     private final Identifier s2cPacket;
     private final Identifier c2sPacket;
+    private final Identifier informC2sPacket;
     private final Class<T> configClass;
     private final Predicate<ServerPlayerEntity> serverPermissionCheck;
     private final Supplier<T> defaultFactory;
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
+    private final List<BiConsumer<ServerPlayerEntity, T>> informListeners = new CopyOnWriteArrayList<>();
 
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
@@ -68,6 +71,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         super(provider, configPath, logger, optionTree);
         this.s2cPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
         this.c2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
+        this.informC2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
         this.configClass = configClass;
         this.serverPermissionCheck = serverPermissionCheck;
         this.defaultFactory = defaultFactory;
@@ -116,6 +120,29 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
                 sendConfigToPlayer(player);
             }
         });
+
+        NetworkHelper.INSTANCE.registerServerReceiver(informC2sPacket, (player, buf) -> {
+            // Read informed data into a temporary clone of the default config
+            // We use defaultFactory so we don't pollute the global config with missing fields
+            T tempConfig = defaultFactory != null ? defaultFactory.get() : cloneConfig(getConfig());
+            ConfigNetworkPayload.readAndApply(buf, optionTree, tempConfig, provider.getSerializer());
+            
+            // Notify listeners about this player's specific choices
+            for (BiConsumer<ServerPlayerEntity, T> listener : informListeners) {
+                listener.accept(player, tempConfig);
+            }
+        });
+    }
+
+    /**
+     * Registers a listener callback triggered when a client informs the server of its local config.
+     *
+     * @param listener Consumer receiving the player and their informed config data.
+     */
+    public void onConfigInformed(BiConsumer<ServerPlayerEntity, T> listener) {
+        if (listener != null) {
+            this.informListeners.add(listener);
+        }
     }
 
     /**
@@ -209,7 +236,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     /**
      * Handles local saves and dispatches the C2S sync packet to the server if applicable.
      */
-    public void saveFromClient() {
+    public void sendOverridePacketToServer() {
         if (serverConfig != null) {
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             ConfigNetworkPayload.writeSynced(buf, optionTree, serverConfig);
@@ -250,31 +277,54 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             throw new IllegalArgumentException("Unknown config option: " + optionKey);
         }
 
-        if (option.getSyncMode() == SyncMode.NONE) {
-            option.setValue(getConfig(), value);
-            T currentServer = this.serverConfig;
+        // Diff-Check to prevent I/O and Network spam
+        Object clampedValue = option.clampValue(value);
+        if (Objects.equals(option.getValue(getActiveConfig()), clampedValue)) {
+            return;
+        }
 
-            if (currentServer != null) {
-                option.setValue(currentServer, value);
-            }
-            super.save();
-            notifySyncListeners(getActiveConfig());
+        switch (option.getSyncMode()) {
+            case NONE -> processLocalOnlyOption(option, clampedValue);
+            case INFORM_SERVER -> processInformServerOption(option, clampedValue);
+            case OVERRIDE_CLIENT -> processOverrideClientOption(option, clampedValue);
+        }
+    }
 
+    private void applyToLocalAndCache(OptionInfo option, Object value) {
+        option.setValue(getConfig(), value);
+        if (this.serverConfig != null) {
+            option.setValue(this.serverConfig, value);
+        }
+        super.save();
+        notifySyncListeners(getActiveConfig());
+    }
+
+    private void processLocalOnlyOption(OptionInfo option, Object value) {
+        applyToLocalAndCache(option, value);
+    }
+
+    private void processInformServerOption(OptionInfo option, Object value) {
+        applyToLocalAndCache(option, value);
+
+        if (this.state == ConnectionState.MULTIPLAYER_MODDED) {
+            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            ConfigNetworkPayload.write(buf, optionTree, getConfig(), SyncMode.INFORM_SERVER);
+            NetworkHelper.INSTANCE.sendToServer(informC2sPacket, buf);
+        }
+    }
+
+    private void processOverrideClientOption(OptionInfo option, Object value) {
+        if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
+            option.setValue(this.serverConfig, value);
+            sendOverridePacketToServer();
         } else {
-            if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
+            option.setValue(getConfig(), value);
+            if (this.serverConfig != null) {
                 option.setValue(this.serverConfig, value);
-                saveFromClient();
+                sendOverridePacketToServer();
             } else {
-                option.setValue(getConfig(), value);
-                T currentServer = this.serverConfig;
-
-                if (currentServer != null) {
-                    option.setValue(currentServer, value);
-                    saveFromClient();
-                } else {
-                    super.save();
-                    notifySyncListeners(getActiveConfig());
-                }
+                super.save();
+                notifySyncListeners(getActiveConfig());
             }
         }
     }
