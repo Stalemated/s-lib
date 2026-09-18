@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.model;
 
 import com.stalemated.lib.config.annotation.Comment;
+import com.stalemated.lib.config.annotation.RangeDouble;
 import com.stalemated.lib.config.annotation.RangeFloat;
 import com.stalemated.lib.config.annotation.RangeInt;
 import com.stalemated.lib.config.network.SyncMode;
@@ -28,6 +29,7 @@ public class OptionInfo {
     private final SyncMode syncMode;
     private final RangeInt rangeInt;
     private final RangeFloat rangeFloat;
+    private final RangeDouble rangeDouble;
     private final String comment;
     private final Object defaultValue;
 
@@ -46,6 +48,7 @@ public class OptionInfo {
 
         this.rangeInt = field.getAnnotation(RangeInt.class);
         this.rangeFloat = field.getAnnotation(RangeFloat.class);
+        this.rangeDouble = field.getAnnotation(RangeDouble.class);
         Comment commentAnn = field.getAnnotation(Comment.class);
         this.comment = commentAnn != null ? commentAnn.value() : null;
     }
@@ -65,6 +68,8 @@ public class OptionInfo {
     public RangeInt getRangeInt() { return rangeInt; }
 
     public RangeFloat getRangeFloat() { return rangeFloat; }
+
+    public RangeDouble getRangeDouble() { return rangeDouble; }
 
     public String getComment() { return comment; }
 
@@ -138,9 +143,20 @@ public class OptionInfo {
             return MathUtils.clamp(current, rangeInt.min(), rangeInt.max());
         }
 
-        if (rangeFloat != null && (type == float.class || type == Float.class) && value instanceof Number num) {
+        if ((type == float.class || type == Float.class) && value instanceof Number num) {
             float current = num.floatValue();
-            return MathUtils.clamp(current, rangeFloat.min(), rangeFloat.max());
+            if (rangeFloat != null) {
+                current = MathUtils.clamp(current, rangeFloat.min(), rangeFloat.max());
+            }
+            return MathUtils.roundFloat(current);
+        }
+
+        if ((type == double.class || type == Double.class) && value instanceof Number num) {
+            double current = num.doubleValue();
+            if (rangeDouble != null) {
+                current = MathUtils.clamp(current, rangeDouble.min(), rangeDouble.max());
+            }
+            return MathUtils.roundDouble(current);
         }
 
         return value;
