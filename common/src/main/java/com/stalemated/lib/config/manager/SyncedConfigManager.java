@@ -90,6 +90,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     protected void registerClientReceivers() {
         NetworkHelper.INSTANCE.registerClientReceiver(s2cPacket, buf -> {
+            if (this.state == ConnectionState.SINGLEPLAYER) {
+                return; // Ignore network loopback in singleplayer
+            }
             T target = cloneConfig(getConfig());
             ConfigNetworkPayload.readAndApply(buf, optionTree, target, provider.getSerializer());
             this.serverConfig = target;
@@ -209,7 +212,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     public void saveFromClient() {
         if (serverConfig != null) {
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            ConfigNetworkPayload.writeSynced(buf, optionTree, getConfig());
+            ConfigNetworkPayload.writeSynced(buf, optionTree, serverConfig);
             NetworkHelper.INSTANCE.sendToServer(c2sPacket, buf);
         } else {
             super.save();
@@ -258,15 +261,20 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             notifySyncListeners(getActiveConfig());
 
         } else {
-            option.setValue(getConfig(), value);
-            T currentServer = this.serverConfig;
-
-            if (currentServer != null) {
-                option.setValue(currentServer, value);
+            if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
+                option.setValue(this.serverConfig, value);
                 saveFromClient();
             } else {
-                super.save();
-                notifySyncListeners(getActiveConfig());
+                option.setValue(getConfig(), value);
+                T currentServer = this.serverConfig;
+
+                if (currentServer != null) {
+                    option.setValue(currentServer, value);
+                    saveFromClient();
+                } else {
+                    super.save();
+                    notifySyncListeners(getActiveConfig());
+                }
             }
         }
     }
@@ -281,11 +289,14 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     public <V> void updateField(BiConsumer<T, V> setter, V value, Supplier<Boolean> clientPermissionCheck) {
         if (clientPermissionCheck.get()) {
-            setter.accept(getConfig(), value);
-
-            T currentServer = this.serverConfig;
-            if (currentServer != null) {
-                setter.accept(currentServer, value);
+            if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
+                setter.accept(this.serverConfig, value);
+            } else {
+                setter.accept(getConfig(), value);
+                T currentServer = this.serverConfig;
+                if (currentServer != null) {
+                    setter.accept(currentServer, value);
+                }
             }
         }
     }
