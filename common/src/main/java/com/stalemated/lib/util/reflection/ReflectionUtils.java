@@ -69,4 +69,24 @@ public final class ReflectionUtils {
         int modifiers = field.getModifiers();
         return Modifier.isStatic(modifiers) || Modifier.isTransient(modifiers);
     }
+
+    /**
+     * Finds a field in the class hierarchy.
+     *
+     * @param clazz The class to start searching from.
+     * @param fieldName The name of the field to find.
+     * @return The field if found, or null if not found.
+     */
+    public static Field findField(Class<?> clazz, String fieldName) {
+        Class<?> current = clazz;
+
+        while (current != null && current != Object.class) {
+            try {
+                return current.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                current = current.getSuperclass();
+            }
+        }
+        return null;
+    }
 }
