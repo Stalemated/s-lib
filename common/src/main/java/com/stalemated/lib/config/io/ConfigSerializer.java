@@ -1,7 +1,5 @@
 package com.stalemated.lib.config.io;
 
-import com.stalemated.lib.config.io.record.DeserializationResult;
-
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 

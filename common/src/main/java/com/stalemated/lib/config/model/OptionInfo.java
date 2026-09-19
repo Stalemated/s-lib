@@ -20,37 +20,56 @@ import java.util.List;
  * {@link OptionInfo} to read, write, validate, and clamp values across local configs,
  * server-synced clones, default templates, and UI buffers.
  */
-public class OptionInfo {
+public class OptionInfo implements ConfigNode {
 
     private final String key;
     private final Field field;
     private final List<Field> fieldPath;
     private final Class<?> type;
+    private final Type genericType;
     private final SyncMode syncMode;
     private final RangeInt rangeInt;
     private final RangeFloat rangeFloat;
     private final RangeDouble rangeDouble;
     private final String comment;
     private final Object defaultValue;
+    private final boolean isTemplate;
+    private final ConfigNode template;
 
     public OptionInfo(String key, Field field, List<Field> fieldPath, SyncMode syncMode, Object defaultValue) {
+        this(key, field, fieldPath, syncMode, defaultValue, field.getType(), field.getGenericType(), false, null);
+    }
+
+    public OptionInfo(String key, Field field, List<Field> fieldPath, SyncMode syncMode, Object defaultValue, Class<?> type, Type genericType, boolean isTemplate, ConfigNode template) {
         this.key = key;
         this.field = field;
-        this.fieldPath = Collections.unmodifiableList(fieldPath);
-        this.type = field.getType();
+        this.fieldPath = fieldPath != null ? Collections.unmodifiableList(fieldPath) : Collections.emptyList();
         this.syncMode = syncMode;
         this.defaultValue = defaultValue;
+        this.type = type;
+        this.genericType = genericType;
+        this.isTemplate = isTemplate;
+        this.template = template;
 
-        this.field.setAccessible(true);
+        if (this.field != null && !this.isTemplate) {
+            this.field.setAccessible(true);
+        }
         for (Field f : this.fieldPath) {
             f.setAccessible(true);
         }
 
-        this.rangeInt = field.getAnnotation(RangeInt.class);
-        this.rangeFloat = field.getAnnotation(RangeFloat.class);
-        this.rangeDouble = field.getAnnotation(RangeDouble.class);
-        Comment commentAnn = field.getAnnotation(Comment.class);
-        this.comment = commentAnn != null ? commentAnn.value() : null;
+        if (field != null) {
+            this.rangeInt = field.getAnnotation(RangeInt.class);
+            this.rangeFloat = field.getAnnotation(RangeFloat.class);
+            this.rangeDouble = field.getAnnotation(RangeDouble.class);
+            Comment commentAnn = field.getAnnotation(Comment.class);
+            this.comment = commentAnn != null ? commentAnn.value() : null;
+        } else {
+            this.rangeInt = null;
+            this.rangeFloat = null;
+            this.rangeDouble = null;
+            this.comment = null;
+        }
     }
 
     public String getKey() { return key; }
@@ -59,9 +78,11 @@ public class OptionInfo {
 
     public List<Field> getFieldPath() { return fieldPath; }
     
-    public Type getGenericType() { return field.getGenericType(); }
+    @Override
+    public Type genericType() { return genericType; }
 
-    public Class<?> getType() { return type; }
+    @Override
+    public Class<?> type() { return type; }
 
     public SyncMode getSyncMode() { return syncMode; }
 
@@ -74,6 +95,10 @@ public class OptionInfo {
     public String getComment() { return comment; }
 
     public Object getDefaultValue() { return defaultValue; }
+    
+    public boolean isTemplate() { return isTemplate; }
+
+    public ConfigNode getTemplate() { return template; }
 
     /**
      * Resolves and extracts the current value of this option from a root config instance.
@@ -82,6 +107,7 @@ public class OptionInfo {
      * @return The resolved value.
      */
     public Object getValue(Object rootInstance) {
+        if (isTemplate) throw new UnsupportedOperationException("Cannot read value directly from an OptionInfo template.");
         if (rootInstance == null) return defaultValue;
 
         try {
@@ -101,6 +127,7 @@ public class OptionInfo {
      * @param value The new value to set.
      */
     public void setValue(Object rootInstance, Object value) {
+        if (isTemplate) throw new UnsupportedOperationException("Cannot set value directly on an OptionInfo template.");
         if (rootInstance == null) return;
 
         try {
@@ -119,7 +146,7 @@ public class OptionInfo {
      * @param rootInstance The root config instance.
      */
     public void enforceLimits(Object rootInstance) {
-        if (rootInstance == null) return;
+        if (isTemplate || rootInstance == null) return;
         
         Object current = getValue(rootInstance);
         Object clamped = clampValue(current);
@@ -181,6 +208,6 @@ public class OptionInfo {
 
     @Override
     public String toString() {
-        return "OptionInfo[" + key + " (" + type.getSimpleName() + "), sync=" + syncMode + "]";
+        return "OptionInfo[" + key + " (" + type.getSimpleName() + "), sync=" + syncMode + ", template=" + isTemplate + "]";
     }
 }

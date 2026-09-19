@@ -4,7 +4,6 @@ import blue.endless.jankson.Jankson;
 import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.LocalConfigManager;
-import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;

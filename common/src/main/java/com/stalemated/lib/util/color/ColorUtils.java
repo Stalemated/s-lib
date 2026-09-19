@@ -12,11 +12,11 @@ public class ColorUtils {
 
     public static final int DEFAULT_COLOR = 0xFFFFFF;
     public static final int DEFAULT_OPACITY = 240;
-    public static final java.util.List<Integer> DEFAULT_BORDER_COLORS = new ArrayList<>(java.util.List.of(0x505000FF, 0x5028007F));
-    public static final java.util.List<Integer> DEFAULT_BACKGROUND_COLORS = new ArrayList<>(java.util.List.of(0xF0100010, 0xF0100010));
+    public static final List<Integer> DEFAULT_BORDER_COLORS = new ArrayList<>(List.of(0x505000FF, 0x5028007F));
+    public static final List<Integer> DEFAULT_BACKGROUND_COLORS = new ArrayList<>(List.of(0xF0100010, 0xF0100010));
     public static final String DEFAULT_COLOR_STRING = "#" + Integer.toHexString(DEFAULT_COLOR).toUpperCase();
-    public static final java.util.List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(java.util.List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
-    public static final java.util.List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
+    public static final List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
+    public static final List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
 
     private static TextColor resolveTextColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) return null;

@@ -5,7 +5,7 @@ import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.JsonPrimitive;
 import com.google.gson.Gson;
-import com.stalemated.lib.config.io.record.DeserializationResult;
+import com.stalemated.lib.config.io.DeserializationResult;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 
@@ -52,9 +52,10 @@ class Json5SchemaEnforcer<T> {
                 option.setValue(instance, option.getDefaultValue());
                 migrationNeeded = true;
             } else {
-                ProcessResult result = processExistingOption(instance, option, elem);
+                ProcessResult result = processExistingOption(option, elem);
 
                 if (result == ProcessResult.CORRUPTED) {
+                    option.setValue(instance, option.getDefaultValue());
                     partialCorruptionDetected = true;
                 } else if (result == ProcessResult.CLAMPED) {
                     migrationNeeded = true;
@@ -71,11 +72,10 @@ class Json5SchemaEnforcer<T> {
         );
     }
 
-    private ProcessResult processExistingOption(Object instance, OptionInfo option, JsonElement elem) {
+    private ProcessResult processExistingOption(OptionInfo option, JsonElement elem) {
         try {
-            Object parsed = gson.fromJson(elem.toJson(false, false), option.getGenericType());
+            Object parsed = gson.fromJson(elem.toJson(false, false), option.genericType());
             Object clamped = option.clampValue(parsed);
-            option.setValue(instance, clamped);
 
             if (parsed == null || !parsed.equals(clamped)) {
                 return ProcessResult.CLAMPED;
@@ -87,7 +87,6 @@ class Json5SchemaEnforcer<T> {
 
             return ProcessResult.OK;
         } catch (Exception e) {
-            option.setValue(instance, option.getDefaultValue());
             return ProcessResult.CORRUPTED;
         }
     }

@@ -1,4 +1,4 @@
-package com.stalemated.lib.config.io.record;
+package com.stalemated.lib.config.io;
 
 /**
  * Holds deserialization results and migration status.

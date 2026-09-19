@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.io.FileConfigProvider;
 import com.stalemated.lib.config.io.json5.Json5Serializer;
-import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.io.PathUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;

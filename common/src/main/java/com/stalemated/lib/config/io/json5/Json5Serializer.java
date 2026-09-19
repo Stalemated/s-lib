@@ -7,7 +7,8 @@ import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
-import com.stalemated.lib.config.io.record.DeserializationResult;
+import com.stalemated.lib.config.io.DeserializationResult;
+import com.stalemated.lib.config.validation.ConfigValidator;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 
@@ -89,6 +90,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         }
 
         formatAndCleanAst("", rootObject);
+        Json5CommentInjector.inject(rootObject, optionTree.getSchemaRoot());
         return rootObject.toJson(grammar);
     }
 
@@ -115,8 +117,15 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
         T instance = gson.fromJson(rootObject.toJson(false, false), configClass);
         if (instance == null) instance = defaultFactory.get();
+        boolean mutatedByValidator = ConfigValidator.validate(instance, optionTree.getSchemaRoot());
 
-        return schemaEnforcer.enforce(rootObject, instance);
+        DeserializationResult<T> result = schemaEnforcer.enforce(rootObject, instance);
+        
+        return new DeserializationResult<>(
+            result.instance(),
+            result.requiresSave() || mutatedByValidator,
+            result.partialCorruptionDetected()
+        );
     }
 
     @Override

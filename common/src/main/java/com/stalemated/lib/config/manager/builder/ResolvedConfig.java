@@ -1,4 +1,4 @@
-package com.stalemated.lib.config.manager.builder.record;
+package com.stalemated.lib.config.manager.builder;
 
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.model.OptionTree;

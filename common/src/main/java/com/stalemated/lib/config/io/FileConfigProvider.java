@@ -1,6 +1,5 @@
 package com.stalemated.lib.config.io;
 
-import com.stalemated.lib.config.io.record.DeserializationResult;
 import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 

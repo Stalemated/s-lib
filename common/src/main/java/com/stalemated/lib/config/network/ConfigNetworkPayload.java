@@ -126,8 +126,8 @@ public final class ConfigNetworkPayload {
                 Object rawValue;
                 try {
                     rawValue = serializer != null 
-                        ? serializer.deserializeType(elem, option.getGenericType())
-                        : JANKSON.getMarshaller().marshallCarefully(option.getType(), elem); // fallback
+                        ? serializer.deserializeType(elem, option.genericType())
+                        : JANKSON.getMarshaller().marshallCarefully(option.type(), elem); // fallback
                 } catch (Exception e) {
                     LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
                     continue;

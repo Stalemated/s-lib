@@ -4,7 +4,6 @@ import blue.endless.jankson.Jankson;
 import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
-import com.stalemated.lib.config.manager.builder.record.ResolvedConfig;
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;

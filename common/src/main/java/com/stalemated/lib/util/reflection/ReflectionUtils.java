@@ -71,6 +71,21 @@ public final class ReflectionUtils {
     }
 
     /**
+     * Checks if a class has a public no-argument constructor.
+     *
+     * @param clazz The class to check.
+     * @return True if it has a public no-argument constructor, false otherwise.
+     */
+    public static boolean hasPublicNoArgsConstructor(Class<?> clazz) {
+        try {
+            var constructor = clazz.getConstructor();
+            return Modifier.isPublic(constructor.getModifiers());
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    /**
      * Finds a field in the class hierarchy.
      *
      * @param clazz The class to start searching from.
