@@ -18,7 +18,21 @@ public class ColorUtils {
     public static final List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
     public static final List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
 
-    private static TextColor resolveTextColor(String colorStr) {
+    public static String toHexString(Color color) {
+        if (color == null) return DEFAULT_COLOR_STRING;
+
+        if (color.getAlpha() == 255) {
+            return String.format("#%06X", color.getRGB() & 0xFFFFFF);
+        }
+        return String.format("#%08X", color.getRGB());
+    }
+
+    public static String toHexString(TextColor color) {
+        if (color == null) return DEFAULT_COLOR_STRING;
+        return color.getName();
+    }
+
+    public static TextColor resolveTextColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) return null;
 
         String lowerColor = colorStr.toLowerCase(Locale.ROOT);
