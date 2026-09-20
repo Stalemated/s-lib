@@ -8,9 +8,11 @@ import blue.endless.jankson.api.DeserializerFunction;
 import blue.endless.jankson.api.Marshaller;
 import com.stalemated.lib.util.color.ColorUtils;
 import net.minecraft.item.Item;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Identifier;
+import org.slf4j.Logger;
 
 import java.awt.Color;
 import java.util.UUID;
@@ -18,7 +20,7 @@ import java.util.function.BiFunction;
 import java.util.regex.Pattern;
 
 /**
- * Default Jankson configurations, serializers, and deserializers for S-Lib configs.
+ * Default Jankson configs, serializers, and deserializers for S-Lib configs.
  */
 public final class SLibJanksonDefaults {
 
@@ -28,11 +30,13 @@ public final class SLibJanksonDefaults {
      * Applies default Jankson serializers, deserializers, and type configurations.
      *
      * @param builder The Jankson.Builder to configure.
+     * @param modId The mod ID for logging purposes.
+     * @param logger The SLF4J logger instance.
      */
-    public static void apply(Jankson.Builder builder) {
+    public static void apply(Jankson.Builder builder, String modId, Logger logger) {
         registerPrimitives(builder);
         registerJavaDefaults(builder);
-        registerMinecraftDefaults(builder);
+        registerMinecraftDefaults(builder, modId, logger);
     }
 
     // Registration
@@ -58,7 +62,7 @@ public final class SLibJanksonDefaults {
         builder.registerDeserializer(JsonPrimitive.class, Pattern.class, patternDeserializer());
     }
 
-    private static void registerMinecraftDefaults(Jankson.Builder builder) {
+    private static void registerMinecraftDefaults(Jankson.Builder builder, String modId, Logger logger) {
         builder.registerSerializer(Identifier.class, identifierSerializer());
         builder.registerDeserializer(JsonPrimitive.class, Identifier.class, identifierDeserializer());
 
@@ -66,7 +70,7 @@ public final class SLibJanksonDefaults {
         builder.registerDeserializer(JsonPrimitive.class, TextColor.class, textColorDeserializer());
 
         builder.registerSerializer(Item.class, itemSerializer());
-        builder.registerDeserializer(JsonPrimitive.class, Item.class, itemDeserializer());
+        builder.registerDeserializer(JsonPrimitive.class, Item.class, itemDeserializer(modId, logger));
     }
 
     // Serializer / Deserializer Definitions
@@ -139,7 +143,16 @@ public final class SLibJanksonDefaults {
         return (item, m) -> new JsonPrimitive(Registries.ITEM.getId(item).toString());
     }
 
-    private static DeserializerFunction<JsonPrimitive, Item> itemDeserializer() {
-        return (prim, m) -> Registries.ITEM.get(new Identifier(prim.asString()));
+    private static DeserializerFunction<JsonPrimitive, Item> itemDeserializer(String modId, Logger logger) {
+        return (prim, m) -> {
+            String idStr = prim.asString();
+            Identifier id = Identifier.tryParse(idStr);
+
+            if (id == null || !Registries.ITEM.containsId(id)) {
+                logger.warn("[{}] Unknown item '{}' in config, falling back to 'minecraft:air'.", modId, idStr);
+                return Items.AIR;
+            }
+            return Registries.ITEM.get(id);
+        };
     }
 }

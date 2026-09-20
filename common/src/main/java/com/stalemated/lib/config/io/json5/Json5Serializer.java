@@ -11,6 +11,7 @@ import com.stalemated.lib.config.io.DeserializationResult;
 import com.stalemated.lib.config.validation.ConfigValidator;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
+import org.slf4j.Logger;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -36,28 +37,30 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final Gson gson;
 
     public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
-        this(configClass, optionTree, null, null);
+        this(configClass, optionTree, null, null, null, null);
     }
 
     public Json5Serializer(
             Class<T> configClass,
             OptionTree optionTree,
             Consumer<Jankson.Builder> janksonCustomizer,
-            Consumer<GsonBuilder> gsonCustomizer
+            Consumer<GsonBuilder> gsonCustomizer,
+            String modId,
+            Logger logger
     ) {
         this.configClass = configClass;
         this.optionTree = optionTree;
         this.schemaValidator = new Json5SchemaValidator(optionTree);
         
         Jankson.Builder jBuilder = Jankson.builder();
-        SLibJanksonDefaults.apply(jBuilder);
+        SLibJanksonDefaults.apply(jBuilder, modId, logger);
         if (janksonCustomizer != null) {
             janksonCustomizer.accept(jBuilder);
         }
         this.jankson = jBuilder.build();
 
         GsonBuilder gBuilder = new GsonBuilder();
-        SLibGsonDefaults.apply(gBuilder);
+        SLibGsonDefaults.apply(gBuilder, modId, logger);
         if (gsonCustomizer != null) {
             gsonCustomizer.accept(gBuilder);
         }

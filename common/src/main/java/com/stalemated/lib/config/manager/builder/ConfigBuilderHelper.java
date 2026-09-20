@@ -49,7 +49,7 @@ public final class ConfigBuilderHelper {
                         resolvedPath,
                         resolvedFactory,
                         resolvedLogger,
-                        new Json5Serializer<>(configClass, tree, janksonCustomizer, gsonCustomizer)
+                        new Json5Serializer<>(configClass, tree, janksonCustomizer, gsonCustomizer, resolvedModId, logger)
                 );
 
         return new ResolvedConfig<>(
