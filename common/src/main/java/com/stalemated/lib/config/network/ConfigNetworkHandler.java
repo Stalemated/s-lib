@@ -77,7 +77,7 @@ public class ConfigNetworkHandler<T> {
      */
     public void sendConfigToPlayer(ServerPlayerEntity player) {
         PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-        ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig());
+        ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
         NetworkHelper.INSTANCE.sendToClient(player, s2cPacket, buf);
     }
 
@@ -88,7 +88,7 @@ public class ConfigNetworkHandler<T> {
         T serverConfig = manager.getServerConfig();
         if (serverConfig != null) {
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), serverConfig);
+            ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), serverConfig, manager.getProvider().getSerializer());
             NetworkHelper.INSTANCE.sendToServer(c2sPacket, buf);
         }
     }
@@ -98,7 +98,7 @@ public class ConfigNetworkHandler<T> {
      */
     public void sendInformPacketToServer() {
         PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-        ConfigNetworkPayload.write(buf, manager.getOptionTree(), manager.getConfig(), SyncMode.INFORM_SERVER);
+        ConfigNetworkPayload.write(buf, manager.getOptionTree(), manager.getConfig(), SyncMode.INFORM_SERVER, manager.getProvider().getSerializer());
         NetworkHelper.INSTANCE.sendToServer(informC2sPacket, buf);
     }
 }

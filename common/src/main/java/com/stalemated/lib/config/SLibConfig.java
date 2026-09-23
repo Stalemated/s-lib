@@ -31,7 +31,7 @@ public final class SLibConfig {
 
     /**
      * Creates a new fluent builder for configuring a local-only config with custom parameters
-     * (e.g., custom path, custom logger, or Jankson serializer).
+     * (e.g., custom path, custom logger, or GSON type adapter).
      *
      * @param configClass The runtime class of the config data model.
      * @param <T> The config data model type.

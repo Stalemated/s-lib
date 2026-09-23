@@ -1,8 +1,8 @@
 package com.stalemated.lib.config.network;
 
-import blue.endless.jankson.Jankson;
-import blue.endless.jankson.JsonElement;
-import blue.endless.jankson.JsonObject;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -24,7 +24,6 @@ import static com.stalemated.lib.SLib.LOGGER;
 public final class ConfigNetworkPayload {
 
     public static final int MAX_PAYLOAD_SIZE = 262144; // 256 KB
-    private static final Jankson JANKSON = Jankson.builder().build();
 
     private ConfigNetworkPayload() {}
 
@@ -39,21 +38,28 @@ public final class ConfigNetworkPayload {
      * @param tree The option schema tree.
      * @param configInstance The source config POJO.
      * @param targetMode The sync mode filter.
+     * @param serializer The config serializer used to map individual options.
      * @return Compact flat JSON representation of the filtered options.
      */
-    public static String serialize(OptionTree tree, Object configInstance, SyncMode targetMode) {
+    public static String serialize(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
+        JsonObject jsonObject = buildPayloadObject(tree, configInstance, targetMode, serializer);
+        return jsonObject.toString();
+    }
+
+    private static JsonObject buildPayloadObject(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
         JsonObject jsonObject = new JsonObject();
 
         for (OptionInfo option : tree.getSyncedOptions()) {
             if (option.getSyncMode() == targetMode) {
                 Object val = option.getValue(configInstance);
-
                 if (val != null) {
-                    jsonObject.put(option.getKey(), JANKSON.toJson(val));
+                    String jsonStr = serializer.serializeOption(val);
+                    JsonElement elem = JsonParser.parseString(jsonStr);
+                    jsonObject.add(option.getKey(), elem);
                 }
             }
         }
-        return jsonObject.toJson(false, false);
+        return jsonObject;
     }
 
     /**
@@ -63,9 +69,10 @@ public final class ConfigNetworkPayload {
      * @param tree The option schema tree.
      * @param configInstance The source config POJO.
      * @param targetMode The sync mode filter.
+     * @param serializer The config serializer.
      */
-    public static void write(PacketByteBuf buf, OptionTree tree, Object configInstance, SyncMode targetMode) {
-        String json = serialize(tree, configInstance, targetMode);
+    public static void write(PacketByteBuf buf, OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
+        String json = serialize(tree, configInstance, targetMode, serializer);
         
         if (json.length() > MAX_PAYLOAD_SIZE) {
             LOGGER.error("Config payload is too large to sync! Size: {} chars, Max: {} ({}KB). Sync aborted to prevent server disconnect.", json.length(), MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE / 1024);
@@ -82,9 +89,10 @@ public final class ConfigNetworkPayload {
      * @param buf The target packet buffer.
      * @param tree The option schema tree.
      * @param configInstance The source config POJO.
+     * @param serializer The config serializer.
      */
-    public static void writeSynced(PacketByteBuf buf, OptionTree tree, Object configInstance) {
-        write(buf, tree, configInstance, SyncMode.OVERRIDE_CLIENT);
+    public static void writeSynced(PacketByteBuf buf, OptionTree tree, Object configInstance, ConfigSerializer<?> serializer) {
+        write(buf, tree, configInstance, SyncMode.OVERRIDE_CLIENT, serializer);
     }
 
     /**
@@ -100,44 +108,41 @@ public final class ConfigNetworkPayload {
      * @param serializer The config serializer to parse custom types.
      */
     public static void applyFromJson(String json, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
-        if (json == null || json.trim().isEmpty() || targetInstance == null) {
+        if (json == null || json.trim().isEmpty() || targetInstance == null || serializer == null) {
             return;
         }
 
         try {
-            JsonObject jsonObject = JANKSON.load(json);
-            
+            JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
             for (String key : jsonObject.keySet()) {
-                OptionInfo option = tree.get(key);
-                
-                if (option == null) {
-                    LOGGER.debug("Skipping unknown config key received over network: {}", key);
-                    continue;
-                }
-
-                if (option.getSyncMode() == SyncMode.NONE) {
-                    LOGGER.warn("Rejected attempt to remotely modify local-only option: {}", key);
-                    continue;
-                }
-
-                JsonElement elem = jsonObject.get(key);
-                if (elem == null) continue;
-
-                Object rawValue;
-                try {
-                    rawValue = serializer != null 
-                        ? serializer.deserializeType(elem, option.genericType())
-                        : JANKSON.getMarshaller().marshallCarefully(option.type(), elem); // fallback
-                } catch (Exception e) {
-                    LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
-                    continue;
-                }
-                Object clampedValue = option.clampValue(rawValue);
-
-                option.setValue(targetInstance, clampedValue);
+                applySingleOption(key, jsonObject.get(key), tree, targetInstance, serializer);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to parse config sync payload: {}", e.getMessage(), e);
+        }
+    }
+
+    private static void applySingleOption(String key, JsonElement elem, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
+        OptionInfo option = tree.get(key);
+        
+        if (option == null) {
+            LOGGER.debug("Skipping unknown config key received over network: {}", key);
+            return;
+        }
+
+        if (option.getSyncMode() == SyncMode.NONE) {
+            LOGGER.warn("Rejected attempt to remotely modify local-only option: {}", key);
+            return;
+        }
+
+        if (elem == null || elem.isJsonNull()) return;
+
+        try {
+            Object rawValue = serializer.deserializeOption(elem.toString(), option.genericType());
+            Object clampedValue = option.clampValue(rawValue);
+            option.setValue(targetInstance, clampedValue);
+        } catch (Exception e) {
+            LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
         }
     }
 

@@ -1,6 +1,9 @@
 package com.stalemated.lib.config.io.json5;
 
-import blue.endless.jankson.*;
+import blue.endless.jankson.Jankson;
+import blue.endless.jankson.JsonElement;
+import blue.endless.jankson.JsonGrammar;
+import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -124,11 +127,13 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     }
 
     @Override
-    public Object deserializeType(Object rawAstNode, Type targetType) throws IllegalArgumentException {
-        if (rawAstNode instanceof JsonElement elem) {
-            return gson.fromJson(elem.toJson(false, false), targetType);
-        }
-        throw new IllegalArgumentException("Expected JsonElement, got " + rawAstNode.getClass().getName());
+    public String serializeOption(Object value) {
+        return gson.toJson(value);
+    }
+
+    @Override
+    public Object deserializeOption(String rawJson, Type targetType) {
+        return gson.fromJson(rawJson, targetType);
     }
     
     private boolean hasMissingKeys(JsonObject rootObject) {
