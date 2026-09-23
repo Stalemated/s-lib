@@ -1,7 +1,9 @@
 package com.stalemated.lib.forge.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.fml.loading.LoadingModList;
 import net.minecraft.client.option.KeyBinding;
@@ -36,5 +38,10 @@ public class ForgePlatformHelper implements PlatformHelper {
     @Override
     public void registerKeyBinding(KeyBinding keyBinding) {
         KEYBINDINGS.add(keyBinding);
+    }
+
+    @Override
+    public boolean isDedicatedServer() {
+        return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
     }
 }

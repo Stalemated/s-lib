@@ -1,6 +1,7 @@
 package com.stalemated.lib.fabric.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.option.KeyBinding;
@@ -31,5 +32,10 @@ public class FabricPlatformHelper implements PlatformHelper {
     @Override
     public void registerKeyBinding(KeyBinding keyBinding) {
         KeyBindingHelper.registerKeyBinding(keyBinding);
+    }
+
+    @Override
+    public boolean isDedicatedServer() {
+        return EnvType.SERVER == FabricLoader.getInstance().getEnvironmentType();
     }
 }

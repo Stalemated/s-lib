@@ -59,4 +59,11 @@ public interface PlatformHelper {
      * @param keyBinding The keybind to register.
      */
     void registerKeyBinding(KeyBinding keyBinding);
+
+    /**
+     * Checks if the current environment is a dedicated server.
+     *
+     * @return {@code true} if running on a dedicated server, {@code false} otherwise.
+     */
+    boolean isDedicatedServer();
 }

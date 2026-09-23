@@ -6,6 +6,7 @@ import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.config.network.ConfigNetworkHandler;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.registry.ConfigRegistry;
+import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -36,7 +37,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
     private final List<BiConsumer<ServerPlayerEntity, T>> informListeners = new CopyOnWriteArrayList<>();
 
-    private volatile ConnectionState state = ConnectionState.DISCONNECTED;
+    private volatile ConnectionState state = PlatformHelper.INSTANCE.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
     private volatile T defaultConfig = null;
 
@@ -212,7 +213,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     public void clearServerConfig() {
         this.serverConfig = null;
-        setConnectionState(ConnectionState.DISCONNECTED);
+        setConnectionState(PlatformHelper.INSTANCE.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED);
         notifySyncListeners(getConfig());
     }
 

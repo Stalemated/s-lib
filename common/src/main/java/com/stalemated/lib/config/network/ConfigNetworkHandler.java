@@ -48,7 +48,9 @@ public class ConfigNetworkHandler<T> {
 
                 if (player != null && player.server != null) {
                     for (ServerPlayerEntity p : player.server.getPlayerManager().getPlayerList()) {
-                        sendConfigToPlayer(p);
+                        if (p != player) {
+                            sendConfigToPlayer(p);
+                        }
                     }
                 }
             } else {
@@ -76,6 +78,9 @@ public class ConfigNetworkHandler<T> {
      * @param player The target player to sync the config to.
      */
     public void sendConfigToPlayer(ServerPlayerEntity player) {
+        // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
+        if (player.server != null && player.server.isHost(player.getGameProfile())) return;
+
         PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
         NetworkHelper.INSTANCE.sendToClient(player, s2cPacket, buf);
