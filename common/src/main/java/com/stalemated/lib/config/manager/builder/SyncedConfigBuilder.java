@@ -1,6 +1,5 @@
 package com.stalemated.lib.config.manager.builder;
 
-import blue.endless.jankson.Jankson;
 import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
@@ -30,7 +29,6 @@ public class SyncedConfigBuilder<T> {
     private Predicate<ServerPlayerEntity> serverPermissionCheck = ServerConfigPermissions.OP_ONLY;
     private Supplier<T> defaultFactory;
     private ConfigProvider<T> provider;
-    private Consumer<Jankson.Builder> janksonCustomizer;
     private Consumer<GsonBuilder> gsonCustomizer;
     private final List<Consumer<T>> syncListeners = new ArrayList<>();
 
@@ -60,11 +58,6 @@ public class SyncedConfigBuilder<T> {
 
     public SyncedConfigBuilder<T> permissionCheck(Predicate<ServerPlayerEntity> check) {
         this.serverPermissionCheck = check;
-        return this;
-    }
-
-    public SyncedConfigBuilder<T> janksonCustomizer(Consumer<Jankson.Builder> customizer) {
-        this.janksonCustomizer = customizer;
         return this;
     }
 
@@ -103,7 +96,6 @@ public class SyncedConfigBuilder<T> {
                 logger,
                 defaultFactory,
                 provider,
-                janksonCustomizer,
                 gsonCustomizer,
                 "SyncedConfigBuilder"
         );

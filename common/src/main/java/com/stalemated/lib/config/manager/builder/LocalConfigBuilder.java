@@ -1,6 +1,5 @@
 package com.stalemated.lib.config.manager.builder;
 
-import blue.endless.jankson.Jankson;
 import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.LocalConfigManager;
@@ -22,7 +21,6 @@ public class LocalConfigBuilder<T> {
     private Logger logger;
     private Supplier<T> defaultFactory;
     private ConfigProvider<T> provider;
-    private Consumer<Jankson.Builder> janksonCustomizer;
     private Consumer<GsonBuilder> gsonCustomizer;
 
     public LocalConfigBuilder(Class<T> configClass) {
@@ -54,11 +52,6 @@ public class LocalConfigBuilder<T> {
         return this;
     }
 
-    public LocalConfigBuilder<T> janksonCustomizer(Consumer<Jankson.Builder> customizer) {
-        this.janksonCustomizer = customizer;
-        return this;
-    }
-
     public LocalConfigBuilder<T> gsonCustomizer(Consumer<GsonBuilder> customizer) {
         this.gsonCustomizer = customizer;
         return this;
@@ -77,7 +70,6 @@ public class LocalConfigBuilder<T> {
                 logger,
                 defaultFactory,
                 provider,
-                janksonCustomizer,
                 gsonCustomizer,
                 "LocalConfigBuilder"
         );

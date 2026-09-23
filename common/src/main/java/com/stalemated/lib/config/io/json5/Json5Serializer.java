@@ -11,7 +11,6 @@ import com.stalemated.lib.config.io.DeserializationResult;
 import com.stalemated.lib.config.validation.ConfigValidator;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import org.slf4j.Logger;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -33,34 +32,26 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final Jankson jankson;
     private final JsonGrammar grammar;
     private final Json5SchemaValidator schemaValidator;
-    private final Json5SchemaEnforcer<T> schemaEnforcer;
     private final Gson gson;
 
     public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
-        this(configClass, optionTree, null, null, null, null);
+        this(configClass, optionTree, null);
     }
 
     public Json5Serializer(
             Class<T> configClass,
             OptionTree optionTree,
-            Consumer<Jankson.Builder> janksonCustomizer,
-            Consumer<GsonBuilder> gsonCustomizer,
-            String modId,
-            Logger logger
+            Consumer<GsonBuilder> gsonCustomizer
     ) {
         this.configClass = configClass;
         this.optionTree = optionTree;
         this.schemaValidator = new Json5SchemaValidator(optionTree);
         
-        Jankson.Builder jBuilder = Jankson.builder();
-        SLibJanksonDefaults.apply(jBuilder, modId, logger);
-        if (janksonCustomizer != null) {
-            janksonCustomizer.accept(jBuilder);
-        }
-        this.jankson = jBuilder.build();
+        // Jankson used as preprocessor
+        this.jankson = Jankson.builder().build();
 
         GsonBuilder gBuilder = new GsonBuilder();
-        SLibGsonDefaults.apply(gBuilder, modId, logger);
+        SLibGsonDefaults.apply(gBuilder);
         if (gsonCustomizer != null) {
             gsonCustomizer.accept(gBuilder);
         }
@@ -70,12 +61,6 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
                 .withComments(true)
                 .printWhitespace(true)
                 .build();
-                
-        this.schemaEnforcer = new Json5SchemaEnforcer<>(optionTree, jankson, schemaValidator, gson);
-    }
-
-    public Jankson getJankson() {
-        return jankson;
     }
 
     /**
@@ -87,9 +72,13 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
      */
     @Override
     public String serialize(T instance) {
-        JsonElement element = jankson.toJson(instance);
-        if (!(element instanceof JsonObject rootObject)) {
-            return element.toJson(grammar);
+        String standardJson = gson.toJson(instance);
+
+        JsonObject rootObject;
+        try {
+            rootObject = jankson.load(standardJson);
+        } catch (SyntaxError e) {
+            throw new RuntimeException("Unexpected syntax error from internal GSON output: " + e.getMessage(), e);
         }
 
         formatAndCleanAst("", rootObject);
@@ -120,15 +109,18 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
         T instance = gson.fromJson(rootObject.toJson(false, false), configClass);
         if (instance == null) instance = defaultFactory.get();
-        boolean mutatedByValidator = ConfigValidator.validate(instance, optionTree.getSchemaRoot());
 
-        DeserializationResult<T> result = schemaEnforcer.enforce(rootObject, instance);
+        boolean requiresSave = ConfigValidator.validate(instance, optionTree.getSchemaRoot());
         
-        return new DeserializationResult<>(
-            result.instance(),
-            result.requiresSave() || mutatedByValidator,
-            result.partialCorruptionDetected()
-        );
+        if (!requiresSave) {
+            requiresSave = schemaValidator.containsOrphanedNodes(rootObject);
+        }
+        
+        if (!requiresSave) {
+            requiresSave = hasMissingKeys(rootObject);
+        }
+        
+        return new DeserializationResult<>(instance, requiresSave, false);
     }
 
     @Override
@@ -137,6 +129,36 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
             return gson.fromJson(elem.toJson(false, false), targetType);
         }
         throw new IllegalArgumentException("Expected JsonElement, got " + rawAstNode.getClass().getName());
+    }
+    
+    private boolean hasMissingKeys(JsonObject rootObject) {
+        for (OptionInfo option : optionTree.all()) {
+            if (getElementFromJson(rootObject, option.getKey()) == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private JsonElement getElementFromJson(JsonObject rootObject, String optionKey) {
+        String[] path = optionKey.split("\\.");
+        JsonObject current = rootObject;
+
+        for (int i = 0; i < path.length; i++) {
+            if (current == null || !current.containsKey(path[i])) {
+                return null;
+            }
+
+            JsonElement elem = current.get(path[i]);
+            if (i == path.length - 1) {
+                return elem;
+            } else if (elem instanceof JsonObject childObject) {
+                current = childObject;
+            } else {
+                return null;
+            }
+        }
+        return null;
     }
 
     private void formatAndCleanAst(String prefix, JsonObject jsonObject) {

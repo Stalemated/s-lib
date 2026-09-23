@@ -2,12 +2,8 @@ package com.stalemated.lib.config.io.json5;
 
 import com.google.gson.*;
 import com.stalemated.lib.util.color.ColorUtils;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Identifier;
-import org.slf4j.Logger;
 
 import java.awt.Color;
 import java.lang.reflect.Type;
@@ -25,13 +21,11 @@ public final class SLibGsonDefaults {
      * Applies default GSON adapters and configs.
      *
      * @param builder The GsonBuilder to configure.
-     * @param modId The mod ID for logging purposes.
-     * @param logger The SLF4J logger instance.
      */
-    public static void apply(GsonBuilder builder, String modId, Logger logger) {
+    public static void apply(GsonBuilder builder) {
         registerPrimitives(builder);
         registerJavaDefaults(builder);
-        registerMinecraftDefaults(builder, modId, logger);
+        registerMinecraftDefaults(builder);
     }
 
     // Registration
@@ -54,10 +48,9 @@ public final class SLibGsonDefaults {
         builder.registerTypeAdapter(Pattern.class, patternAdapter());
     }
 
-    private static void registerMinecraftDefaults(GsonBuilder builder, String modId, Logger logger) {
+    private static void registerMinecraftDefaults(GsonBuilder builder) {
         builder.registerTypeAdapter(Identifier.class, identifierAdapter());
         builder.registerTypeAdapter(TextColor.class, textColorAdapter());
-        builder.registerTypeHierarchyAdapter(Item.class, itemAdapter(modId, logger));
     }
 
     // Adapter Definitions
@@ -89,10 +82,6 @@ public final class SLibGsonDefaults {
 
     private static TextColorAdapter textColorAdapter() {
         return new TextColorAdapter();
-    }
-
-    private static ItemAdapter itemAdapter(String modId, Logger logger) {
-        return new ItemAdapter(modId, logger);
     }
 
     // Adapter Implementations
@@ -165,25 +154,6 @@ public final class SLibGsonDefaults {
         @Override
         public Pattern deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             return Pattern.compile(json.getAsString());
-        }
-    }
-
-    private record ItemAdapter(String modId, Logger logger) implements JsonSerializer<Item>, JsonDeserializer<Item> {
-
-        @Override
-        public JsonElement serialize(Item src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(Registries.ITEM.getId(src).toString());
-        }
-
-        @Override
-        public Item deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            String idStr = json.getAsString();
-            Identifier id = Identifier.tryParse(idStr);
-            if (id == null || !Registries.ITEM.containsId(id)) {
-                logger.warn("[{}] Unknown item '{}' in config, falling back to 'minecraft:air'.", modId, idStr);
-                return Items.AIR;
-            }
-            return Registries.ITEM.get(id);
         }
     }
 }
