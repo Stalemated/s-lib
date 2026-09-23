@@ -27,6 +27,15 @@ public class ColorUtils {
         return String.format("#%08X", color.getRGB());
     }
 
+    public static String toRGBAHexString(Color color) {
+        if (color == null) return DEFAULT_COLOR_STRING;
+
+        if (color.getAlpha() == 255) {
+            return String.format("#%06X", color.getRGB() & 0xFFFFFF);
+        }
+        return String.format("#%02X%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+    }
+
     public static String toHexString(TextColor color) {
         if (color == null) return DEFAULT_COLOR_STRING;
         return color.getName();
@@ -88,6 +97,19 @@ public class ColorUtils {
     }
 
     public static Integer resolveARGBColor(String colorStr) {
+        return resolveColor(colorStr, true);
+    }
+
+    public static Color parseRGBAToAWT(String colorStr) {
+        Integer argb = resolveRGBAColor(colorStr);
+        return argb != null ? new Color(argb, true) : Color.WHITE;
+    }
+
+    public static Integer resolveRGBAColor(String colorStr) {
+        return resolveColor(colorStr, false);
+    }
+
+    private static Integer resolveColor(String colorStr, boolean isARGB) {
         if (colorStr == null || colorStr.trim().isEmpty()) return null;
 
         String lowerColor = colorStr.trim().toLowerCase(Locale.ROOT);
@@ -98,7 +120,13 @@ public class ColorUtils {
         else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
 
         if (hex.matches("^[0-9a-fA-F]{8}$")) {
-            return (int) Long.parseLong(hex, 16);
+            if (isARGB) return (int) Long.parseLong(hex, 16);
+            long val = Long.parseLong(hex, 16);
+            int r = (int) ((val >> 24) & 0xFF);
+            int g = (int) ((val >> 16) & 0xFF);
+            int b = (int) ((val >> 8) & 0xFF);
+            int a = (int) (val & 0xFF);
+            return (a << 24) | (r << 16) | (g << 8) | b;
         }
 
         if (hex.matches("^[0-9a-fA-F]{6}$")) {
