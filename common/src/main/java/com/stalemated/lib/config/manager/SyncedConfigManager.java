@@ -5,6 +5,7 @@ import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.config.network.ConfigNetworkHandler;
 import com.stalemated.lib.config.network.ConnectionState;
+import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.config.registry.ConfigRegistry;
 import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
@@ -39,7 +40,6 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     private volatile ConnectionState state = PlatformHelper.INSTANCE.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
-    private volatile T defaultConfig = null;
 
     private final ConfigNetworkHandler<T> networkHandler;
 
@@ -163,9 +163,16 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     public void setConnectionState(ConnectionState newState) {
         this.state = newState;
 
-        // If we connect to an unmodded server, ensure we have a default config generated.
-        if (newState == ConnectionState.MULTIPLAYER_UNMODDED && defaultConfig == null && defaultFactory != null) {
-            this.defaultConfig = defaultFactory.get();
+        if (newState == ConnectionState.MULTIPLAYER_UNMODDED) {
+            T unmoddedConfig = cloneConfig(getConfig());
+            T defaultValues = createDefaultOrClone();
+            
+            for (OptionInfo option : optionTree.all()) {
+                if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
+                    option.setValue(unmoddedConfig, option.getValue(defaultValues));
+                }
+            }
+            this.serverConfig = unmoddedConfig;
         }
     }
 
@@ -197,14 +204,8 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         ConnectionState currentState = this.state;
         T currentServer = this.serverConfig;
 
-        if (currentState == ConnectionState.MULTIPLAYER_MODDED && currentServer != null) {
+        if ((currentState == ConnectionState.MULTIPLAYER_MODDED || currentState == ConnectionState.MULTIPLAYER_UNMODDED) && currentServer != null) {
             return currentServer;
-        }
-        if (currentState == ConnectionState.MULTIPLAYER_UNMODDED && defaultFactory != null) {
-            if (defaultConfig == null) {
-                defaultConfig = defaultFactory.get();
-            }
-            return defaultConfig;
         }
         return getConfig();
     }
@@ -218,8 +219,6 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         setConnectionState(ConnectionState.DISCONNECTED);
         notifySyncListeners(getConfig());
     }
-
-
 
     /**
      * Serializes the current server config and pushes it to a specific player.
@@ -287,6 +286,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             // DO NOT call notifySyncListeners locally. Wait for the server's S2C echo packet to confirm.
             option.setValue(this.serverConfig, value);
             networkHandler.sendOverridePacketToServer();
+        } else if (this.state == ConnectionState.MULTIPLAYER_UNMODDED) {
+            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", optionKey);
+            notifySyncListeners(getActiveConfig());
         } else {
             applyToLocalAndCache(optionKey, option, value);
             if (this.state == ConnectionState.SINGLEPLAYER) {
