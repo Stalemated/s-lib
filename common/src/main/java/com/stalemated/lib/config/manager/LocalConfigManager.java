@@ -20,12 +20,12 @@ import java.util.function.Consumer;
  * @param <T> The config data model class.
  */
 public class LocalConfigManager<T> {
-    
+
     protected final ConfigProvider<T> provider;
     protected final Path configPath;
     protected final Logger logger;
     protected final OptionTree optionTree;
-    
+
     protected final List<Consumer<T>> loadListeners = new ArrayList<>();
     protected final List<Consumer<T>> saveListeners = new ArrayList<>();
 
@@ -33,7 +33,7 @@ public class LocalConfigManager<T> {
 
     /**
      * Constructs a new LocalConfigManager.
-     * 
+     *
      * @param provider A config provider.
      * @param configPath The absolute path to the config file.
      * @param logger The mod's logger used for warnings and error reporting.
@@ -78,7 +78,7 @@ public class LocalConfigManager<T> {
         }
 
         if (isNewOrEmpty) save();
-        
+
         for (Consumer<T> listener : loadListeners) {
             listener.accept(getConfig());
         }
@@ -134,7 +134,7 @@ public class LocalConfigManager<T> {
 
     /**
      * Retrieves the current config instance.
-     * 
+     *
      * @return The config object.
      */
     public T getConfig() {

@@ -2,7 +2,9 @@ package com.stalemated.lib.neoforge.helper;
 
 import com.stalemated.lib.helper.PlatformHelper;
 import net.minecraft.client.option.KeyBinding;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.fml.loading.LoadingModList;
 
@@ -36,5 +38,10 @@ public class NeoForgePlatformHelper implements PlatformHelper {
     @Override
     public void registerKeyBinding(KeyBinding keyBinding) {
         KEYBINDINGS.add(keyBinding);
+    }
+
+    @Override
+    public boolean isDedicatedServer() {
+        return FMLEnvironment.dist == Dist.DEDICATED_SERVER;
     }
 }

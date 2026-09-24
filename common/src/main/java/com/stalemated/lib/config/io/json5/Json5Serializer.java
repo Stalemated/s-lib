@@ -49,7 +49,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         this.configClass = configClass;
         this.optionTree = optionTree;
         this.schemaValidator = new Json5SchemaValidator(optionTree);
-        
+
         // Jankson used as preprocessor
         this.jankson = Jankson.builder().build();
 
@@ -114,15 +114,15 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         if (instance == null) instance = defaultFactory.get();
 
         boolean requiresSave = ConfigValidator.validate(instance, optionTree.getSchemaRoot());
-        
+
         if (!requiresSave) {
             requiresSave = schemaValidator.containsOrphanedNodes(rootObject);
         }
-        
+
         if (!requiresSave) {
             requiresSave = hasMissingKeys(rootObject);
         }
-        
+
         return new DeserializationResult<>(instance, requiresSave, false);
     }
 
@@ -135,7 +135,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     public Object deserializeOption(String rawJson, Type targetType) {
         return gson.fromJson(rawJson, targetType);
     }
-    
+
     private boolean hasMissingKeys(JsonObject rootObject) {
         for (OptionInfo option : optionTree.all()) {
             if (getElementFromJson(rootObject, option.getKey()) == null) {
@@ -144,7 +144,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         }
         return false;
     }
-    
+
     private JsonElement getElementFromJson(JsonObject rootObject, String optionKey) {
         String[] path = optionKey.split("\\.");
         JsonObject current = rootObject;
@@ -168,16 +168,16 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
     private void formatAndCleanAst(String prefix, JsonObject jsonObject) {
         List<String> keys = new ArrayList<>(jsonObject.keySet());
-        
+
         for (String localKey : keys) {
             String fullKey = prefix.isEmpty() ? localKey : prefix + "." + localKey;
             OptionInfo info = optionTree.get(fullKey);
-            
+
             if (info != null) {
                 applyComment(jsonObject, localKey, info);
                 continue;
             }
-            
+
             if (schemaValidator.isPrefixRegistered(fullKey)) {
                 cleanChildNode(jsonObject, localKey, fullKey);
             } else {
@@ -194,7 +194,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
     private void cleanChildNode(JsonObject parentObject, String localKey, String fullKey) {
         JsonElement childElem = parentObject.get(localKey);
-        
+
         if (childElem instanceof JsonObject childObject) {
             formatAndCleanAst(fullKey, childObject);
 

@@ -2,7 +2,6 @@ package com.stalemated.lib.fabric.network;
 
 import com.stalemated.lib.network.AbstractNetworkHelper;
 import com.stalemated.lib.network.WrapperPayload;
-import com.stalemated.lib.network.NetworkHelper;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -12,7 +11,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
-public class FabricNetworkHelper extends AbstractNetworkHelper implements NetworkHelper {
+public class FabricNetworkHelper extends AbstractNetworkHelper {
 
     public static void registerPayloads() {
         PayloadTypeRegistry.playC2S().register(WrapperPayload.ID, WrapperPayload.CODEC);
@@ -52,21 +51,5 @@ public class FabricNetworkHelper extends AbstractNetworkHelper implements Networ
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
             FabricClientNetworkDelegator.registerClientReceiver(id, receiver);
         }
-    }
-
-    public void registerServerReceiver_1_20(Identifier id, ServerReceiver receiver) {
-        ServerPlayNetworking.registerGlobalReceiver(
-                id, (
-                        server,
-                        player,
-                        handler,
-                        buf,
-                        responseSender
-                ) -> {
-                    byte[] data = new byte[buf.readableBytes()];
-                    buf.readBytes(data);
-                    server.execute(() -> receiver.receive(player, new PacketByteBuf(Unpooled.wrappedBuffer(data))));
-                }
-        );
     }
 }

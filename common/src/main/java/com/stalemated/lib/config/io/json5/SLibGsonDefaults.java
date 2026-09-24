@@ -129,7 +129,7 @@ public final class SLibGsonDefaults {
 
         @Override
         public Identifier deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return new Identifier(json.getAsString());
+            return Identifier.of(json.getAsString());
         }
     }
 

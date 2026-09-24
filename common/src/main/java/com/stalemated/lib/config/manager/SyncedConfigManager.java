@@ -68,9 +68,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         this.serverPermissionCheck = serverPermissionCheck;
         this.defaultFactory = defaultFactory;
 
-        Identifier s2cPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
-        Identifier c2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
-        Identifier informC2sPacket = new Identifier(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        Identifier s2cPacket = Identifier.of(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
+        Identifier c2sPacket = Identifier.of(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
+        Identifier informC2sPacket = Identifier.of(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
         this.networkHandler = new ConfigNetworkHandler<>(this, s2cPacket, c2sPacket, informC2sPacket);
 
         this.onConfigLoaded(config -> {

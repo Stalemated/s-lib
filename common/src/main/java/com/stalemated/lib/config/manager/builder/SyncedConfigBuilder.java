@@ -108,7 +108,7 @@ public class SyncedConfigBuilder<T> {
     }
 
     private SyncedConfigManager<T> getSyncedConfigManager(ResolvedConfig<T> resolved) {
-        Identifier resolvedChannel = syncChannel != null ? syncChannel : new Identifier(resolved.modId(), "sync_config");
+        Identifier resolvedChannel = syncChannel != null ? syncChannel : Identifier.of(resolved.modId(), "sync_config");
 
         return new SyncedConfigManager<>(
                 resolved.provider(),
