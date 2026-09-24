@@ -106,6 +106,7 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
 
             @Override
             public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+                if (!SimpleStringDropdownController.this.option().available()) return false;
                 return DropdownUIHelper.handleKeyPressed(this, keyCode);
             }
 
@@ -119,6 +120,7 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
+                if (!SimpleStringDropdownController.this.option().available()) return false;
                 return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
             }
 

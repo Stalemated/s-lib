@@ -63,6 +63,7 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
 
             @Override
             public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
                 return DropdownUIHelper.handleKeyPressed(this, keyCode);
             }
 
@@ -78,6 +79,7 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
 
             @Override
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
                 return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
             }
 
