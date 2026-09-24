@@ -173,7 +173,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      * Call this from the ClientPlayConnectionEvents.JOIN event if the client joins a Multiplayer server.
      */
     public void onClientJoinMultiplayer() {
-        setConnectionState(ConnectionState.MULTIPLAYER_UNMODDED);
+        if (this.state != ConnectionState.MULTIPLAYER_MODDED) {
+            setConnectionState(ConnectionState.MULTIPLAYER_UNMODDED);
+        }
     }
 
     /**
@@ -213,7 +215,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     public void clearServerConfig() {
         this.serverConfig = null;
-        setConnectionState(PlatformHelper.INSTANCE.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED);
+        setConnectionState(ConnectionState.DISCONNECTED);
         notifySyncListeners(getConfig());
     }
 
@@ -274,17 +276,22 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
         if (this.state == ConnectionState.MULTIPLAYER_MODDED) {
             networkHandler.sendInformPacketToServer();
+        } else if (this.state == ConnectionState.SINGLEPLAYER) {
+            networkHandler.sendLocalInformPacketToServer();
         }
     }
 
     private void processOverrideClientOption(String optionKey, OptionInfo option, Object value) {
         if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
             // Apply to cache and send to server.
+            // DO NOT call notifySyncListeners locally. Wait for the server's S2C echo packet to confirm.
             option.setValue(this.serverConfig, value);
             networkHandler.sendOverridePacketToServer();
-            notifySyncListeners(this.serverConfig);
         } else {
             applyToLocalAndCache(optionKey, option, value);
+            if (this.state == ConnectionState.SINGLEPLAYER) {
+                networkHandler.sendLocalOverridePacketToServer();
+            }
         }
     }
 

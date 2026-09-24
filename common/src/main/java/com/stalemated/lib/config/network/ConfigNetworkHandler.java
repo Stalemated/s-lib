@@ -42,15 +42,17 @@ public class ConfigNetworkHandler<T> {
     private void registerServerReceivers() {
         NetworkHelper.INSTANCE.registerServerReceiver(c2sPacket, (player, buf) -> {
             if (manager.checkServerPermission(player)) {
+                boolean isHost = player != null && player.server != null && player.server.isHost(player.getGameProfile());
                 ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
-                manager.save();
-                manager.notifySyncListeners(manager.getConfig());
+                
+                if (!isHost) {
+                    manager.save();
+                    manager.notifySyncListeners(manager.getConfig());
+                }
 
                 if (player != null && player.server != null) {
                     for (ServerPlayerEntity p : player.server.getPlayerManager().getPlayerList()) {
-                        if (p != player) {
-                            sendConfigToPlayer(p);
-                        }
+                        sendConfigToPlayer(p);
                     }
                 }
             } else {
@@ -105,5 +107,23 @@ public class ConfigNetworkHandler<T> {
         PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.write(buf, manager.getOptionTree(), manager.getConfig(), SyncMode.INFORM_SERVER, manager.getProvider().getSerializer());
         NetworkHelper.INSTANCE.sendToServer(informC2sPacket, buf);
+    }
+
+    /**
+     * Sends a C2S packet with the requested config overrides using the local config.
+     * Only used by the host in Singleplayer/LAN environments to wake up the integrated server.
+     */
+    public void sendLocalOverridePacketToServer() {
+        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
+        NetworkHelper.INSTANCE.sendToServer(c2sPacket, buf);
+    }
+
+    /**
+     * Sends a C2S inform packet using the local config.
+     * Only used by the host in Singleplayer/LAN environments to wake up the integrated server.
+     */
+    public void sendLocalInformPacketToServer() {
+        sendInformPacketToServer();
     }
 }
