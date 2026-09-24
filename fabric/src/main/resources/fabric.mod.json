@@ -18,6 +18,9 @@
     "entrypoints": {
         "main": [
             "com.stalemated.lib.fabric.SLibFabric"
+        ],
+        "client": [
+            "com.stalemated.lib.fabric.client.SLibFabricClient"
         ]
     },
     "mixins": [

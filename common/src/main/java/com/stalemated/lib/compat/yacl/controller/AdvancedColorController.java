@@ -26,6 +26,7 @@ public class AdvancedColorController extends ColorController {
                         val -> {}
                 )
                 .controller(ColorControllerBuilder::create)
+                .available(stringOption.available())
                 .build(), alpha);
         this.stringOption = stringOption;
         this.alpha = alpha;
@@ -92,6 +93,7 @@ public class AdvancedColorController extends ColorController {
 
         @Override
         public void write(String string) {
+            if (!AdvancedColorController.this.stringOption.available()) return;
             if (this.modifyInput(builder -> {
                 if (this.selectionLength != 0) {
                     int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
@@ -109,6 +111,7 @@ public class AdvancedColorController extends ColorController {
 
         @Override
         protected void doBackspace() {
+            if (!AdvancedColorController.this.stringOption.available()) return;
             if (this.selectionLength != 0) {
                 this.doDelete();
                 return;
@@ -121,6 +124,7 @@ public class AdvancedColorController extends ColorController {
 
         @Override
         protected void doDelete() {
+            if (!AdvancedColorController.this.stringOption.available()) return;
             if (this.selectionLength != 0) {
                 if (this.modifyInput(builder -> {
                     int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
@@ -139,6 +143,7 @@ public class AdvancedColorController extends ColorController {
         }
 
         @Override protected boolean doCut() {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
             if (this.selectionLength != 0) { this.doCopy(); this.doDelete(); return true; } return false;
         }
 
@@ -162,8 +167,8 @@ public class AdvancedColorController extends ColorController {
 
         @Override
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            if (!this.inputFieldFocused) return false;
-
+            if (!this.inputFieldFocused || !AdvancedColorController.this.stringOption.available()) return false;
+            
             if (Screen.isSelectAll(keyCode)) { this.doSelectAll(); return true; }
             if (Screen.isCopy(keyCode)) { this.doCopy(); return true; }
             if (Screen.isPaste(keyCode)) { this.write(MinecraftClient.getInstance().keyboard.getClipboard()); return true; }
@@ -198,6 +203,7 @@ public class AdvancedColorController extends ColorController {
 
         @Override
         public boolean onMouseClicked(double mouseX, double mouseY, int button) {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
             boolean handled = super.onMouseClicked(mouseX, mouseY, button);
 
             if (this.inputFieldBounds != null && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) && !this.isMouseOverColorPreview(mouseX, mouseY)) {

@@ -13,8 +13,8 @@ import java.util.Map;
 public class FabricClientNetworkDelegator {
     public static final Map<Identifier, NetworkHelper.ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
 
-    public static void sendToServer(WrapperPayload payload) {
-        ClientPlayNetworking.send(payload);
+    public static void sendToServer(Identifier id, PacketByteBuf buf) {
+        ClientPlayNetworking.send(id, buf);
     }
 
     public static void registerClientReceiver(Identifier id, NetworkHelper.ClientReceiver receiver) {
@@ -29,5 +29,19 @@ public class FabricClientNetworkDelegator {
                 receiver.receive(buf);
             }
         });
+    }
+
+    public static void registerClientReceiver_1_20(Identifier id, NetworkHelper.ClientReceiver receiver) {
+        ClientPlayNetworking.registerGlobalReceiver(
+                id, (
+                        client,
+                        handler,
+                        buf,
+                        responseSender
+                ) -> {
+                    byte[] data = new byte[buf.readableBytes()];
+                    buf.readBytes(data);
+                    client.execute(() -> receiver.receive(new PacketByteBuf(Unpooled.wrappedBuffer(data))));
+                });
     }
 }

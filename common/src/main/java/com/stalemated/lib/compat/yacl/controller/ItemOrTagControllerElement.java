@@ -54,6 +54,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (!this.itemOrTagController.option().available()) return false;
+
         if (button == 0) {
             if (this.isMouseOver(mouseX, mouseY)) {
                 Dimension<Integer> oldDimension = this.getDimension();
@@ -85,6 +87,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!this.itemOrTagController.option().available()) return false;
+
         if (this.isDropdownVisible() && (keyCode == 257 || keyCode == 335)) {
             this.unfocus();
             return true;

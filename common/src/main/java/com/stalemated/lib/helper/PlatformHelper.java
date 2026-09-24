@@ -21,8 +21,8 @@ public interface PlatformHelper {
             .orElseThrow(() -> new RuntimeException("PlatformHelper not found!"));
 
     /**
-     * Gets the path to the configuration directory.
-     * @return The absolute path to the configuration directory (e.g. {@code .minecraft/config/}).
+     * Gets the path to the config directory.
+     * @return The absolute path to the config directory (e.g. {@code .minecraft/config/}).
      */
     Path getConfigDir();
 
@@ -59,4 +59,11 @@ public interface PlatformHelper {
      * @param keyBinding The keybind to register.
      */
     void registerKeyBinding(KeyBinding keyBinding);
+
+    /**
+     * Checks if the current environment is a dedicated server.
+     *
+     * @return {@code true} if running on a dedicated server, {@code false} otherwise.
+     */
+    boolean isDedicatedServer();
 }
