@@ -3,7 +3,7 @@
     "id": "s_lib",
     "version": "${version}",
     "name": "S-Lib",
-    "description": "A core utility library providing shared code for Stalemated's mods.",
+    "description": "An easy to use general utility and config library.",
     "authors": [
         "Stalemated"
     ],
