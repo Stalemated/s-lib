@@ -1,39 +1,39 @@
 # S-Lib
 
-**S-Lib** is a personal utility library for Minecraft modding. It provides a common codebase for text rendering, target matching, and advanced configuration GUIs.
+**S-Lib** is a lightweight utility and config library for Minecraft modding.
+
+---
+
+> **Example mod:** Check out the [S-Lib Test Mod](https://github.com/Stalemated/s-lib_test_mod) repository for complete config usage examples and GUI generation using [YACL](https://github.com/isXander/YetAnotherConfigLib).
 
 ---
 
 ## Features
 
-### Advanced YACL Controllers
-- **Advanced Color Controller:** A color controller that adds support for color validation of different formats (`0xFFFFFF`, `xFFFF00`, `#FF00FF`, `00FFFF`, also supports Alphas) as well as Minecraft Color names (`red`, `blue`, etc...) and legacy color codes (`&3`, `&a`, etc...).
-- **Item Or Tag Controller:** A controller that lets you match to any item or tag in the game, supports namespaces and Regex as well.
-- **Simple Enum and String Controllers:** YACL doesn't include a simple dropdown controller that can be used to pick an item from a list. It allows you to search and pick a specific entry, which could get annoying. This adds very simple dropdown controllers for both Enums and Strings.
+### Annotation-Driven Configs
 
-### Tooltip Component
-S-Lib includes a tooltip component that lets you specify an offset to render Indentations in a tooltip without adding any extra spaces to the tooltip's text.
+- Register synced or local configs in a single line of code using `SLibConfig.syncedBuilder()` or `SLibConfig.localBuilder()`.
+- Network `@Sync` Options:
+    - `OVERRIDE_CLIENT`: server authoritative config, syncs to the client. Config broadcasts on login and updates in real time. Supports configurable permission checks (e.g., OP-only).
+    - `INFORM_SERVER`: local config, informs server of changes
+    - `NONE`: local config, no network sync
+- Newly added fields are automatically populated with defaults, obsolete keys are removed, and values are clamped to specified ranges when using the annotations `@RangeInt`, `@RangeFloat`, and `@RangeDouble`.
+- Insert comments using the `@Comment` annotation on top of fields, directly in your config class. 
+- Backups are automatically created if file corruption or invalid syntax is detected, preserving the broken config if you accidentally make a mistake.
+- Use the `@Nest` annotation to allow usage of nested classes for more complex config structures.
+- Use the `@Ignore` annotation to ignore a field entirely.
+- Built-in type adapters compatible with serialization for AWT's `Color`, Minecraft's `TextColor`, `Identifier`, `Pattern`, and `UUID` classes.
 
-### Scrolling Text Renderer
-A highly optimized, reusable rendering utility (`ScrollingTextRenderer`) that allows any text or component to scroll seamlessly within a defined bounding box, complete with clipping and mouse interactions.
+### Custom YACL Controllers
+Custom controllers for [YACL](https://github.com/isXander/YetAnotherConfigLib):
+- **Advanced Color Controller:** Supports hex codes (`#RRGGBBAA`), Minecraft color names, and legacy formatting codes (`&a`, `&3`).
+- **Item or Tag Controller:** Autocomplete dropdown for matching exact items, tags (`#c:swords`), namespaces (`minecraft:*`), and regex patterns.
+- **Simple Dropdowns:** Dropdown selectors for Enums and Strings.
 
-### Target Matcher Framework
-A powerful matching engine (`TargetMatcher`) capable of parsing and evaluating item targets via:
-- Exact Item IDs (`minecraft:diamond_sword`)
-- Item Tags (`#c:swords`)
-- Mod Namespaces (`minecraft:*`)
-- Regex Patterns (`regex:.*_sword`)
-- Wildcards (`*`)
-
-### Utilities
-S-Lib includes several utilities, like:
-- A helper to get some attributes from items
-- Color utilities related to gradient calculation and color parsing from strings
-- Generic math utils
-- A utility to calculate perfect smooth scrolling text
-
-### Shared Tooltip State
-A centralized state manager (`SharedTooltipState`) that allows different mods (like CTA and STS) to communicate and share tooltip dimension limits, rendering phases, and active configurations seamlessly without tight coupling.
+### General Utilities
+- **Target Matcher Engine:** Item matching via exact IDs, tags, namespaces, wildcards (`*`), and regex (`regex:.*_sword`).
+- **Platform Helpers:** Abstractions for loader-specific methods, both as a general utility (`PlatformHelper`) and for network-related features (`NetworkHelper`).
+- **Math and Color Utils:** Easing functions (lerp, ease-out, clamp), text gradient generators, color utilities, and more.
 
 ---
 

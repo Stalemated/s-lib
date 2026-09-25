@@ -1,5 +1,33 @@
 # Changelog
 
+## 3.0.0+1.21.1
+
+**This update adds a brand-new and easy-to-use config system!**
+
+### New Features
+
+- Completely redesigned the config module from the ground up, making registering your configs possible in one line of code using `SLibConfig.syncedBuilder()` and `SLibConfig.localBuilder()`.
+- Newly added config fields are automatically inserted with default values, old/useless keys are removed.
+- Seven new annotations:
+    - `@Sync`:
+        - `OVERRIDE_CLIENT`: server authoritative config, syncs to the client. Config broadcasts on login and updates in real time. Supports configurable permission checks (e.g., OP-only).
+        - `INFORM_SERVER`: local config, informs server of changes
+        - `NONE`: local config, no network sync
+    - `@RangeInt`: clamps an int config field to a specified range
+    - `@RangeFloat`: clamps a float config field to a specified range
+    - `@RangeDouble`: clamps a double config field to a specified range
+    - `@Comment`: allows for comments to be added to config fields (supports text blocks)
+    - `@Ignore`: ignores a config field entirely
+    - `@Nest`: allows for nested classes for more complex config structures
+- Unmodded / Vanilla server compatibility: client instances safely fall back to default values for server authoritative options. Local options can be freely modified.
+- The config also supports serializing common classes like AWT's `Color`, Minecraft's `TextColor`, `Identifier`, `Pattern`, and `UUID`.
+
+### Fixes
+- Fixed availability propagation in custom YACL controllers
+
+### Testing
+- Created a new test mod to test the new config system [S-Lib Test Mod](https://github.com/Stalemated/s-lib_test_mod).
+
 ## 2.1.1+1.21.1
 
 ### Fix

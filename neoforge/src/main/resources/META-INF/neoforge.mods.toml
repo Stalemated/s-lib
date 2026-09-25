@@ -9,7 +9,7 @@ version = "${version}"
 displayName = "S-Lib"
 authors = "Stalemated"
 description = '''
-A core utility library providing shared code for Stalemated's mods.
+An easy to use general utility and config library.
 '''
 logoFile = "META-INF/icon.png"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
