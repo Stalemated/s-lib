@@ -43,9 +43,9 @@ public class ConfigNetworkHandler<T> {
         NetworkHelper.INSTANCE.registerServerReceiver(c2sPacket, (player, buf) -> {
             if (manager.checkServerPermission(player)) {
                 boolean isHost = player != null && player.server != null && player.server.isHost(player.getGameProfile());
-                ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
                 
                 if (!isHost) {
+                    ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
                     manager.save();
                     manager.notifySyncListeners(manager.getConfig());
                 }
