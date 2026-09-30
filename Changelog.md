@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.0.1+1.21.1
+
+### Fixes
+
+- Fixed options being saved on disk but not applied to memory when multiple fields are modified at the same time in singleplayer clients
+- Fixed ResolutionException due to incorrect shadowBundle declaration
+
 ## 3.0.0+1.21.1
 
 **This update adds a brand-new and easy-to-use config system!**
