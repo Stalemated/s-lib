@@ -36,6 +36,7 @@ dependencies {
     common(project(path: ':common', configuration: 'namedElements')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
     include "blue.endless:jankson:${rootProject.jankson_version}"
+    api "blue.endless:jankson:${rootProject.jankson_version}"
 }
 
 processResources {
