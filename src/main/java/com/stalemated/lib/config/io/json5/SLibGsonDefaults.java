@@ -2,8 +2,8 @@ package com.stalemated.lib.config.io.json5;
 
 import com.google.gson.*;
 import com.stalemated.lib.util.color.ColorUtils;
-import net.minecraft.text.TextColor;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 
 import java.awt.Color;
 import java.lang.reflect.Type;
@@ -49,7 +49,7 @@ public final class SLibGsonDefaults {
     }
 
     private static void registerMinecraftDefaults(GsonBuilder builder) {
-        builder.registerTypeAdapter(ResourceLocation.class, identifierAdapter());
+        builder.registerTypeAdapter(ResourceLocation.class, resourceLocationAdapter());
         builder.registerTypeAdapter(TextColor.class, textColorAdapter());
     }
 
@@ -76,7 +76,7 @@ public final class SLibGsonDefaults {
         return new PatternAdapter();
     }
 
-    private static ResourceLocationAdapter identifierAdapter() {
+    private static ResourceLocationAdapter resourceLocationAdapter() {
         return new ResourceLocationAdapter();
     }
 

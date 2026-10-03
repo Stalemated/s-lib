@@ -1,7 +1,7 @@
 package com.stalemated.lib.config.registry;
 
 import com.stalemated.lib.config.manager.SyncedConfigManager;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Collections;
 import java.util.List;
@@ -60,7 +60,7 @@ public final class ConfigRegistry {
      *
      * @param player The connected player.
      */
-    public static void onPlayerJoinServer(ServerPlayerEntity player) {
+    public static void onPlayerJoinServer(ServerPlayer player) {
         for (SyncedConfigManager<?> manager : MANAGERS) {
             try {
                 manager.sendConfigToPlayer(player);

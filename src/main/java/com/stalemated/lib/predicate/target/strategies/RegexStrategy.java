@@ -1,8 +1,8 @@
 package com.stalemated.lib.predicate.target.strategies;
 
 import com.stalemated.lib.predicate.target.TargetMatcher;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.regex.Pattern;
 
@@ -13,10 +13,10 @@ public class RegexStrategy implements TargetMatcher {
 
     @Override
     public boolean matches(ItemStack stack) {
-        if (pattern.matcher(Registries.ITEM.getId(stack.getItem()).toString()).matches()) {
+        if (pattern.matcher(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString()).matches()) {
             return true;
         }
 
-        return stack.streamTags().anyMatch(tag -> pattern.matcher("#" + tag.id().toString()).matches());
+        return stack.getTags().anyMatch(tag -> pattern.matcher("#" + tag.location().toString()).matches());
     }
 }

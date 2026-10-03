@@ -9,8 +9,8 @@ import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.config.registry.ConfigRegistry;
 import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -33,10 +33,10 @@ import java.util.function.Supplier;
 public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     private final Class<T> configClass;
-    private final Predicate<ServerPlayerEntity> serverPermissionCheck;
+    private final Predicate<ServerPlayer> serverPermissionCheck;
     private final Supplier<T> defaultFactory;
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
-    private final List<BiConsumer<ServerPlayerEntity, T>> informListeners = new CopyOnWriteArrayList<>();
+    private final List<BiConsumer<ServerPlayer, T>> informListeners = new CopyOnWriteArrayList<>();
 
     private volatile ConnectionState state = PlatformHelper.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
@@ -60,7 +60,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             Logger logger,
             ResourceLocation basePacketId,
             Class<T> configClass,
-            Predicate<ServerPlayerEntity> serverPermissionCheck,
+            Predicate<ServerPlayer> serverPermissionCheck,
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
         super(provider, configPath, logger, optionTree);
@@ -100,7 +100,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         this.serverConfig = serverConfig;
     }
 
-    public boolean checkServerPermission(ServerPlayerEntity player) {
+    public boolean checkServerPermission(ServerPlayer player) {
         return serverPermissionCheck.test(player);
     }
 
@@ -108,8 +108,8 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         return defaultFactory != null ? defaultFactory.get() : cloneConfig(getConfig());
     }
 
-    public void notifyInformListeners(ServerPlayerEntity player, T config) {
-        for (BiConsumer<ServerPlayerEntity, T> listener : informListeners) {
+    public void notifyInformListeners(ServerPlayer player, T config) {
+        for (BiConsumer<ServerPlayer, T> listener : informListeners) {
             try {
                 listener.accept(player, config);
             } catch (Exception e) {
@@ -123,7 +123,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      *
      * @param listener Consumer receiving the player and their informed config data.
      */
-    public void onConfigInformed(BiConsumer<ServerPlayerEntity, T> listener) {
+    public void onConfigInformed(BiConsumer<ServerPlayer, T> listener) {
         if (listener != null) {
             this.informListeners.add(listener);
         }
@@ -226,7 +226,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      *
      * @param player The target player to sync the config to.
      */
-    public void sendConfigToPlayer(ServerPlayerEntity player) {
+    public void sendConfigToPlayer(ServerPlayer player) {
         networkHandler.sendConfigToPlayer(player);
     }
 

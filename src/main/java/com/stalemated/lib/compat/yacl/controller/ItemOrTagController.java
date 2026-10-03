@@ -5,7 +5,7 @@ import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.AbstractWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownController;
-import net.minecraft.registry.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -24,15 +24,15 @@ public class ItemOrTagController extends AbstractDropdownController<String> {
 
         values.add("*");
 
-        Registries.ITEM.getIds().forEach(id -> {
+        BuiltInRegistries.ITEM.keySet().forEach(id -> {
             values.add(id.toString());
             namespaces.add(id.getNamespace());
         });
 
         namespaces.forEach(ns -> values.add(ns + ":*"));
 
-        Registries.ITEM.streamTags()
-                .map(tagKey -> "#" + tagKey.id().toString())
+        BuiltInRegistries.ITEM.getTagNames()
+                .map(tagKey -> "#" + tagKey.location().toString())
                 .forEach(values::add);
         
         values.sort(String::compareTo);

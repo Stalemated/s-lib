@@ -7,7 +7,7 @@ import dev.isxander.yacl3.api.controller.ControllerBuilder;
 import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.AbstractWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public class AdvancedColorControllerBuilder implements ControllerBuilder<String> {
     private final Option<String> option;
@@ -26,6 +26,7 @@ public class AdvancedColorControllerBuilder implements ControllerBuilder<String>
         return this;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     @Override
     public Controller<String> build() {
         final AdvancedColorController advancedColorController = new AdvancedColorController(this.option, this.alpha);
@@ -37,7 +38,7 @@ public class AdvancedColorControllerBuilder implements ControllerBuilder<String>
             }
 
             @Override
-            public Text formatValue() {
+            public Component formatValue() {
                 return advancedColorController.formatValue();
             }
 

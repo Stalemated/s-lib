@@ -4,8 +4,8 @@ import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -26,7 +26,7 @@ public class SyncedConfigBuilder<T> {
     private Path configPath;
     private Logger logger;
     private ResourceLocation syncChannel;
-    private Predicate<ServerPlayerEntity> serverPermissionCheck = ServerConfigPermissions.OP_ONLY;
+    private Predicate<ServerPlayer> serverPermissionCheck = ServerConfigPermissions.OP_ONLY;
     private Supplier<T> defaultFactory;
     private ConfigProvider<T> provider;
     private Consumer<GsonBuilder> gsonCustomizer;
@@ -56,7 +56,7 @@ public class SyncedConfigBuilder<T> {
         return this;
     }
 
-    public SyncedConfigBuilder<T> permissionCheck(Predicate<ServerPlayerEntity> check) {
+    public SyncedConfigBuilder<T> permissionCheck(Predicate<ServerPlayer> check) {
         this.serverPermissionCheck = check;
         return this;
     }

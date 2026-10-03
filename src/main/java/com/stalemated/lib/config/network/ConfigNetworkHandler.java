@@ -3,9 +3,9 @@ package com.stalemated.lib.config.network;
 import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.network.NetworkHelper;
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 
 public class ConfigNetworkHandler<T> {
 
@@ -42,7 +42,7 @@ public class ConfigNetworkHandler<T> {
     private void registerServerReceivers() {
         NetworkHelper.registerServerReceiver(c2sPacket, (player, buf) -> {
             if (manager.checkServerPermission(player)) {
-                boolean isHost = player != null && player.server != null && player.server.isHost(player.getGameProfile());
+                boolean isHost = player != null && player.server != null && player.server.isSingleplayerOwner(player.getGameProfile());
                 
                 if (!isHost) {
                     ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
@@ -51,7 +51,7 @@ public class ConfigNetworkHandler<T> {
                 }
 
                 if (player != null && player.server != null) {
-                    for (ServerPlayerEntity p : player.server.getPlayerManager().getPlayerList()) {
+                    for (ServerPlayer p : player.server.getPlayerList().getPlayers()) {
                         sendConfigToPlayer(p);
                     }
                 }
@@ -79,11 +79,11 @@ public class ConfigNetworkHandler<T> {
      *
      * @param player The target player to sync the config to.
      */
-    public void sendConfigToPlayer(ServerPlayerEntity player) {
+    public void sendConfigToPlayer(ServerPlayer player) {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
-        if (player.server != null && player.server.isHost(player.getGameProfile())) return;
+        if (player.server != null && player.server.isSingleplayerOwner(player.getGameProfile())) return;
 
-        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
         NetworkHelper.sendToClient(player, s2cPacket, buf);
     }
@@ -94,7 +94,7 @@ public class ConfigNetworkHandler<T> {
     public void sendOverridePacketToServer() {
         T serverConfig = manager.getServerConfig();
         if (serverConfig != null) {
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), serverConfig, manager.getProvider().getSerializer());
             NetworkHelper.sendToServer(c2sPacket, buf);
         }
@@ -104,7 +104,7 @@ public class ConfigNetworkHandler<T> {
      * Sends a C2S packet to inform the server of local preferences.
      */
     public void sendInformPacketToServer() {
-        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.write(buf, manager.getOptionTree(), manager.getConfig(), SyncMode.INFORM_SERVER, manager.getProvider().getSerializer());
         NetworkHelper.sendToServer(informC2sPacket, buf);
     }
@@ -114,7 +114,7 @@ public class ConfigNetworkHandler<T> {
      * Only used by the host in Singleplayer/LAN environments to wake up the integrated server.
      */
     public void sendLocalOverridePacketToServer() {
-        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
         NetworkHelper.sendToServer(c2sPacket, buf);
     }

@@ -5,14 +5,14 @@ import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;
 import dev.isxander.yacl3.api.controller.ValueFormatter;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.util.List;
 import java.util.Objects;
 
 public class SimpleStringDropdownControllerBuilder implements ControllerBuilder<String> {
     private final Option<String> option;
-    private ValueFormatter<String> formatter = Text::literal;
+    private ValueFormatter<String> formatter = Component::literal;
     private List<String> values;
 
     private SimpleStringDropdownControllerBuilder(Option<String> option) {
@@ -33,6 +33,7 @@ public class SimpleStringDropdownControllerBuilder implements ControllerBuilder<
         return this;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     @Override
     public Controller<String> build() {
         Objects.requireNonNull(values, "List cannot be Null.");

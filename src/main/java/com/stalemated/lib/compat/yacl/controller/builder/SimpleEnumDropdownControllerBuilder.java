@@ -6,7 +6,7 @@ import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;
 import dev.isxander.yacl3.api.controller.ValueFormatter;
 import dev.isxander.yacl3.gui.controllers.cycling.EnumController;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.util.Objects;
 import java.util.function.Function;
@@ -17,7 +17,7 @@ public class SimpleEnumDropdownControllerBuilder<E extends Enum<E>> implements C
 
     private SimpleEnumDropdownControllerBuilder(Option<E> option) {
         this.option = option;
-        Function<E, Text> defaultFormatter = EnumController.getDefaultFormatter();
+        Function<E, Component> defaultFormatter = EnumController.getDefaultFormatter();
         Objects.requireNonNull(defaultFormatter);
         this.formatter = defaultFormatter::apply;
     }
@@ -31,6 +31,7 @@ public class SimpleEnumDropdownControllerBuilder<E extends Enum<E>> implements C
         return this;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     @Override
     public Controller<E> build() {
         return new SimpleEnumDropdownController<>(this.option, this.formatter);

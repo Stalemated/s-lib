@@ -1,20 +1,19 @@
 package com.stalemated.lib.util.color;
 
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-
 import java.awt.*;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 public class GradientGenerator {
 
-    public static MutableText getStaticGradient(Text text, int color1, int color2) {
+    public static MutableComponent getStaticGradient(Component text, int color1, int color2) {
         return applyGradient(text.getString(), (index, ratio) -> 
                 GradientColorUtils.interpolate(color1, color2, ratio)
         );
     }
 
-    public static MutableText getSlideGradient(Text text, int offset, int color1, int color2, int tickrate, boolean reversed) {
+    public static MutableComponent getSlideGradient(Component text, int offset, int color1, int color2, int tickrate, boolean reversed) {
         long time = getAnimationTime(tickrate);
         int dir = reversed ? -1 : 1;
         return applyGradient(text.getString(), (index, ratio) -> {
@@ -23,7 +22,7 @@ public class GradientGenerator {
         });
     }
 
-    public static MutableText getBreathingGradient(Text text, int offset, int color1, int color2, int tickrate, boolean reversed) {
+    public static MutableComponent getBreathingGradient(Component text, int offset, int color1, int color2, int tickrate, boolean reversed) {
         long time = getAnimationTime(tickrate);
         int dir = reversed ? -1 : 1;
         return applyGradient(text.getString(), (index, ratio) -> {
@@ -32,7 +31,7 @@ public class GradientGenerator {
         });
     }
 
-    public static MutableText getRainbowGradient(Text text, int offset, int tickrate, boolean reversed) {
+    public static MutableComponent getRainbowGradient(Component text, int offset, int tickrate, boolean reversed) {
         long time = getAnimationTime(tickrate);
         int dir = reversed ? -1 : 1;
         return applyGradient(text.getString(), (index, ratio) -> {
@@ -52,8 +51,8 @@ public class GradientGenerator {
         int getColor(int index, float ratio);
     }
 
-    private static MutableText applyGradient(String text, GradientColorProvider colorProvider) {
-        MutableText gradientText = Text.empty();
+    private static MutableComponent applyGradient(String text, GradientColorProvider colorProvider) {
+        MutableComponent gradientText = Component.empty();
 
         float maxIndex = Math.max(1.0f, text.length() - 1.0f);
 
@@ -61,7 +60,7 @@ public class GradientGenerator {
             float ratio = i / maxIndex;
             int color = colorProvider.getColor(i, ratio);
             
-            gradientText.append(Text.literal(String.valueOf(text.charAt(i)))
+            gradientText.append(Component.literal(String.valueOf(text.charAt(i)))
                     .setStyle(Style.EMPTY.withColor(color)));
         }
         

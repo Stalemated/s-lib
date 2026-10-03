@@ -1,13 +1,13 @@
 package com.stalemated.lib.config.permissions;
 
-import net.minecraft.client.MinecraftClient;
 import java.util.function.Supplier;
+import net.minecraft.client.Minecraft;
 
 public class ClientConfigPermissions {
     public static final Supplier<Boolean> OP_OR_SP = () -> {
-        MinecraftClient client = MinecraftClient.getInstance();
-        boolean inMultiplayer = client.world != null && !client.isInSingleplayer();
-        boolean isOp = client.player != null && client.player.hasPermissionLevel(2);
+        Minecraft client = Minecraft.getInstance();
+        boolean inMultiplayer = client.level != null && !client.isLocalServer();
+        boolean isOp = client.player != null && client.player.hasPermissions(2);
         return !inMultiplayer || isOp;
     };
     

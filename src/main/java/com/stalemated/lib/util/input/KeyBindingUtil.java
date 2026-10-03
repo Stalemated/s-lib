@@ -1,21 +1,21 @@
 package com.stalemated.lib.util.input;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.stalemated.lib.mixin.client.accessor.KeyBindingAccessor;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 public class KeyBindingUtil {
-    public static boolean isKeyDownInGui(KeyBinding keyBinding) {
+    public static boolean isKeyDownInGui(KeyMapping keyBinding) {
         if (keyBinding == null || keyBinding.isUnbound()) return false;
 
-        long window = MinecraftClient.getInstance().getWindow().getHandle();
-        InputUtil.Key boundKey = ((KeyBindingAccessor) keyBinding).getBoundKey();
+        long window = Minecraft.getInstance().getWindow().getWindow();
+        InputConstants.Key boundKey = ((KeyBindingAccessor) keyBinding).getBoundKey();
 
-        if (boundKey.getCategory() == InputUtil.Type.MOUSE) {
-            return GLFW.glfwGetMouseButton(window, boundKey.getCode()) == GLFW.GLFW_PRESS;
+        if (boundKey.getType() == InputConstants.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(window, boundKey.getValue()) == GLFW.GLFW_PRESS;
         }
-        return InputUtil.isKeyPressed(window, boundKey.getCode());
+        return InputConstants.isKeyDown(window, boundKey.getValue());
     }
 }

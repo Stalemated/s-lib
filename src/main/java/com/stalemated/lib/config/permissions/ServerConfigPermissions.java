@@ -1,9 +1,9 @@
 package com.stalemated.lib.config.permissions;
 
-import net.minecraft.server.network.ServerPlayerEntity;
 import java.util.function.Predicate;
+import net.minecraft.server.level.ServerPlayer;
 
 public class ServerConfigPermissions {
-    public static final Predicate<ServerPlayerEntity> OP_ONLY = player -> player.hasPermissionLevel(2);
-    public static final Predicate<ServerPlayerEntity> ANYONE = player -> true;
+    public static final Predicate<ServerPlayer> OP_ONLY = player -> player.hasPermissions(2);
+    public static final Predicate<ServerPlayer> ANYONE = player -> true;
 }

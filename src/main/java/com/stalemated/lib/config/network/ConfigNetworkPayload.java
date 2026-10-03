@@ -6,7 +6,7 @@ import com.google.gson.JsonParser;
 import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -71,16 +71,16 @@ public final class ConfigNetworkPayload {
      * @param targetMode The sync mode filter.
      * @param serializer The config serializer.
      */
-    public static void write(PacketByteBuf buf, OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
+    public static void write(FriendlyByteBuf buf, OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
         String json = serialize(tree, configInstance, targetMode, serializer);
         
         if (json.length() > MAX_PAYLOAD_SIZE) {
             LOGGER.error("Config payload is too large to sync! Size: {} chars, Max: {} ({}KB). Sync aborted to prevent server disconnect.", json.length(), MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE / 1024);
             // Empty string so the receiver reads and ignores it safely
-            buf.writeString("", MAX_PAYLOAD_SIZE);
+            buf.writeUtf("", MAX_PAYLOAD_SIZE);
             return;
         }
-        buf.writeString(json, MAX_PAYLOAD_SIZE);
+        buf.writeUtf(json, MAX_PAYLOAD_SIZE);
     }
 
     /**
@@ -91,7 +91,7 @@ public final class ConfigNetworkPayload {
      * @param configInstance The source config POJO.
      * @param serializer The config serializer.
      */
-    public static void writeSynced(PacketByteBuf buf, OptionTree tree, Object configInstance, ConfigSerializer<?> serializer) {
+    public static void writeSynced(FriendlyByteBuf buf, OptionTree tree, Object configInstance, ConfigSerializer<?> serializer) {
         write(buf, tree, configInstance, SyncMode.OVERRIDE_CLIENT, serializer);
     }
 
@@ -154,8 +154,8 @@ public final class ConfigNetworkPayload {
      * @param targetInstance The target config POJO to update.
      * @param serializer The config serializer.
      */
-    public static void readAndApply(PacketByteBuf buf, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
-        String json = buf.readString(MAX_PAYLOAD_SIZE);
+    public static void readAndApply(FriendlyByteBuf buf, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
+        String json = buf.readUtf(MAX_PAYLOAD_SIZE);
         applyFromJson(json, tree, targetInstance, serializer);
     }
 }
