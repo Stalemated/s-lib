@@ -1,19 +1,22 @@
 package com.stalemated.lib.predicate.target.strategies;
 
 import com.stalemated.lib.predicate.target.TargetMatcher;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
 public class ItemStrategy implements TargetMatcher {
     private final ResourceLocation itemId;
 
     public ItemStrategy(String itemId) {
-        this.itemId = new ResourceLocation(itemId);
+        //? if <1.21
+        //this.itemId = new ResourceLocation(itemId);
+        //? if >=1.21
+        this.itemId = ResourceLocation.parse(itemId);
     }
 
     @Override
     public boolean matches(ItemStack stack) {
-        return Registries.ITEM.getId(stack.getItem()).equals(this.itemId);
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()).equals(this.itemId);
     }
 }

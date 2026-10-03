@@ -1,18 +1,21 @@
 package com.stalemated.lib.predicate.target.strategies;
 
 import com.stalemated.lib.predicate.target.TargetMatcher;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 public class TagStrategy implements TargetMatcher {
     private final TagKey<Item> tagKey;
     public TagStrategy(String tagId) {
-        this.tagKey = TagKey.of(RegistryKeys.ITEM, new ResourceLocation(tagId));
+        //? if <1.21
+        //this.tagKey = TagKey.create(Registries.ITEM, new ResourceLocation(tagId));
+        //? if >=1.21
+        this.tagKey = TagKey.create(Registries.ITEM, ResourceLocation.parse(tagId));
     }
 
     @Override
-    public boolean matches(ItemStack stack) { return stack.isIn(tagKey); }
+    public boolean matches(ItemStack stack) { return stack.is(tagKey); }
 }

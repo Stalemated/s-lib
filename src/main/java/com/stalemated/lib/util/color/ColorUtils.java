@@ -1,12 +1,11 @@
 package com.stalemated.lib.util.color;
 
-import net.minecraft.text.TextColor;
-import net.minecraft.util.Formatting;
-
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.TextColor;
 
 public class ColorUtils {
 
@@ -38,7 +37,7 @@ public class ColorUtils {
 
     public static String toHexString(TextColor color) {
         if (color == null) return DEFAULT_COLOR_STRING;
-        return color.getName();
+        return color.serialize();
     }
 
     public static TextColor resolveTextColor(String colorStr) {
@@ -48,16 +47,16 @@ public class ColorUtils {
 
         // Legacy code (e.g., "&c")
         if (lowerColor.length() == 2 && lowerColor.charAt(0) == '&') {
-            Formatting format = Formatting.byCode(lowerColor.charAt(1));
-            if (format != null && format.getColorValue() != null) {
-                return TextColor.fromFormatting(format);
+            ChatFormatting format = ChatFormatting.getByCode(lowerColor.charAt(1));
+            if (format != null && format.getColor() != null) {
+                return TextColor.fromLegacyFormat(format);
             }
         }
 
         // Formatting name (e.g., "red")
-        Formatting format = Formatting.byName(lowerColor);
-        if (format != null && format.getColorValue() != null) {
-            return TextColor.fromFormatting(format);
+        ChatFormatting format = ChatFormatting.getByName(lowerColor);
+        if (format != null && format.getColor() != null) {
+            return TextColor.fromLegacyFormat(format);
         }
 
         // Hex code
@@ -67,7 +66,10 @@ public class ColorUtils {
         else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
 
         if (hex.matches("^[0-9a-fA-F]{6}$")) {
-            return TextColor.parse("#" + hex);
+            //? if <1.20.5
+            //return TextColor.parseColor("#" + hex);
+            //? if >=1.20.5
+            return TextColor.parseColor("#" + hex).getOrThrow();
         }
 
         return null;
@@ -84,7 +86,7 @@ public class ColorUtils {
 
     public static int parseColor(String colorStr) {
         TextColor color = resolveTextColor(colorStr);
-        return color != null ? color.getRgb() : DEFAULT_COLOR;
+        return color != null ? color.getValue() : DEFAULT_COLOR;
     }
 
     public static boolean isInvalidARGBColor(String color, int index) {
@@ -135,7 +137,7 @@ public class ColorUtils {
 
         TextColor textColor = resolveTextColor(lowerColor);
         if (textColor != null) {
-            return (0xFF << 24) | textColor.getRgb();
+            return (0xFF << 24) | textColor.getValue();
         }
 
         return null;
