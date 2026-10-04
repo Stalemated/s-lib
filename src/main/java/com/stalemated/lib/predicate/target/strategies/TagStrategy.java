@@ -11,9 +11,9 @@ public class TagStrategy implements TargetMatcher {
     private final TagKey<Item> tagKey;
     public TagStrategy(String tagId) {
         //? if <1.21
-        //this.tagKey = TagKey.create(Registries.ITEM, new ResourceLocation(tagId));
+        this.tagKey = TagKey.create(Registries.ITEM, new ResourceLocation(tagId));
         //? if >=1.21
-        this.tagKey = TagKey.create(Registries.ITEM, ResourceLocation.parse(tagId));
+        //this.tagKey = TagKey.create(Registries.ITEM, ResourceLocation.parse(tagId));
     }
 
     @Override

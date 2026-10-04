@@ -3,14 +3,14 @@ package com.stalemated.lib.compat.yacl.controller;
 import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownControllerElement;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,24 +31,24 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         return value.equals("*") || value.startsWith("!") || value.startsWith("regex:") || value.endsWith(":*") || value.startsWith("#");
     }
 
-    private Text formatTargetText(String value) {
-        if (value.equals("*")) return Text.literal(value).formatted(Formatting.AQUA);
-        if (value.startsWith("!")) return Text.literal(value).formatted(Formatting.RED);
-        if (value.startsWith("regex:")) return Text.literal(value).formatted(Formatting.GREEN);
-        if (value.endsWith(":*")) return Text.literal(value).formatted(Formatting.YELLOW);
-        if (value.startsWith("#")) return Text.literal(value).formatted(Formatting.GOLD);
-        return Text.literal(value);
+    private Component formatTargetText(String value) {
+        if (value.equals("*")) return Component.literal(value).withStyle(ChatFormatting.AQUA);
+        if (value.startsWith("!")) return Component.literal(value).withStyle(ChatFormatting.RED);
+        if (value.startsWith("regex:")) return Component.literal(value).withStyle(ChatFormatting.GREEN);
+        if (value.endsWith(":*")) return Component.literal(value).withStyle(ChatFormatting.YELLOW);
+        if (value.startsWith("#")) return Component.literal(value).withStyle(ChatFormatting.GOLD);
+        return Component.literal(value);
     }
 
     @Override
-    protected void drawValueText(DrawContext graphics, int mouseX, int mouseY, float delta) {
+    protected void drawValueText(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         Dimension<Integer> oldDimension = this.getDimension();
         this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
         super.drawValueText(graphics, mouseX, mouseY, delta);
         this.setDimension(oldDimension);
 
         if (!this.currentItemIcon.isEmpty()) {
-            graphics.drawItemWithoutEntity(this.currentItemIcon, this.getDimension().xLimit() - this.getXPadding() - this.getDecorationPadding() + 2, this.getDimension().y() + 2);
+            graphics.renderFakeItem(this.currentItemIcon, this.getDimension().xLimit() - this.getXPadding() - this.getDecorationPadding() + 2, this.getDimension().y() + 2);
         }
     }
 
@@ -105,7 +105,10 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         this.currentItemIcon = ItemStack.EMPTY;
         if (!isSpecialTarget(this.inputField)) {
             try {
-                Item item = Registries.ITEM.get(new ResourceLocation(this.inputField));
+                //? if <1.21
+                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(this.inputField));
+                //? if >=1.21
+                //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(this.inputField));
                 if (item != Items.AIR) {
                     this.currentItemIcon = new ItemStack(item);
                 }
@@ -116,7 +119,10 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         for (String id : identifiers) {
             if (!isSpecialTarget(id)) {
                 try {
-                    Item item = Registries.ITEM.get(new ResourceLocation(id));
+                    //? if <1.21
+                    Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(id));
+                    //? if >=1.21
+                    //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
                     if (item != Items.AIR) {
                         this.itemCache.put(id, new ItemStack(item));
                     }
@@ -128,23 +134,23 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     }
 
     @Override
-    protected void renderDropdownEntry(DrawContext graphics, Dimension<Integer> entryDimension, String value) {
+    protected void renderDropdownEntry(GuiGraphics graphics, Dimension<Integer> entryDimension, String value) {
         int leftEdge = entryDimension.x() + this.getDecorationPadding();
         
-        Text text = formatTargetText(value);
+        Component text = formatTargetText(value);
 
         int maxTextWidth = entryDimension.width() - this.getDecorationPadding() - 24;
         
-        if (this.textRenderer.getWidth(text) > maxTextWidth) {
-            String shortenedString = this.textRenderer.trimToWidth(text.getString(), maxTextWidth - this.textRenderer.getWidth("...")) + "...";
+        if (this.textRenderer.width(text) > maxTextWidth) {
+            String shortenedString = this.textRenderer.plainSubstrByWidth(text.getString(), maxTextWidth - this.textRenderer.width("...")) + "...";
             text = formatTargetText(shortenedString);
         }
 
-        graphics.drawText(this.textRenderer, text, leftEdge + 4, this.getTextY(entryDimension), -1, true);
+        graphics.drawString(this.textRenderer, text, leftEdge + 4, this.getTextY(entryDimension), -1, true);
 
         ItemStack stack = this.itemCache.get(value);
         if (stack != null && !stack.isEmpty()) {
-            graphics.drawItemWithoutEntity(stack, entryDimension.xLimit() - 20, entryDimension.y() + 1);
+            graphics.renderFakeItem(stack, entryDimension.xLimit() - 20, entryDimension.y() + 1);
         }
     }
 
@@ -154,20 +160,23 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     }
 
     @Override
-    protected Text getValueText() {
+    protected Component getValueText() {
         if (!this.inputField.isEmpty() && !this.inputFieldFocused) {
             if (isSpecialTarget(this.inputField)) {
                 return formatTargetText(this.inputField);
             }
             
             try {
-                Item item = Registries.ITEM.get(new ResourceLocation(this.inputField));
+                //? if <1.21
+                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(this.inputField));
+                //? if >=1.21
+                //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(this.inputField));
                 if (item != Items.AIR) {
-                    return item.getName();
+                    return item.getDescription();
                 }
             } catch (Exception ignored) {}
             
-            return Text.literal(this.inputField);
+            return Component.literal(this.inputField);
         }
         return super.getValueText();
     }

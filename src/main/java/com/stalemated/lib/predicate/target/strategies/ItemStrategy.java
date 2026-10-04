@@ -10,9 +10,9 @@ public class ItemStrategy implements TargetMatcher {
 
     public ItemStrategy(String itemId) {
         //? if <1.21
-        //this.itemId = new ResourceLocation(itemId);
+        this.itemId = new ResourceLocation(itemId);
         //? if >=1.21
-        this.itemId = ResourceLocation.parse(itemId);
+        //this.itemId = ResourceLocation.parse(itemId);
     }
 
     @Override

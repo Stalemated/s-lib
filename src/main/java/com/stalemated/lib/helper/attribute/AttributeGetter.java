@@ -1,19 +1,17 @@
 package com.stalemated.lib.helper.attribute;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Locale;
+import java.util.*;
 
 //? if <1.20.5 {
-/*import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.MobType;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-*///?} else {
-import net.minecraft.core.component.DataComponents;
+//?} else {
+/*import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
@@ -21,11 +19,11 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
-//?}
+*///?}
 
 public class AttributeGetter {
     //? if <1.20.5 {
-    /*public static String getEnchantments(ItemStack stack) {
+    public static String getEnchantments(ItemStack stack) {
         Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(stack);
         if (enchantments.isEmpty()) return "";
 
@@ -76,8 +74,8 @@ public class AttributeGetter {
         }
         return "";
     }
-    *///?} else {
-    public static String getEnchantments(ItemStack stack) {
+    //?} else {
+    /*public static String getEnchantments(ItemStack stack) {
         ItemEnchantments enchantments = EnchantmentHelper.getEnchantmentsForCrafting(stack);
         if (enchantments.isEmpty()) return "";
 
@@ -134,7 +132,7 @@ public class AttributeGetter {
         }
         return "";
     }
-    //?}
+    *///?}
 
     private static String formatString(float unformatted) {
         return String.format(Locale.US, "%.1f", unformatted);

@@ -1,30 +1,34 @@
 package com.stalemated.lib.helper;
 
-import net.minecraft.client.option.KeyBinding;
 import java.nio.file.Path;
+import net.minecraft.client.KeyMapping;
 
-//? if fabric
+//? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+//?}
 
-//? if forge || neoforge
-/*import java.util.ArrayList;*/
-/*import java.util.List;*/
+//? if forge || neoforge {
+/*import java.util.ArrayList;
+import java.util.List;
+*///?}
 
-//? if forge
-/*import net.minecraftforge.fml.loading.FMLPaths;*/
-/*import net.minecraftforge.fml.ModList;
+//? if forge {
+/*import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.LoadingModList;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.fml.loading.FMLEnvironment;*/
+import net.minecraftforge.fml.loading.FMLEnvironment;
+*///?}
 
-//? if neoforge
-/*import net.neoforged.fml.loading.FMLPaths;*/
-/*import net.neoforged.fml.ModList;
+//? if neoforge {
+/*import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.LoadingModList;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.loading.FMLEnvironment;*/
+import net.neoforged.fml.loading.FMLEnvironment;
+*///?}
 
 /**
  * An abstraction layer for retrieving platform-specific information and performing actions across different modloaders.
@@ -32,7 +36,7 @@ import net.neoforged.fml.loading.FMLEnvironment;*/
 public class PlatformHelper {
 
     //? if forge || neoforge
-    /*public static final List<KeyBinding> KEYBINDINGS = new ArrayList<>();*/
+    //public static final List<KeyMapping> KEYBINDINGS = new ArrayList<>();
 
     /**
      * Gets the path to the config directory.
@@ -84,13 +88,13 @@ public class PlatformHelper {
      * Registers a keybind to the client platform.
      * @param keyBinding The keybind to register.
      */
-    public static void registerKeyBinding(KeyBinding keyBinding) {
+    public static void registerKeyBinding(KeyMapping keyBinding) {
         //? if fabric {
         KeyBindingHelper.registerKeyBinding(keyBinding);
         //?}
         //? if forge || neoforge {
-        /*KEYBINDINGS.add(keyBinding);*/
-        //?}
+        /*KEYBINDINGS.add(keyBinding);
+        *///?}
     }
 
     /**
