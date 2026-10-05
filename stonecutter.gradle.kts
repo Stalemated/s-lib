@@ -2,7 +2,7 @@ plugins {
     id("dev.kikugie.stonecutter")
 }
 
-stonecutter active "1.21.1-fabric"
+stonecutter active "1.20.1-fabric"
 
 // See https://stonecutter.kikugie.dev/wiki/config/params
 stonecutter parameters {
@@ -22,6 +22,9 @@ stonecutter parameters {
     swaps["minecraft"] = "\"${node.metadata.version}\";"
     constants["release"] = properties.get<String>("mod.id") != "s_lib"
     dependencies["fapi"] = properties.getOrNull<String>("deps.fabric_api") ?: "0"
+    val yaclVer = properties.getOrNull<String>("deps.yacl")?.substringBefore('+') ?: "0"
+    dependencies["yacl"] = yaclVer
+    dependencies["yet_another_config_lib_v3"] = yaclVer
 
     replacements {
         string(current.parsed >= "1.21.11") {

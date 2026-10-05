@@ -1,7 +1,7 @@
 package com.stalemated.lib.compat.yacl.controller.helper;
 
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownControllerElement;
-import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screens.Screen;
 
 public class DropdownUIHelper {
 
@@ -42,6 +42,7 @@ public class DropdownUIHelper {
         return false;
     }
 
+    //? if yacl: <3.8.0 {
     public static boolean handleMouseClicked(AbstractDropdownControllerElement<?, ?> element, double mouseX, double mouseY) {
         if (element.isMouseOver(mouseX, mouseY)) {
             element.setFocused(true);
@@ -51,4 +52,18 @@ public class DropdownUIHelper {
         }
         return false;
     }
+    //?} else {
+    /*public static boolean handleMouseClicked(AbstractDropdownControllerElement<?, ?> element, double mouseX, double mouseY) {
+        if (element.isMouseOver(mouseX, mouseY)) {
+            if (!element.isDropdownVisible()) {
+                element.createDropdownWidget();
+            }
+            return true;
+        } else {
+            element.unfocus();
+        }
+
+        return false;
+    }
+    *///?}
 }

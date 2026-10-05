@@ -7,11 +7,10 @@ import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.AbstractWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.ColorController;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
-
 import java.awt.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public class AdvancedColorController extends ColorController {
     private final Option<String> stringOption;
@@ -69,8 +68,8 @@ public class AdvancedColorController extends ColorController {
     }
 
     @Override
-    public Text formatValue() {
-        return Text.literal(getString());
+    public Component formatValue() {
+        return Component.literal(getString());
     }
 
     @Override
@@ -151,7 +150,7 @@ public class AdvancedColorController extends ColorController {
             if (this.selectionLength != 0) {
                 int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
                 int end = Math.max(this.caretPos, this.caretPos + this.selectionLength);
-                MinecraftClient.getInstance().keyboard.setClipboard(this.inputField.substring(start, end));
+                Minecraft.getInstance().keyboardHandler.setClipboard(this.inputField.substring(start, end));
                 return true;
             }
             return false;
@@ -171,7 +170,7 @@ public class AdvancedColorController extends ColorController {
             
             if (Screen.isSelectAll(keyCode)) { this.doSelectAll(); return true; }
             if (Screen.isCopy(keyCode)) { this.doCopy(); return true; }
-            if (Screen.isPaste(keyCode)) { this.write(MinecraftClient.getInstance().keyboard.getClipboard()); return true; }
+            if (Screen.isPaste(keyCode)) { this.write(Minecraft.getInstance().keyboardHandler.getClipboard()); return true; }
             if (Screen.isCut(keyCode)) { this.doCut(); return true; }
 
             switch (keyCode) {
@@ -201,6 +200,7 @@ public class AdvancedColorController extends ColorController {
             return false;
         }
 
+        //? if yacl: <3.8.0 {
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!AdvancedColorController.this.stringOption.available()) return false;
@@ -214,5 +214,37 @@ public class AdvancedColorController extends ColorController {
             }
             return handled;
         }
+        //?} else {
+        /*@Override
+        public boolean onMouseClicked(double mouseX, double mouseY, int button) {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
+            boolean handled = super.onMouseClicked(mouseX, mouseY, button);
+
+            if (this.inputFieldBounds != null && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) && !this.isMouseOverColorPreview(mouseX, mouseY)) {
+                this.setFocused(true);
+                int clickOffset = (int) mouseX - this.inputFieldBounds.x();
+                String renderedText = this.textRenderer.plainSubstrByWidth(this.inputField, this.inputFieldBounds.width() * 2);
+                this.caretPos = this.textRenderer.plainSubstrByWidth(renderedText, clickOffset).length();
+
+                int clickX = this.inputFieldBounds.x();
+                int bestCaret = 0;
+                int minDistance = Integer.MAX_VALUE;
+
+                for (int i = 0; i <= this.inputField.length(); i++) {
+                    int charX = clickX + this.textRenderer.width(this.inputField.substring(0, i));
+                    int distance = Math.abs(charX - (int) mouseX);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestCaret = i;
+                    }
+                }
+
+                this.caretPos = bestCaret;
+                this.selectionLength = 0;
+            }
+
+            return handled;
+        }
+        *///?}
     }
 }
