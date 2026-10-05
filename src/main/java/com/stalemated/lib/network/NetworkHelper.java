@@ -1,54 +1,61 @@
 package com.stalemated.lib.network;
 
 import io.netty.buffer.Unpooled;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 
-import net.minecraft.util.ResourceLocation;
-
-import java.util.HashMap;
-import java.util.Map;
-
-//? if fabric && <1.20.5
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-//? if fabric && >=1.20.5
-/*import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-*/
-/*import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;*/
-//? if fabric
+//? if fabric{
 import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+    //?if >=1.20.5 {
+    /*import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+    import java.util.HashMap;
+    import java.util.Map;
+    *///?}
+//?}
 
-//? if forge
+//? if forge{
 /*import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
-import java.util.function.Supplier;*/
+import java.util.function.Supplier;
+import java.util.HashMap;
+import java.util.Map;
 
-//? if neoforge
+import static com.stalemated.lib.SLib.MOD_ID;
+*///?}
+
+//? if neoforge{
 /*import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;*/
+import net.neoforged.fml.common.EventBusSubscriber;
 
-//? if >=1.20.5 {
-/*import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;*/
-//?}
+import java.util.HashMap;
+import java.util.Map;
+
+import static com.stalemated.lib.SLib.MOD_ID;
+*///?}
 
 //? if neoforge
-/*@EventBusSubscriber(modid = MOD_ID, bus = EventBusSubscriber.Bus.MOD)*/
+//@EventBusSubscriber(modid = MOD_ID)
 public class NetworkHelper {
 
-    public static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new HashMap<>();
+    //? if >=1.20.5 || forge{
+    /*public static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new HashMap<>();
     public static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
+    *///?}
 
     //? if forge {
     /*private static final String PROTOCOL_VERSION = "1";
+
+    @SuppressWarnings("removal")
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MOD_ID, "network"),
             () -> PROTOCOL_VERSION,
@@ -57,32 +64,10 @@ public class NetworkHelper {
     );
 
     static {
-        CHANNEL.registerMessage(0, WrapperPacket.class, WrapperPacket::encode, WrapperPacket::new, NetworkHelper::handleForge);
-    }*/
-    //?}
+        CHANNEL.registerMessage(0, WrapperPacket.class, WrapperPacket::encode, WrapperPacket::new, NetworkHelper::handlePacket);
+    }
 
-    //? if >=1.20.5 {
-    /*public record WrapperPayload(ResourceLocation channelId, byte[] data) implements CustomPayload {
-        //? if >=1.21
-        public static final CustomPayload.Id<WrapperPayload> ID = new CustomPayload.Id<>(ResourceLocation.of("s_lib", "network"));
-        //? if <1.21
-        ^public static final CustomPayload.Id<WrapperPayload> ID = new CustomPayload.Id<>(new ResourceLocation("s_lib", "network"));
-
-        public static final PacketCodec<PacketByteBuf, WrapperPayload> CODEC = PacketCodec.tuple(
-                ResourceLocation.PACKET_CODEC, WrapperPayload::channelId,
-                PacketCodecs.BYTE_ARRAY, WrapperPayload::data,
-                WrapperPayload::new
-        );
-
-        @Override
-        public CustomPayload.Id<? extends CustomPayload> getId() {
-            return ID;
-        }
-    }*/
-    //?}
-
-    //? if forge {
-    /*public static class WrapperPacket {
+    public static class WrapperPacket {
         public final ResourceLocation id;
         public final byte[] data;
 
@@ -91,76 +76,73 @@ public class NetworkHelper {
             this.data = data;
         }
 
-        public WrapperPacket(PacketByteBuf buf) {
+        public WrapperPacket(FriendlyByteBuf buf) {
             this.id = buf.readResourceLocation();
             this.data = buf.readByteArray();
         }
 
-        public void encode(PacketByteBuf buf) {
+        public void encode(FriendlyByteBuf buf) {
             buf.writeResourceLocation(this.id);
             buf.writeByteArray(this.data);
         }
     }
 
-    public static void handleForge(WrapperPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
+    public static void handlePacket(WrapperPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
         NetworkEvent.Context context = contextSupplier.get();
+
         context.enqueueWork(() -> {
             ResourceLocation id = packet.id;
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.wrappedBuffer(packet.data));
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(packet.data));
 
             if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER) {
                 ServerReceiver receiver = SERVER_RECEIVERS.get(id);
-                if (receiver != null) {
-                    receiver.receive(context.getSender(), buf);
-                }
+                if (receiver != null) receiver.receive(context.getSender(), buf);
+
             } else if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                 ClientReceiver receiver = CLIENT_RECEIVERS.get(id);
-                if (receiver != null) {
-                    receiver.receive(buf);
-                }
+                if (receiver != null) receiver.receive(buf);
             }
         });
         context.setPacketHandled(true);
-    }*/
-    //?}
+    }
+    *///?}
 
     //? if neoforge {
     /*@SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("s_lib").optional();
+        PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
         registrar.playBidirectional(
-            WrapperPayload.ID,
-            WrapperPayload.CODEC,
-            (payload, context) -> {
-                PacketByteBuf buf = new PacketByteBuf(Unpooled.wrappedBuffer(payload.data()));
-                context.enqueueWork(() -> {
-                    if (context.flow().isServerbound()) {
-                        ServerReceiver receiver = SERVER_RECEIVERS.get(payload.channelId());
-                        if (receiver != null && context.player() instanceof ServerPlayerEntity serverPlayer) {
-                            receiver.receive(serverPlayer, buf);
-                        }
-                    } else {
-                        ClientReceiver receiver = CLIENT_RECEIVERS.get(payload.channelId());
-                        if (receiver != null) {
-                            receiver.receive(buf);
-                        }
-                    }
-                });
-            }
+                WrapperPayload.ID,
+                WrapperPayload.CODEC,
+                NetworkHelper::handlePayload
         );
-    }*/
-    //?}
+    }
 
-    /**
-     * Initializes network registry. Call this in common initialization.
-     */
-    public static void init() {
-        //? if fabric && >=1.20.5 {
-        /*PayloadTypeRegistry.playC2S().register(WrapperPayload.ID, WrapperPayload.CODEC);
+    private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.data()));
+
+        context.enqueueWork(() -> {
+            if (context.flow().isServerbound()) {
+                ServerReceiver receiver = SERVER_RECEIVERS.get(payload.channelId());
+                if (receiver != null && context.player() instanceof ServerPlayer serverPlayer) {
+                    receiver.receive(serverPlayer, buf);
+                }
+            } else {
+                ClientReceiver receiver = CLIENT_RECEIVERS.get(payload.channelId());
+                if (receiver != null) receiver.receive(buf);
+            }
+        });
+    }
+    *///?}
+
+    //? if fabric && >=1.20.5 {
+    /*public static void registerPayloads() {
+
+        PayloadTypeRegistry.playC2S().register(WrapperPayload.ID, WrapperPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WrapperPayload.ID, WrapperPayload.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(WrapperPayload.ID, (payload, context) -> {
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.wrappedBuffer(payload.data()));
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.data()));
             ServerReceiver receiver = SERVER_RECEIVERS.get(payload.channelId());
             if (receiver != null) {
                 receiver.receive(context.player(), buf);
@@ -168,69 +150,77 @@ public class NetworkHelper {
         });
 
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            ClientNetworkHelper.registerFabricClientReceiver();
-        }*/
+            ClientNetworkHelper.registerClientReceiver();
+        }
+    }
+    *///?}
+
+    public static void sendToClient(ServerPlayer player, ResourceLocation id, FriendlyByteBuf buf) {
+        //? if fabric && <1.20.5 {
+        ServerPlayNetworking.send(player, id, buf);
         //?}
-    }
-
-    public static void sendToClient(ServerPlayerEntity player, ResourceLocation id, PacketByteBuf buf) {
-        byte[] data = new byte[buf.readableBytes()];
+        //? if fabric && >=1.20.5 || forge || neoforge{
+        /*byte[] data = new byte[buf.readableBytes()];
         buf.readBytes(data);
-        
-        //? if fabric && >=1.20.5
-        /*ServerPlayNetworking.send(player, new WrapperPayload(id, data));*/
-        //? if fabric && <1.20.5
-        ServerPlayNetworking.send(player, id, new PacketByteBuf(Unpooled.wrappedBuffer(data)));
+        //? if fabric
+        ServerPlayNetworking.send(player, new WrapperPayload(id, data));
         //? if forge
-        /*CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));*/
+        //CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
         //? if neoforge
-        /*PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));*/
+        //PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));
+        *///?}
     }
 
-    public static void sendToServer(ResourceLocation id, PacketByteBuf buf) {
-        //? if fabric
+    public static void sendToServer(ResourceLocation id, FriendlyByteBuf buf) {
+        //? if fabric&& <1.20.5 {
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
             ClientNetworkHelper.sendToServer(id, buf);
         }
-        //? if forge {
+        //?}
+        //? if fabric && >=1.20.5 || forge || neoforge{
         /*byte[] data = new byte[buf.readableBytes()];
         buf.readBytes(data);
-        CHANNEL.sendToServer(new WrapperPacket(id, data));*/
+        //? if fabric{
+        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+            ClientNetworkHelper.sendToServer(new WrapperPayload(id, data));
+        }
         //?}
-        //? if neoforge {
-        /*byte[] data = new byte[buf.readableBytes()];
-        buf.readBytes(data);
-        PacketDistributor.sendToServer(new WrapperPayload(id, data));*/
-        //?}
+        //? if forge
+        //CHANNEL.sendToServer(new WrapperPacket(id, data));
+        //? if neoforge
+        //PacketDistributor.sendToServer(new WrapperPayload(id, data));
+        *///?}
     }
 
     public static void registerServerReceiver(ResourceLocation id, ServerReceiver receiver) {
-        SERVER_RECEIVERS.put(id, receiver);
         //? if fabric && <1.20.5 {
         ServerPlayNetworking.registerGlobalReceiver(id, (server, player, handler, buf, responseSender) -> {
             byte[] data = new byte[buf.readableBytes()];
             buf.readBytes(data);
-            server.execute(() -> receiver.receive(player, new PacketByteBuf(Unpooled.wrappedBuffer(data))));
+            server.execute(() -> receiver.receive(player, new FriendlyByteBuf(Unpooled.wrappedBuffer(data))));
         });
-        //?}
+        //?} else {
+        /*SERVER_RECEIVERS.put(id, receiver);
+        *///?}
     }
 
     public static void registerClientReceiver(ResourceLocation id, ClientReceiver receiver) {
-        CLIENT_RECEIVERS.put(id, receiver);
         //? if fabric && <1.20.5 {
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            ClientNetworkHelper.registerFabricClientReceiverLegacy(id);
+            ClientNetworkHelper.registerClientReceiver(id, receiver);
         }
-        //?}
+        //?} else {
+        /*CLIENT_RECEIVERS.put(id, receiver);
+        *///?}
     }
 
     @FunctionalInterface
     public interface ServerReceiver {
-        void receive(ServerPlayerEntity player, PacketByteBuf buf);
+        void receive(ServerPlayer player, FriendlyByteBuf buf);
     }
 
     @FunctionalInterface
     public interface ClientReceiver {
-        void receive(PacketByteBuf buf);
+        void receive(FriendlyByteBuf buf);
     }
 }

@@ -46,7 +46,7 @@ public class PlatformHelper {
         //? if fabric
         return FabricLoader.getInstance().getConfigDir();
         //? if forge || neoforge
-        /*return FMLPaths.CONFIGDIR.get();*/
+        //return FMLPaths.CONFIGDIR.get();
     }
 
     /**
@@ -57,7 +57,7 @@ public class PlatformHelper {
         //? if fabric
         return FabricLoader.getInstance().getGameDir();
         //? if forge|| neoforge
-        /*return FMLPaths.GAMEDIR.get();*/
+        //return FMLPaths.GAMEDIR.get();
     }
 
     /**
@@ -69,7 +69,7 @@ public class PlatformHelper {
         //? if fabric
         return FabricLoader.getInstance().isModLoaded(modId);
         //? if forge|| neoforge
-        /*return ModList.get().isLoaded(modId);*/
+        //return ModList.get().isLoaded(modId);
     }
 
     /**
@@ -81,7 +81,7 @@ public class PlatformHelper {
         //? if fabric
         return FabricLoader.getInstance().isModLoaded(modId);
         //? if forge|| neoforge
-        /*return LoadingModList.get().getModFileById(modId) != null;*/
+        //return LoadingModList.get().getModFileById(modId) != null;
     }
 
     /**
@@ -105,6 +105,6 @@ public class PlatformHelper {
         //? if fabric
         return EnvType.SERVER == FabricLoader.getInstance().getEnvironmentType();
         //? if forge|| neoforge
-        /*return Dist.DEDICATED_SERVER == FMLEnvironment.dist;*/
+        //return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
     }
 }
