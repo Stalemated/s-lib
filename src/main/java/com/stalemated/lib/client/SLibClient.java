@@ -24,7 +24,11 @@ import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 /*import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+//? if <=1.20.4 {
+import net.neoforged.fml.common.Mod.EventBusSubscriber;
+//?} else {
+/^import net.neoforged.fml.common.EventBusSubscriber;
+^///?}
 import net.neoforged.api.distmarker.Dist;
 import com.stalemated.lib.SLib;
 

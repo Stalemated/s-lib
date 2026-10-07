@@ -66,10 +66,11 @@ public class ColorUtils {
         else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
 
         if (hex.matches("^[0-9a-fA-F]{6}$")) {
-            //? if <1.20.5
+            //? if <1.20.2 {
             return TextColor.parseColor("#" + hex);
-            //? if >=1.20.5
-            //return TextColor.parseColor("#" + hex).getOrThrow();
+            //?} else {
+            /*return TextColor.parseColor("#" + hex).result().orElse(null);
+            *///?}
         }
 
         return null;

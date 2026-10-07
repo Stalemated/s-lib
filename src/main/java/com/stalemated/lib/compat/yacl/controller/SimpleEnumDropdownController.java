@@ -40,7 +40,11 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             public void setFocused(boolean focused) {
                 //? if yacl: <3.8.0 {
                 if (focused) {
-                    this.focused = true;
+                    //? if forge {
+                    /*this.focused = true;
+                    *///?} else {
+                    super.setFocused(true);
+                    //?}
                     this.inputFieldFocused = false;
                 } else {
                     this.unfocus();

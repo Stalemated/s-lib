@@ -31,23 +31,29 @@ import static com.stalemated.lib.SLib.MOD_ID;
 
 //? if neoforge{
 /*import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.bus.api.SubscribeEvent;
+
+//? if <=1.20.4 {
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
+import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
+import net.neoforged.fml.common.Mod.EventBusSubscriber;
+//?} else {
+/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.fml.common.EventBusSubscriber;
+^///?}
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.stalemated.lib.SLib.MOD_ID;
-*///?}
 
-//? if neoforge
-//@EventBusSubscriber(modid = MOD_ID)
+@EventBusSubscriber(modid = MOD_ID)
+*///?}
 public class NetworkHelper {
 
-    //? if >=1.20.5 || forge{
+    //? if >=1.20.5 || forge || neoforge {
     /*public static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new HashMap<>();
     public static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
     *///?}
@@ -107,7 +113,17 @@ public class NetworkHelper {
     }
     *///?}
 
-    //? if neoforge {
+    //? if neoforge && <=1.20.4 {
+    /*@SubscribeEvent
+    public static void register(RegisterPayloadHandlerEvent event) {
+        IPayloadRegistrar registrar = event.registrar(MOD_ID).optional();
+        registrar.play(
+                WrapperPayload.ID,
+                WrapperPayload::new,
+                NetworkHelper::handlePayload
+        );
+    }
+    *///?} elif neoforge {
     /*@SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
@@ -117,8 +133,26 @@ public class NetworkHelper {
                 NetworkHelper::handlePayload
         );
     }
+    *///?}
 
-    private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
+    //? if neoforge && <=1.20.4 {
+    /*private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.data()));
+
+        context.workHandler().execute(() -> {
+            if (context.flow().isServerbound()) {
+                ServerReceiver receiver = SERVER_RECEIVERS.get(payload.channelId());
+                if (receiver != null && context.player().orElse(null) instanceof ServerPlayer serverPlayer) {
+                    receiver.receive(serverPlayer, buf);
+                }
+            } else {
+                ClientReceiver receiver = CLIENT_RECEIVERS.get(payload.channelId());
+                if (receiver != null) receiver.receive(buf);
+            }
+        });
+    }
+    *///?} elif neoforge {
+    /*private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.data()));
 
         context.enqueueWork(() -> {
@@ -166,7 +200,9 @@ public class NetworkHelper {
         ServerPlayNetworking.send(player, new WrapperPayload(id, data));
         //? if forge
         //CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
-        //? if neoforge
+        //? if neoforge && <=1.20.4
+        //PacketDistributor.PLAYER.with(player).send(new WrapperPayload(id, data));
+        //? if neoforge && >1.20.4
         //PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));
         *///?}
     }
@@ -187,7 +223,9 @@ public class NetworkHelper {
         //?}
         //? if forge
         //CHANNEL.sendToServer(new WrapperPacket(id, data));
-        //? if neoforge
+        //? if neoforge && <=1.20.4
+        //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
+        //? if neoforge && >1.20.4
         //PacketDistributor.sendToServer(new WrapperPayload(id, data));
         *///?}
     }

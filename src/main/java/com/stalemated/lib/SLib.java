@@ -18,7 +18,11 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 *///?} elif neoforge {
 /*import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+//? if <=1.20.4 {
+import net.neoforged.fml.common.Mod.EventBusSubscriber;
+//?} else {
+/^import net.neoforged.fml.common.EventBusSubscriber;
+^///?}
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 *///?}

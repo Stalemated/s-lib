@@ -5,12 +5,11 @@ import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownControllerElement;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import com.stalemated.lib.compat.yacl.controller.helper.ItemRegistryHelper;
 
 import java.util.HashMap;
 import java.util.List;
@@ -104,29 +103,19 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
         this.currentItemIcon = ItemStack.EMPTY;
         if (!isSpecialTarget(this.inputField)) {
-            try {
-                //? if <1.21
-                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(this.inputField));
-                //? if >=1.21
-                //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(this.inputField));
-                if (item != Items.AIR) {
-                    this.currentItemIcon = new ItemStack(item);
-                }
-            } catch (Exception ignored) {}
+            Item item = ItemRegistryHelper.getItem(this.inputField);
+            if (item != Items.AIR) {
+                this.currentItemIcon = new ItemStack(item);
+            }
         }
 
         this.itemCache.clear();
         for (String id : identifiers) {
             if (!isSpecialTarget(id)) {
-                try {
-                    //? if <1.21
-                    Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(id));
-                    //? if >=1.21
-                    //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
-                    if (item != Items.AIR) {
-                        this.itemCache.put(id, new ItemStack(item));
-                    }
-                } catch (Exception ignored) {}
+                Item item = ItemRegistryHelper.getItem(id);
+                if (item != Items.AIR) {
+                    this.itemCache.put(id, new ItemStack(item));
+                }
             }
         }
 
@@ -166,15 +155,10 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
                 return formatTargetText(this.inputField);
             }
             
-            try {
-                //? if <1.21
-                Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(this.inputField));
-                //? if >=1.21
-                //Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(this.inputField));
-                if (item != Items.AIR) {
-                    return item.getDescription();
-                }
-            } catch (Exception ignored) {}
+            Item item = ItemRegistryHelper.getItem(this.inputField);
+            if (item != Items.AIR) {
+                return ItemRegistryHelper.getItemName(item);
+            }
             
             return Component.literal(this.inputField);
         }

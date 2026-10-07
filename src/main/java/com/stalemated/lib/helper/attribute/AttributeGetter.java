@@ -81,7 +81,11 @@ public class AttributeGetter {
 
         List<String> formattedEnchants = new ArrayList<>();
         for (var entry : enchantments.entrySet()) {
+            //? if <1.21 {
+            /^formattedEnchants.add(entry.getKey().value().getFullname(entry.getIntValue()).getString());
+            ^///?} else {
             formattedEnchants.add(Enchantment.getFullname(entry.getKey(), entry.getIntValue()).getString());
+            //?}
         }
 
         return String.join("\n", formattedEnchants);
