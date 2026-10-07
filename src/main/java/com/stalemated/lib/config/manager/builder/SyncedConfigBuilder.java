@@ -108,7 +108,11 @@ public class SyncedConfigBuilder<T> {
     }
 
     private SyncedConfigManager<T> getSyncedConfigManager(ResolvedConfig<T> resolved) {
+        //? if <1.21 {
         ResourceLocation resolvedChannel = syncChannel != null ? syncChannel : new ResourceLocation(resolved.modId(), "sync_config");
+        //?} else {
+        /*ResourceLocation resolvedChannel = syncChannel != null ? syncChannel : ResourceLocation.fromNamespaceAndPath(resolved.modId(), "sync_config");
+        *///?}
 
         return new SyncedConfigManager<>(
                 resolved.provider(),

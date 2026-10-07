@@ -129,7 +129,11 @@ public final class SLibGsonDefaults {
 
         @Override
         public ResourceLocation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            //? if <1.21 {
             return new ResourceLocation(json.getAsString());
+            //?} else {
+            /*return ResourceLocation.parse(json.getAsString());
+            *///?}
         }
     }
 

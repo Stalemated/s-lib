@@ -68,9 +68,16 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         this.serverPermissionCheck = serverPermissionCheck;
         this.defaultFactory = defaultFactory;
 
+        //? if <1.21 {
         ResourceLocation s2cPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
         ResourceLocation c2sPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
         ResourceLocation informC2sPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        //?} else {
+        /*ResourceLocation s2cPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
+        ResourceLocation c2sPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
+        ResourceLocation informC2sPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        *///?}
+
         this.networkHandler = new ConfigNetworkHandler<>(this, s2cPacket, c2sPacket, informC2sPacket);
 
         this.onConfigLoaded(config -> {
