@@ -2,81 +2,81 @@ package com.stalemated.lib.client;
 
 import com.stalemated.lib.config.registry.ConfigRegistry;
 
-//? if fabric
+//? if fabric{
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+//?}
 
-//? if forge
+//? if forge || neoforge {
+/*import com.stalemated.lib.helper.PlatformHelper;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+*///?}
+
+//? if forge{
 /*import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-*//*import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;*/
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+*///?}
 
-//? if neoforge
+//? if neoforge{
 /*import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-*//*import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.api.distmarker.Dist;*/
+import net.neoforged.api.distmarker.Dist;
+import com.stalemated.lib.SLib;
 
-//? if neoforge
-/*@EventBusSubscriber(modid = MOD_ID, value = Dist.CLIENT)*/
+@EventBusSubscriber(modid = SLib.MOD_ID, value = Dist.CLIENT)
+*///?}
+//? if forge
+//@SuppressWarnings("removal")
 public final class SLibClient 
 //? if fabric 
-implements ClientModInitializer 
+implements ClientModInitializer
 {
 
-    //? if fabric
+    //? if fabric{
     @Override
     public void onInitializeClient() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                client.execute(() -> ConfigRegistry.onClientJoin(client.isIntegratedServerRunning())));
+                client.execute(() -> ConfigRegistry.onClientJoin(client.hasSingleplayerServer())));
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(ConfigRegistry::onClientDisconnect));
     }
+    //?}
 
-    //? if forge
+    //? if forge {
     /*public static void init() {
-*/        /*FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibClient::onRegisterKeyMappings);
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibClient::onRegisterKeyMappings);
+
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogIn);
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogOut);
     }
+    *///?}
 
+    //? if forge || neoforge {
+    /*//? if neoforge
+    //@SubscribeEvent
     private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        for (KeyBinding kb : PlatformHelper.KEYBINDINGS) {
+        for (KeyMapping kb : PlatformHelper.KEYBINDINGS) {
             event.register(kb);
         }
     }
 
+    //? if neoforge
+    //@SubscribeEvent
     private static void onClientLogIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        boolean isSingleplayer = MinecraftClient.getInstance().isInSingleplayer();
+        boolean isSingleplayer = Minecraft.getInstance().hasSingleplayerServer();
         ConfigRegistry.onClientJoin(isSingleplayer);
     }
-
-    private static void onClientLogOut(ClientPlayerNetworkEvent.LoggingOut event) {
-        ConfigRegistry.onClientDisconnect();
-    }*/
 
     //? if neoforge
-    /*@EventBusSubscriber(modid = MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
-*/    /*public static class ModBusEvents {
-        @SubscribeEvent
-        public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-            for (KeyBinding keyBinding : PlatformHelper.KEYBINDINGS) {
-                event.register(keyBinding);
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public static void onClientLogIn(ClientPlayerNetworkEvent.LoggingIn event) {
-        boolean isSingleplayer = MinecraftClient.getInstance().isInSingleplayer();
-        ConfigRegistry.onClientJoin(isSingleplayer);
-    }
-
-    @SubscribeEvent
-    public static void onClientLogOut(ClientPlayerNetworkEvent.LoggingOut event) {
+    //@SubscribeEvent
+    private static void onClientLogOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ConfigRegistry.onClientDisconnect();
-    }*/
+    }
+    *///?}
 }
