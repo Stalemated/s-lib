@@ -85,7 +85,7 @@ public class SimpleStringDropdownController extends AbstractDropdownController<S
             public void setFocused(boolean focused) {
                 //? if yacl: <3.8.0 {
                 if (focused) {
-                    super.setFocused(true);
+                    this.focused = true;
                     this.inputFieldFocused = false;
                 } else {
                     this.unfocus();
