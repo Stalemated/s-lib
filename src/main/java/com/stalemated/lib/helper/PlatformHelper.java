@@ -2,11 +2,17 @@ package com.stalemated.lib.helper;
 
 import java.nio.file.Path;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 //? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.api.EnvType;
+//? if <26.1 {
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+//?} else {
+/*import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+*///?}
 //?}
 
 //? if forge || neoforge {
@@ -89,10 +95,11 @@ public class PlatformHelper {
      * @param keyBinding The keybind to register.
      */
     public static void registerKeyBinding(KeyMapping keyBinding) {
-        //? if fabric {
+        //? if fabric && <26.1 {
         KeyBindingHelper.registerKeyBinding(keyBinding);
-        //?}
-        //? if forge || neoforge {
+        //?} elif fabric && >=26.1 {
+        /*KeyMappingHelper.registerKeyMapping(keyBinding);
+        *///?} elif forge || neoforge {
         /*KEYBINDINGS.add(keyBinding);
         *///?}
     }
@@ -102,9 +109,43 @@ public class PlatformHelper {
      * @return {@code true} if running on a dedicated server, {@code false} otherwise.
      */
     public static boolean isDedicatedServer() {
-        //? if fabric
+        //? if fabric {
         return EnvType.SERVER == FabricLoader.getInstance().getEnvironmentType();
-        //? if forge|| neoforge
-        //return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
+        //?} elif neoforge && <1.21.11 || forge {
+        /*return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
+        *///?} else {
+        /*return Dist.DEDICATED_SERVER == FMLEnvironment.getDist();
+        *///?}
+    }
+
+    /**
+     * Gets the MinecraftServer instance for a given ServerPlayer.
+     * @param player The player.
+     * @return The MinecraftServer, or null if player is null.
+     */
+    //? if >=1.21.11
+    //@SuppressWarnings("resource")
+     public static MinecraftServer getServer(ServerPlayer player) {
+         if (player == null) return null;
+         //? if <1.21.11 {
+         return player.server;
+         //?} else {
+         /*return player.level().getServer();
+         *///?}
+     }
+
+    /**
+     * Checks if the specified server player is the host of a singleplayer session.
+     * @param player The player to check.
+     * @return {@code true} if the player is the singleplayer host, {@code false} otherwise.
+     */
+    public static boolean isSingleplayerOwner(ServerPlayer player) {
+        MinecraftServer server = getServer(player);
+        if (server == null) return false;
+        //? if <1.21.11 {
+        return server.isSingleplayerOwner(player.getGameProfile());
+        //?} else {
+        /*return server.isSingleplayerOwner(player.nameAndId());
+        *///?}
     }
 }

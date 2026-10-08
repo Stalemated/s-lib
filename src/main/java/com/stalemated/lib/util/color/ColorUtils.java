@@ -48,16 +48,30 @@ public class ColorUtils {
         // Legacy code (e.g., "&c")
         if (lowerColor.length() == 2 && lowerColor.charAt(0) == '&') {
             ChatFormatting format = ChatFormatting.getByCode(lowerColor.charAt(1));
+            //? if <26.2 {
             if (format != null && format.getColor() != null) {
                 return TextColor.fromLegacyFormat(format);
             }
+            //?} else {
+            /*if (format != null) {
+                TextColor color = TextColor.fromLegacyFormat(format);
+                if (color != null) return color;
+            }
+            *///?}
         }
 
         // Formatting name (e.g., "red")
+        //? if <26.2 {
         ChatFormatting format = ChatFormatting.getByName(lowerColor);
         if (format != null && format.getColor() != null) {
             return TextColor.fromLegacyFormat(format);
         }
+        //?} else {
+        /*TextColor namedColor = TextColor.parseColor(lowerColor).result().orElse(null);
+        if (namedColor != null) {
+            return namedColor;
+        }
+        *///?}
 
         // Hex code
         String hex = colorStr;

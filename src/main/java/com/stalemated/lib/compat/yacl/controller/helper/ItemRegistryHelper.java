@@ -46,8 +46,10 @@ public final class ItemRegistryHelper {
     public static Component getItemName(Item item) {
         //? if <1.21.2 {
         return item.getDescription();
-        //?} else {
+        //?} elif <26.1 {
         /*return item.getName();
+        *///?} else {
+        /*return item.getName(item.getDefaultInstance());
         *///?}
     }
 }

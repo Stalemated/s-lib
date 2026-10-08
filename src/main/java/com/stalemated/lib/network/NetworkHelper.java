@@ -44,6 +44,9 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.fml.common.EventBusSubscriber;
 ^///?}
 
+//? if >=1.21.11
+/^import net.neoforged.neoforge.client.network.ClientPacketDistributor;^/
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -172,8 +175,13 @@ public class NetworkHelper {
     //? if fabric && >=1.20.5 {
     /*public static void registerPayloads() {
 
+        //? if <26.1 {
         PayloadTypeRegistry.playC2S().register(WrapperPayload.ID, WrapperPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(WrapperPayload.ID, WrapperPayload.CODEC);
+        //?} else {
+        /^PayloadTypeRegistry.serverboundPlay().register(WrapperPayload.ID, WrapperPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(WrapperPayload.ID, WrapperPayload.CODEC);
+        ^///?}
 
         ServerPlayNetworking.registerGlobalReceiver(WrapperPayload.ID, (payload, context) -> {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.data()));
@@ -225,8 +233,10 @@ public class NetworkHelper {
         //CHANNEL.sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4
+        //? if neoforge && >1.20.4 && <1.21.11
         //PacketDistributor.sendToServer(new WrapperPayload(id, data));
+        //? if neoforge && >=1.21.11
+        //ClientPacketDistributor.sendToServer(new WrapperPayload(id, data));
         *///?}
     }
 

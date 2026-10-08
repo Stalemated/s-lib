@@ -17,6 +17,10 @@ public class RegexStrategy implements TargetMatcher {
             return true;
         }
 
+        //? if <26.1 {
         return stack.getTags().anyMatch(tag -> pattern.matcher("#" + tag.location().toString()).matches());
+        //?} else {
+        /*return stack.typeHolder().tags().anyMatch(tag -> pattern.matcher("#" + tag.location().toString()).matches());
+        *///?}
     }
 }

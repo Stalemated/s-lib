@@ -1,10 +1,12 @@
 package com.stalemated.lib.config.network;
 
 import com.stalemated.lib.config.manager.SyncedConfigManager;
+import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.network.NetworkHelper;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 public class ConfigNetworkHandler<T> {
@@ -42,7 +44,7 @@ public class ConfigNetworkHandler<T> {
     private void registerServerReceivers() {
         NetworkHelper.registerServerReceiver(c2sPacket, (player, buf) -> {
             if (manager.checkServerPermission(player)) {
-                boolean isHost = player != null && player.server != null && player.server.isSingleplayerOwner(player.getGameProfile());
+                boolean isHost = PlatformHelper.isSingleplayerOwner(player);
                 
                 if (!isHost) {
                     ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
@@ -50,8 +52,9 @@ public class ConfigNetworkHandler<T> {
                     manager.notifySyncListeners(manager.getConfig());
                 }
 
-                if (player != null && player.server != null) {
-                    for (ServerPlayer p : player.server.getPlayerList().getPlayers()) {
+                MinecraftServer server = PlatformHelper.getServer(player);
+                if (server != null) {
+                    for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                         sendConfigToPlayer(p);
                     }
                 }
@@ -81,7 +84,7 @@ public class ConfigNetworkHandler<T> {
      */
     public void sendConfigToPlayer(ServerPlayer player) {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
-        if (player.server != null && player.server.isSingleplayerOwner(player.getGameProfile())) return;
+        if (PlatformHelper.isSingleplayerOwner(player)) return;
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         ConfigNetworkPayload.writeSynced(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
