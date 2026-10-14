@@ -9,13 +9,29 @@ import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.ColorController;
 import java.awt.*;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+//? if yacl: <3.9.0 && <1.21.11{
+import net.minecraft.client.gui.screens.Screen;
+//?} elif yacl: <3.9.0 {
+/*import net.minecraft.client.input.KeyEvent;
+*///?} else {
+/*import dev.isxander.yacl3.gui.controllers.string.IStringController;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import org.jspecify.annotations.NonNull;
+*///?}
+
+//? if yacl: <3.9.0 {
 public class AdvancedColorController extends ColorController {
+//?} else {
+/*public class AdvancedColorController implements IStringController<Color> {
+    private final ColorController delegate;
+*///?}
     private final Option<String> stringOption;
     private final boolean alpha;
 
+    //? if yacl: <3.9.0 {
     public AdvancedColorController(Option<String> stringOption, boolean alpha) {
         super(Option.<Color>createBuilder()
                 .name(stringOption.name())
@@ -29,6 +45,21 @@ public class AdvancedColorController extends ColorController {
                 .build(), alpha);
         this.stringOption = stringOption;
         this.alpha = alpha;
+    //?} else {
+    /*public AdvancedColorController(Option<String> stringOption, boolean alpha) {
+        this.stringOption = stringOption;
+        this.alpha = alpha;
+        this.delegate = new ColorController(Option.<Color>createBuilder()
+                .name(stringOption.name())
+                .binding(
+                        ColorUtils.parseToAWT(stringOption.pendingValue()),
+                        () -> ColorUtils.parseToAWT(stringOption.pendingValue()),
+                        val -> {}
+                )
+                .controller(ColorControllerBuilder::create)
+                .available(stringOption.available())
+                .build(), alpha);
+    *///?}
 
         this.option().addEventListener((opt, event) -> {
             Color pickerColor = opt.pendingValue();
@@ -72,14 +103,31 @@ public class AdvancedColorController extends ColorController {
         return Component.literal(getString());
     }
 
+    //? if yacl: >=3.9.0 {
+    /*@Override
+    public Option<Color> option() {
+        return this.delegate.option();
+    }
+
+    public boolean allowAlpha() {
+        return this.alpha;
+    }
+    *///?}
+
     @Override
     public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
         return new AdvancedColorControllerElement(this, screen, widgetDimension);
     }
 
+    //? if yacl: <3.9.0 {
     public class AdvancedColorControllerElement extends ColorControllerElement {
         public AdvancedColorControllerElement(AdvancedColorController control, YACLScreen screen, Dimension<Integer> dim) {
             super(control, screen, dim);
+    //?} else {
+    /*public class AdvancedColorControllerElement extends ColorController.ColorControllerElement {
+        public AdvancedColorControllerElement(AdvancedColorController control, YACLScreen screen, Dimension<Integer> dim) {
+            super(control.delegate, screen, dim);
+    *///?}
 
             AdvancedColorController.this.stringOption.addEventListener((opt, event) -> {
                 String newVal = opt.pendingValue();
@@ -164,14 +212,13 @@ public class AdvancedColorController extends ColorController {
 
         @Override protected int getDefaultCaretPos() { return this.inputField.length(); }
 
-        @Override
-        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        private boolean handleKeyAction(int keyCode, boolean isSelectAll, boolean isCopy, boolean isPaste, boolean isCut) {
             if (!this.inputFieldFocused || !AdvancedColorController.this.stringOption.available()) return false;
             
-            if (Screen.isSelectAll(keyCode)) { this.doSelectAll(); return true; }
-            if (Screen.isCopy(keyCode)) { this.doCopy(); return true; }
-            if (Screen.isPaste(keyCode)) { this.write(Minecraft.getInstance().keyboardHandler.getClipboard()); return true; }
-            if (Screen.isCut(keyCode)) { this.doCut(); return true; }
+            if (isSelectAll) { this.doSelectAll(); return true; }
+            if (isCopy) { this.doCopy(); return true; }
+            if (isPaste) { this.write(Minecraft.getInstance().keyboardHandler.getClipboard()); return true; }
+            if (isCut) { this.doCut(); return true; }
 
             switch (keyCode) {
                 case 259:
@@ -202,24 +249,29 @@ public class AdvancedColorController extends ColorController {
 
         //? if yacl: <3.8.0 {
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            boolean handled = super.mouseClicked(mouseX, mouseY, button);
-            if (handled) {
-                if (this.inputField.isEmpty()) {
-                    this.caretPos = 0;
-                } else if (this.caretPos == 1 && mouseX < this.getDimension().x() + this.getXPadding() + 4) {
-                    this.caretPos = 0;
-                }
-            }
-            return handled;
+        public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+            return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
         }
-        //?} else {
+        //?} elif <1.21.11 {
         /*@Override
-        public boolean onMouseClicked(double mouseX, double mouseY, int button) {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            boolean handled = super.onMouseClicked(mouseX, mouseY, button);
+        public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+            return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
+        }
+        *///?} elif yacl: <3.9.0 {
+        /*@Override
+        public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+            KeyEvent event = new KeyEvent(keyCode, scanCode, modifiers);
+            return handleKeyAction(keyCode, event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
+        }
+        *///?} else {
+        /*@Override
+        public boolean keyPressed(KeyEvent event) {
+            return handleKeyAction(event.key(), event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
+        }
+        *///?}
 
+        //? if yacl: >=3.8.0 {
+        /*private void handleInputClick(double mouseX, double mouseY) {
             if (this.inputFieldBounds != null && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) && !this.isMouseOverColorPreview(mouseX, mouseY)) {
                 this.setFocused(true);
                 int clickOffset = (int) mouseX - this.inputFieldBounds.x();
@@ -242,7 +294,37 @@ public class AdvancedColorController extends ColorController {
                 this.caretPos = bestCaret;
                 this.selectionLength = 0;
             }
+        }
+        *///?}
 
+        //? if yacl: <3.8.0 {
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
+            boolean handled = super.mouseClicked(mouseX, mouseY, button);
+            if (handled) {
+                if (this.inputField.isEmpty()) {
+                    this.caretPos = 0;
+                } else if (this.caretPos == 1 && mouseX < this.getDimension().x() + this.getXPadding() + 4) {
+                    this.caretPos = 0;
+                }
+            }
+            return handled;
+        }
+        //?} elif yacl: <3.9.0 {
+        /*@Override
+        public boolean onMouseClicked(double mouseX, double mouseY, int button) {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
+            boolean handled = super.onMouseClicked(mouseX, mouseY, button);
+            handleInputClick(mouseX, mouseY);
+            return handled;
+        }
+        *///?} else {
+        /*@Override
+        public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
+            if (!AdvancedColorController.this.stringOption.available()) return false;
+            boolean handled = super.mouseClicked(event, doubleClick);
+            handleInputClick(event.x(), event.y());
             return handled;
         }
         *///?}

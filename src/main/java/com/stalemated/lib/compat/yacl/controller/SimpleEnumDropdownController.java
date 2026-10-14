@@ -9,6 +9,12 @@ import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.EnumDropdownController;
 import dev.isxander.yacl3.gui.controllers.dropdown.EnumDropdownControllerElement;
 import org.jetbrains.annotations.NotNull;
+//? if yacl: >=3.9.0 {
+/*import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import org.jspecify.annotations.NonNull;
+*///?}
 
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -30,8 +36,10 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             @Override
             //? if yacl: <3.8.0 {
             public boolean charTyped(char chr, int modifiers) {
-            //?} else {
+            //?} elif yacl: <3.9.0 {
             /*public boolean onCharTyped(char chr, String cpStr, int modifiers) {
+            *///?} else {
+            /*public boolean charTyped(@NonNull CharacterEvent event) {
             *///?}
                 return false;
             }
@@ -99,15 +107,22 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             @Override
             //? if yacl: <3.8.0 {
             public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            //?} else {
-            /*public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
-             *///?}
                 if (!SimpleEnumDropdownController.this.option().available()) return false;
-                //? if yacl: >=3.8.0
-                //if (!this.inputFieldFocused && !this.isFocused()) return false;
-
                 return DropdownUIHelper.handleKeyPressed(this, keyCode);
             }
+            //?} elif yacl: <3.9.0 {
+            /*public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
+                if (!this.inputFieldFocused && !this.isFocused()) return false;
+                return DropdownUIHelper.handleKeyPressed(this, keyCode);
+            }
+            *///?} else {
+            /*public boolean keyPressed(@NonNull KeyEvent event) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
+                if (!this.inputFieldFocused && !this.isFocused()) return false;
+                return DropdownUIHelper.handleKeyPressed(this, event);
+            }
+            *///?}
 
             @Override
             public boolean modifyInput(Consumer<StringBuilder> builder) {
@@ -122,12 +137,20 @@ public class SimpleEnumDropdownController<E extends Enum<E>> extends EnumDropdow
             @Override
             //? if yacl: <3.8.0 {
             public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            //?} else {
-            /*public boolean onMouseClicked(double mouseX, double mouseY, int button) {
-             *///?}
                 if (!SimpleEnumDropdownController.this.option().available()) return false;
                 return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
             }
+            //?} elif yacl: <3.9.0 {
+            /*public boolean onMouseClicked(double mouseX, double mouseY, int button) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
+                return DropdownUIHelper.handleMouseClicked(this, mouseX, mouseY);
+            }
+            *///?} else {
+            /*public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
+                if (!SimpleEnumDropdownController.this.option().available()) return false;
+                return DropdownUIHelper.handleMouseClicked(this, event);
+            }
+            *///?}
 
             //? if yacl: <3.8.0 {
             @Override
