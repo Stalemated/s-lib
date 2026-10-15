@@ -95,7 +95,7 @@ deps.yacl = "3.9.7+26.1"
 
 [fabric."26.1"]
 mod.mc_compat = "~26.1"
-deps.fabric_api = "0.142.3+26.1"
+deps.fabric_api = "0.144.3+26.1"
 
 [neoforge."26.1"]
 mod.mc_compat = "[26.1, 26.2)"
