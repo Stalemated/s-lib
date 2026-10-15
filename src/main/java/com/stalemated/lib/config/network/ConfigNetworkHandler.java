@@ -29,51 +29,73 @@ public class ConfigNetworkHandler<T> {
     }
 
     private void registerClientReceivers() {
-        NetworkHelper.registerClientReceiver(s2cPacket, buf -> {
-            if (manager.getConnectionState() == ConnectionState.SINGLEPLAYER) {
-                return; // Ignore network loopback in singleplayer
-            }
-            T target = manager.cloneConfig(manager.getConfig());
-            ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), target, manager.getProvider().getSerializer());
-            manager.setServerConfig(target);
-            manager.setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
-            manager.notifySyncListeners(target);
-        });
+        NetworkHelper.registerClientReceiver(s2cPacket, this::handleServerConfigPayload);
     }
 
     private void registerServerReceivers() {
-        NetworkHelper.registerServerReceiver(c2sPacket, (player, buf) -> {
-            if (manager.checkServerPermission(player)) {
-                boolean isHost = PlatformHelper.isSingleplayerOwner(player);
-                
-                if (!isHost) {
-                    ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
-                    manager.save();
-                    manager.notifySyncListeners(manager.getConfig());
-                }
+        NetworkHelper.registerServerReceiver(c2sPacket, this::handleClientOverridePayload);
+        NetworkHelper.registerServerReceiver(informC2sPacket, this::handleClientInformPayload);
+    }
 
-                MinecraftServer server = PlatformHelper.getServer(player);
-                if (server != null) {
-                    for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                        sendConfigToPlayer(p);
-                    }
-                }
-            } else {
-                // If rejected, send back the config to avoid desyncs
-                if (player != null) {
-                    sendConfigToPlayer(player);
+    /**
+     * Handles an incoming S2C config synchronization payload from the server.
+     *
+     * @param buf The buffer containing the payload data.
+     */
+    public void handleServerConfigPayload(FriendlyByteBuf buf) {
+        if (manager.getConnectionState() == ConnectionState.SINGLEPLAYER) {
+            return; // Ignore network loopback in singleplayer
+        }
+        T target = manager.cloneConfig(manager.getConfig());
+        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), target, manager.getProvider().getSerializer());
+        manager.setServerConfig(target);
+        manager.setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
+        manager.notifySyncListeners(target);
+    }
+
+    /**
+     * Handles an incoming C2S client override request payload on the server.
+     *
+     * @param player The sender player.
+     * @param buf The buffer containing the payload data.
+     */
+    public void handleClientOverridePayload(ServerPlayer player, FriendlyByteBuf buf) {
+        if (manager.checkServerPermission(player)) {
+            boolean isHost = PlatformHelper.isSingleplayerOwner(player);
+            
+            if (!isHost) {
+                ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), manager.getConfig(), manager.getProvider().getSerializer());
+                manager.save();
+                manager.notifySyncListeners(manager.getConfig());
+            }
+
+            MinecraftServer server = PlatformHelper.getServer(player);
+            if (server != null) {
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    sendConfigToPlayer(p);
                 }
             }
-        });
+        } else {
+            // If rejected, send back the config to avoid desyncs
+            if (player != null) {
+                sendConfigToPlayer(player);
+            }
+        }
+    }
 
-        NetworkHelper.registerServerReceiver(informC2sPacket, (player, buf) -> {
-            // Read informed data into a temporary clone of the default config
-            T tempConfig = manager.createDefaultOrClone();
-            ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), tempConfig, manager.getProvider().getSerializer());
-            
-            // Notify listeners about this player's specific choices
-            manager.notifyInformListeners(player, tempConfig);
-        });
+    /**
+     * Handles an incoming C2S client inform notification payload on the server.
+     *
+     * @param player The sender player.
+     * @param buf The buffer containing the payload data.
+     */
+    public void handleClientInformPayload(ServerPlayer player, FriendlyByteBuf buf) {
+        // Read informed data into a temporary clone of the default config
+        T tempConfig = manager.createDefaultOrClone();
+        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), tempConfig, manager.getProvider().getSerializer());
+        
+        // Notify listeners about this player's specific choices
+        manager.notifyInformListeners(player, tempConfig);
     }
 
     /**
