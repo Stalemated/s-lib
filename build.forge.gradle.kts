@@ -1,11 +1,13 @@
 plugins {
+    `maven-publish`
     id("java-library")
     id("net.neoforged.moddev.legacyforge")
     id("neoforge-mutex")
 }
 
+group = "${property("mod.group")}"
 version = "${property("mod.version")}+${sc.current.version}"
-base.archivesName = "${property("mod.id") as String}-forge"
+base.archivesName = "s-lib-forge"
 
 val requiredJava = when {
     sc.current.parsed >= "26.1" -> JavaVersion.VERSION_25
@@ -134,5 +136,14 @@ tasks {
         inputs.property("version", project.property("mod.version"))
         from(jar.flatMap { it.archiveFile }, named<Jar>("sourcesJar").flatMap { it.archiveFile })
         into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
+    }
+}
+
+publishing {
+    publications {
+        register<MavenPublication>("mavenJava") {
+            artifactId = base.archivesName.get()
+            from(components["java"])
+        }
     }
 }
