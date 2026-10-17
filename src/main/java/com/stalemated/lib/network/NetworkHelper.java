@@ -242,11 +242,13 @@ public class NetworkHelper {
 
     public static void registerServerReceiver(ResourceLocation id, ServerReceiver receiver) {
         //? if fabric && <1.20.5 {
-        ServerPlayNetworking.registerGlobalReceiver(id, (server, player, handler, buf, responseSender) -> {
-            byte[] data = new byte[buf.readableBytes()];
-            buf.readBytes(data);
-            server.execute(() -> receiver.receive(player, new FriendlyByteBuf(Unpooled.wrappedBuffer(data))));
-        });
+        try {
+            ServerPlayNetworking.registerGlobalReceiver(id, (server, player, handler, buf, responseSender) -> {
+                byte[] data = new byte[buf.readableBytes()];
+                buf.readBytes(data);
+                server.execute(() -> receiver.receive(player, new FriendlyByteBuf(Unpooled.wrappedBuffer(data))));
+            });
+        } catch (Throwable ignored) {}
         //?} else {
         /*SERVER_RECEIVERS.put(id, receiver);
         *///?}
@@ -254,9 +256,11 @@ public class NetworkHelper {
 
     public static void registerClientReceiver(ResourceLocation id, ClientReceiver receiver) {
         //? if fabric && <1.20.5 {
-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            ClientNetworkHelper.registerClientReceiver(id, receiver);
-        }
+        try {
+            if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+                ClientNetworkHelper.registerClientReceiver(id, receiver);
+            }
+        } catch (Throwable ignored) {}
         //?} else {
         /*CLIENT_RECEIVERS.put(id, receiver);
         *///?}

@@ -1,6 +1,7 @@
 package com.stalemated.lib.helper;
 
 import java.nio.file.Path;
+import java.util.function.Supplier;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -45,14 +46,44 @@ public class PlatformHelper {
     //public static final List<KeyMapping> KEYBINDINGS = new ArrayList<>();
 
     /**
+     * Resolves a directory path using the following fallback strategy:
+     * <ol>
+     *     <li>System property override (e.g., for testing environments).</li>
+     *     <li>Platform-specific loader query (e.g., FabricLoader or FMLPaths) wrapped in safe error handling.</li>
+     *     <li>Static default fallback path.</li>
+     * </ol>
+     *
+     * @param systemProperty The system property key to check for an override.
+     * @param platformSupplier Supplier providing the path from the platform loader.
+     * @param defaultPath The fallback path if no override or loader path is available.
+     * @return The resolved directory {@link Path}.
+     */
+    private static Path resolveDirectory(String systemProperty, Supplier<Path> platformSupplier, String defaultPath) {
+        String override = System.getProperty(systemProperty);
+        if (override != null && !override.isEmpty()) {
+            return Path.of(override);
+        }
+        try {
+            Path dir = platformSupplier.get();
+            if (dir != null) return dir;
+        } catch (Throwable ignored) {}
+
+        return Path.of(defaultPath);
+    }
+
+    /**
      * Gets the path to the config directory.
      * @return The absolute path to the config directory (e.g. {@code .minecraft/config/}).
      */
     public static Path getConfigDir() {
-        //? if fabric
-        return FabricLoader.getInstance().getConfigDir();
-        //? if forge || neoforge
-        //return FMLPaths.CONFIGDIR.get();
+        return resolveDirectory("slib.config_dir", () -> {
+            //? if fabric {
+            FabricLoader loader = FabricLoader.getInstance();
+            return loader != null ? loader.getConfigDir() : null;
+            //?} elif forge || neoforge {
+            /*return FMLPaths.CONFIGDIR.get();
+            *///?}
+        }, "config");
     }
 
     /**
@@ -60,10 +91,14 @@ public class PlatformHelper {
      * @return The absolute path to the game directory (e.g. {@code .minecraft/}).
      */
     public static Path getGameDir() {
-        //? if fabric
-        return FabricLoader.getInstance().getGameDir();
-        //? if forge|| neoforge
-        //return FMLPaths.GAMEDIR.get();
+        return resolveDirectory("slib.game_dir", () -> {
+            //? if fabric {
+            FabricLoader loader = FabricLoader.getInstance();
+            return loader != null ? loader.getGameDir() : null;
+            //?} elif forge || neoforge {
+            /*return FMLPaths.GAMEDIR.get();
+            *///?}
+        }, ".");
     }
 
     /**
@@ -72,10 +107,17 @@ public class PlatformHelper {
      * @return {@code true} if the mod is loaded, {@code false} otherwise.
      */
     public static boolean isModLoaded(String modId) {
-        //? if fabric
-        return FabricLoader.getInstance().isModLoaded(modId);
-        //? if forge|| neoforge
-        //return ModList.get().isLoaded(modId);
+        //? if fabric {
+        try {
+            FabricLoader loader = FabricLoader.getInstance();
+            return loader != null && loader.isModLoaded(modId);
+        //?} elif forge || neoforge {
+        /*try {
+            return ModList.get().isLoaded(modId);
+        *///?}
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
@@ -84,10 +126,17 @@ public class PlatformHelper {
      * @return {@code true} if the mod is present in the loading list, {@code false} otherwise.
      */
     public static boolean isModLoadedAtLaunch(String modId) {
-        //? if fabric
-        return FabricLoader.getInstance().isModLoaded(modId);
-        //? if forge|| neoforge
-        //return LoadingModList.get().getModFileById(modId) != null;
+        //? if fabric {
+        try {
+            FabricLoader loader = FabricLoader.getInstance();
+            return loader != null && loader.isModLoaded(modId);
+        //?} elif forge || neoforge {
+        /*try {
+            return LoadingModList.get().getModFileById(modId) != null;
+        *///?}
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
@@ -110,12 +159,19 @@ public class PlatformHelper {
      */
     public static boolean isDedicatedServer() {
         //? if fabric {
-        return EnvType.SERVER == FabricLoader.getInstance().getEnvironmentType();
+        try {
+            FabricLoader loader = FabricLoader.getInstance();
+            return loader != null && EnvType.SERVER == loader.getEnvironmentType();
         //?} elif neoforge && <1.21.11 || forge {
-        /*return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
+        /*try {
+            return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
         *///?} else {
-        /*return Dist.DEDICATED_SERVER == FMLEnvironment.getDist();
+        /*try {
+            return Dist.DEDICATED_SERVER == FMLEnvironment.getDist();
         *///?}
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
