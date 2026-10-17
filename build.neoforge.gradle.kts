@@ -43,6 +43,9 @@ dependencies {
     // JUnit Jupiter
     testImplementation("org.junit.jupiter:junit-jupiter:${property("deps.jupiter")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(files(sourceSets.main.get().compileClasspath))
+    testRuntimeOnly(files(sourceSets.main.get().runtimeClasspath))
+    testRuntimeOnly("org.slf4j:slf4j-api:${property("deps.slf4j")}")
 }
 
 tasks.withType<Test> {
