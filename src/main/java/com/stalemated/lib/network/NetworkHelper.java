@@ -65,15 +65,20 @@ public class NetworkHelper {
     /*private static final String PROTOCOL_VERSION = "1";
 
     @SuppressWarnings("removal")
-    public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(MOD_ID, "network"),
-            () -> PROTOCOL_VERSION,
-            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
-            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION)
-    );
+    public static final SimpleChannel CHANNEL;
 
     static {
-        CHANNEL.registerMessage(0, WrapperPacket.class, WrapperPacket::encode, WrapperPacket::new, NetworkHelper::handlePacket);
+        SimpleChannel channel = null;
+        try {
+            channel = NetworkRegistry.newSimpleChannel(
+                    new ResourceLocation(MOD_ID, "network"),
+                    () -> PROTOCOL_VERSION,
+                    NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
+                    NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION)
+            );
+            channel.registerMessage(0, WrapperPacket.class, WrapperPacket::encode, WrapperPacket::new, NetworkHelper::handlePacket);
+        } catch (Throwable ignored) {}
+        CHANNEL = channel;
     }
 
     public static class WrapperPacket {
@@ -207,7 +212,7 @@ public class NetworkHelper {
         //? if fabric
         ServerPlayNetworking.send(player, new WrapperPayload(id, data));
         //? if forge
-        //CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
+        //if (CHANNEL != null) CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.PLAYER.with(player).send(new WrapperPayload(id, data));
         //? if neoforge && >1.20.4
@@ -230,7 +235,7 @@ public class NetworkHelper {
         }
         //?}
         //? if forge
-        //CHANNEL.sendToServer(new WrapperPacket(id, data));
+        //if (CHANNEL != null) CHANNEL.sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
         //? if neoforge && >1.20.4 && <1.21.11
