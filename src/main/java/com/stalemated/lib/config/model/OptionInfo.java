@@ -157,7 +157,7 @@ public class OptionInfo implements ConfigNode {
     }
 
     /**
-     * Clamps a numeric value according to any {@link RangeInt} or {@link RangeFloat} annotations.
+     * Clamps a numeric value according to any {@link RangeInt}, {@link RangeFloat} or {@link RangeDouble} annotations.
      *
      * @param value The candidate value.
      * @return The clamped value if applicable, or the original value.

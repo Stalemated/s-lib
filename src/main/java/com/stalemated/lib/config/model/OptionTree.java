@@ -234,4 +234,30 @@ public class OptionTree {
             option.setValue(target, val);
         }
     }
+
+    /**
+     * Compares two config instances, validating and clamping candidate values
+     * against schema boundaries, and returns the list of detected effective changes.
+     *
+     * @param current The baseline config instance.
+     * @param candidate The candidate or modified config instance.
+     * @return An unmodifiable list of detected {@link OptionChange} descriptors.
+     */
+    public List<OptionChange> findChanges(Object current, Object candidate) {
+        if (current == null || candidate == null) {
+            return Collections.emptyList();
+        }
+
+        List<OptionChange> changes = new ArrayList<>();
+        for (OptionInfo option : options.values()) {
+            Object currentVal = option.getValue(current);
+            Object candidateVal = option.getValue(candidate);
+            Object clampedVal = option.clampValue(candidateVal);
+
+            if (!Objects.equals(currentVal, clampedVal)) {
+                changes.add(new OptionChange(option, clampedVal));
+            }
+        }
+        return Collections.unmodifiableList(changes);
+    }
 }
