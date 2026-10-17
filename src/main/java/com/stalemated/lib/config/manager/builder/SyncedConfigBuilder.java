@@ -119,7 +119,6 @@ public class SyncedConfigBuilder<T> {
                 resolved.path(),
                 resolved.logger(),
                 resolvedChannel,
-                configClass,
                 serverPermissionCheck != null ? serverPermissionCheck : ServerConfigPermissions.OP_ONLY,
                 resolved.factory(),
                 resolved.tree()

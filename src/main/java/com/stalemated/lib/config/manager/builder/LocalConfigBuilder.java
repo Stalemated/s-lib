@@ -77,7 +77,8 @@ public class LocalConfigBuilder<T> {
                 resolved.provider(),
                 resolved.path(),
                 resolved.logger(),
-                resolved.tree()
+                resolved.tree(),
+                resolved.factory()
         );
     }
 

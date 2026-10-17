@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.manager;
 
 import com.stalemated.lib.config.io.ConfigProvider;
+import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.config.network.ConfigNetworkHandler;
@@ -8,14 +9,12 @@ import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.config.registry.ConfigRegistry;
 import com.stalemated.lib.helper.PlatformHelper;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -32,9 +31,7 @@ import java.util.function.Supplier;
  */
 public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
-    private final Class<T> configClass;
     private final Predicate<ServerPlayer> serverPermissionCheck;
-    private final Supplier<T> defaultFactory;
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
     private final List<BiConsumer<ServerPlayer, T>> informListeners = new CopyOnWriteArrayList<>();
 
@@ -50,7 +47,6 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      * @param configPath The absolute file path where the config JSON will be stored locally.
      * @param logger The SLF4J logger instance for your mod.
      * @param basePacketId The base ResourceLocation used for network channels.
-     * @param configClass The runtime class of your config data model.
      * @param serverPermissionCheck A predicate evaluating whether a player is authorized to edit the config.
      * @param defaultFactory A supplier creating a fresh default instance of your config.
      */
@@ -59,14 +55,11 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             Path configPath,
             Logger logger,
             ResourceLocation basePacketId,
-            Class<T> configClass,
             Predicate<ServerPlayer> serverPermissionCheck,
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
-        super(provider, configPath, logger, optionTree);
-        this.configClass = configClass;
+        super(provider, configPath, logger, optionTree, defaultFactory);
         this.serverPermissionCheck = serverPermissionCheck;
-        this.defaultFactory = defaultFactory;
 
         //? if <1.21 {
         ResourceLocation s2cPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
@@ -238,75 +231,109 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     }
 
     /**
-     * Updates an option identified by its dot-separated key (e.g. {@code "attackDamage"} or {@code "combat.attackSpeed"}).
+     * Executes a transactional modification on the active config instance.
+     * <p>
+     * Mutations are diffed against the active config and dispatched according to
+     * each option's {@link SyncMode}:
+     * <ul>
+     *     <li>{@link SyncMode#NONE}: Applied locally and saved to disk.</li>
+     *     <li>{@link SyncMode#INFORM_SERVER}: Applied locally, saved, and dispatched via C2S inform packet.</li>
+     *     <li>{@link SyncMode#OVERRIDE_CLIENT}: On dedicated/singleplayer, applied locally; on modded multiplayer,
+     *         applied to active cache and sent to server via C2S override packet without saving locally until server echo;
+     *         on unmodded multiplayer, rejected with a warning.</li>
+     * </ul>
+     * All disk I/O and network packet transmissions are batched and executed at most once per transaction.
      *
-     * @param optionKey The dot-separated option path.
-     * @param value The new value to set.
+     * @param mutator The consumer performing strongly typed property updates on the working copy.
      */
     @Override
-    public void updateOption(String optionKey, Object value) {
-        OptionInfo option = optionTree.get(optionKey);
-        if (option == null) {
-            throw new IllegalArgumentException("Unknown config option: " + optionKey);
-        }
+    public void modify(Consumer<T> mutator) {
+        T active = getActiveConfig();
+        if (active == null) return;
 
-        // Diff check against ACTIVE config to prevent I/O and network spam
-        Object clampedValue = option.clampValue(value);
-        if (Objects.equals(option.getValue(getActiveConfig()), clampedValue)) {
-            return;
-        }
+        T workingCopy = cloneConfig(active);
+        mutator.accept(workingCopy);
 
-        switch (option.getSyncMode()) {
-            case NONE -> processLocalOnlyOption(optionKey, option, clampedValue);
-            case INFORM_SERVER -> processInformServerOption(optionKey, option, clampedValue);
-            case OVERRIDE_CLIENT -> processOverrideClientOption(optionKey, option, clampedValue);
+        List<OptionChange> changes = optionTree.findChanges(active, workingCopy);
+        if (changes.isEmpty()) return;
+
+        SyncBatch batch = new SyncBatch();
+        for (OptionChange change : changes) {
+            applyChange(change, batch);
+        }
+        flush(batch);
+    }
+
+    private void applyChange(OptionChange change, SyncBatch batch) {
+        OptionInfo option = change.option();
+        Object value = change.clampedValue();
+
+        switch (change.syncMode()) {
+            case NONE -> applyLocalChange(option, value, batch);
+            case INFORM_SERVER -> applyInformChange(option, value, batch);
+            case OVERRIDE_CLIENT -> applyOverrideChange(option, value, batch);
         }
     }
 
-    private void applyToLocalAndCache(String optionKey, OptionInfo option, Object value) {
-        super.updateOption(optionKey, value);
-
+    private void applyLocalChange(OptionInfo option, Object value, SyncBatch batch) {
+        option.setValue(getConfig(), value);
         if (this.serverConfig != null) {
             option.setValue(this.serverConfig, value);
         }
-
-        notifySyncListeners(getActiveConfig());
+        batch.localChanged = true;
     }
 
-    private void processLocalOnlyOption(String optionKey, OptionInfo option, Object value) {
-        applyToLocalAndCache(optionKey, option, value);
-    }
-
-    private void processInformServerOption(String optionKey, OptionInfo option, Object value) {
-        applyToLocalAndCache(optionKey, option, value);
-
+    private void applyInformChange(OptionInfo option, Object value, SyncBatch batch) {
+        applyLocalChange(option, value, batch);
         if (this.state == ConnectionState.MULTIPLAYER_MODDED) {
-            networkHandler.sendInformPacketToServer();
+            batch.sendInform = true;
         } else if (this.state == ConnectionState.SINGLEPLAYER) {
-            networkHandler.sendLocalInformPacketToServer();
+            batch.sendLocalInform = true;
         }
     }
 
-    private void processOverrideClientOption(String optionKey, OptionInfo option, Object value) {
+    private void applyOverrideChange(OptionInfo option, Object value, SyncBatch batch) {
         if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
-            // Apply to cache and send to server.
-            // DO NOT call notifySyncListeners locally. Wait for the server's S2C echo packet to confirm.
             option.setValue(this.serverConfig, value);
-            networkHandler.sendOverridePacketToServer();
+            batch.sendOverride = true;
         } else if (this.state == ConnectionState.MULTIPLAYER_UNMODDED) {
-            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", optionKey);
-            notifySyncListeners(getActiveConfig());
+            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", option.getKey());
+            batch.rejectedUnmodded = true;
         } else {
-            applyToLocalAndCache(optionKey, option, value);
+            applyLocalChange(option, value, batch);
             if (this.state == ConnectionState.SINGLEPLAYER) {
-                networkHandler.sendLocalOverridePacketToServer();
+                batch.sendLocalOverride = true;
             }
         }
     }
 
-    public T cloneConfig(T source) {
-        T copy = defaultFactory != null ? defaultFactory.get() : ReflectionUtils.tryInstantiate(configClass);
-        optionTree.copyAllValues(source, copy);
-        return copy;
+    private void flush(SyncBatch batch) {
+        if (batch.localChanged) {
+            super.save();
+            notifySyncListeners(getActiveConfig());
+        } else if (batch.rejectedUnmodded) {
+            notifySyncListeners(getActiveConfig());
+        }
+
+        if (batch.sendInform) {
+            networkHandler.sendInformPacketToServer();
+        } else if (batch.sendLocalInform) {
+            networkHandler.sendLocalInformPacketToServer();
+        }
+
+        if (batch.sendOverride) {
+            networkHandler.sendOverridePacketToServer();
+        } else if (batch.sendLocalOverride) {
+            networkHandler.sendLocalOverridePacketToServer();
+        }
+    }
+
+    private static class SyncBatch {
+        boolean localChanged = false;
+        boolean sendInform = false;
+        boolean sendOverride = false;
+        boolean sendLocalOverride = false;
+        boolean sendLocalInform = false;
+        boolean rejectedUnmodded = false;
     }
 }
