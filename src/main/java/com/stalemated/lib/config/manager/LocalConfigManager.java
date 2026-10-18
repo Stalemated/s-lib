@@ -186,4 +186,37 @@ public class LocalConfigManager<T> {
     public T getActiveConfig() {
         return getConfig();
     }
+
+    /**
+     * Retrieves the option tree schema descriptor.
+     *
+     * @return The option tree.
+     */
+    public OptionTree getOptionTree() {
+        return optionTree;
+    }
+
+    /**
+     * Retrieves the path to the config file.
+     *
+     * @return The config path.
+     */
+    public Path getConfigPath() {
+        return configPath;
+    }
+
+    /**
+     * Retrieves a human-readable name or identifier for this config manager.
+     * Defaults to the filename without extension or the root class simple name.
+     *
+     * @return The config name.
+     */
+    public String getName() {
+        if (configPath != null && configPath.getFileName() != null) {
+            String fileName = configPath.getFileName().toString();
+            int dot = fileName.lastIndexOf('.');
+            return dot > 0 ? fileName.substring(0, dot) : fileName;
+        }
+        return optionTree != null ? optionTree.getRootClass().getSimpleName() : "Config";
+    }
 }

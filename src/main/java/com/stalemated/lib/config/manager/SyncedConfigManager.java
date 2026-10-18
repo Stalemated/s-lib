@@ -80,10 +80,6 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         });
     }
 
-    public OptionTree getOptionTree() {
-        return optionTree;
-    }
-
     public ConfigNetworkHandler<T> getNetworkHandler() {
         return networkHandler;
     }
