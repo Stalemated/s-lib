@@ -24,4 +24,9 @@ public @interface RangeDouble {
      * Maximum allowable value (inclusive).
      */
     double max();
+
+    /**
+     * Slider step increment.
+     */
+    double step() default 0.1;
 }

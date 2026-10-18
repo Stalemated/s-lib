@@ -24,4 +24,9 @@ public @interface RangeFloat {
      * Maximum allowable value (inclusive).
      */
     float max();
+
+    /**
+     * Slider step increment.
+     */
+    float step() default 0.1f;
 }

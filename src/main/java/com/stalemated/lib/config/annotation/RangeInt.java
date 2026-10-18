@@ -24,4 +24,9 @@ public @interface RangeInt {
      * Maximum allowable value (inclusive).
      */
     int max();
+
+    /**
+     * Slider step increment.
+     */
+    int step() default 1;
 }
