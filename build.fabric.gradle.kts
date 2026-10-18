@@ -1,7 +1,12 @@
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.util.jar.Manifest
+
 plugins {
     `maven-publish`
     // This plugin applies the correct loom variant based on the Minecraft version
     id("dev.kikugie.loom-back-compat")
+    id("publish-mutex")
 }
 
 group = "${property("mod.group")}"
@@ -139,6 +144,23 @@ tasks {
         // loomx.mod(Sources)Jar returns the jar task for the applied loom variant
         from(loomx.modJar.flatMap { it.archiveFile }, loomx.modSourcesJar.flatMap { it.archiveFile })
         into(rootProject.layout.buildDirectory.file("libs/${project.property("mod.version")}"))
+    }
+
+    loomx.modJar.configure {
+        doLast {
+            val jarPath = (this as AbstractArchiveTask).archiveFile.get().asFile.toPath()
+            FileSystems.newFileSystem(jarPath, mapOf("create" to "false")).use { fs ->
+                val manifestPath = fs.getPath("META-INF/MANIFEST.MF")
+
+                if (Files.exists(manifestPath)) {
+                    val manifest = Manifest(Files.newInputStream(manifestPath))
+                    manifest.mainAttributes.putValue("Fabric-Loom-Version", "1.17.0")
+                    Files.newOutputStream(manifestPath).use { out ->
+                        manifest.write(out)
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -3,6 +3,7 @@ plugins {
     id("java-library")
     id("net.neoforged.moddev") version "2.0.147"
     id("neoforge-mutex")
+    id("publish-mutex")
 }
 
 group = "${property("mod.group")}"
