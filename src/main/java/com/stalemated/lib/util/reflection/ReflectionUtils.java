@@ -2,6 +2,10 @@ package com.stalemated.lib.util.reflection;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.*;
+import java.util.function.Function;
 
 public final class ReflectionUtils {
 
@@ -86,6 +90,50 @@ public final class ReflectionUtils {
     }
 
     /**
+     * Checks if a class has any declared no-argument constructor regardless of visibility.
+     *
+     * @param clazz The class to check.
+     * @return True if a no-argument constructor exists, false otherwise.
+     */
+    public static boolean hasNoArgsConstructor(Class<?> clazz) {
+        if (clazz == null || clazz.isPrimitive() || clazz.isArray() || clazz.isInterface() || Modifier.isAbstract(clazz.getModifiers())) {
+            return false;
+        }
+        try {
+            clazz.getDeclaredConstructor();
+            return true;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks whether a class belongs to standard Java/JVM system packages that should
+     * not be reflectively mutated or inspected across encapsulated boundaries.
+     *
+     * @param clazz The class to check.
+     * @return True if system/JDK class, false otherwise.
+     */
+    public static boolean isSystemClass(Class<?> clazz) {
+        if (clazz == null) return true;
+        String name = clazz.getName();
+        return name.startsWith("java.") || name.startsWith("javax.") ||
+                name.startsWith("jdk.") || name.startsWith("sun.");
+    }
+
+    /**
+     * Retrieves the raw class of a type.
+     *
+     * @param type The type to check.
+     * @return The raw class of the type.
+     */
+    public static Class<?> getRawClass(Type type) {
+        if (type instanceof Class<?> c) return c;
+        if (type instanceof ParameterizedType pType) return (Class<?>) pType.getRawType();
+        return Object.class;
+    }
+
+    /**
      * Finds a field in the class hierarchy.
      *
      * @param clazz The class to start searching from.
@@ -103,5 +151,285 @@ public final class ReflectionUtils {
             }
         }
         return null;
+    }
+
+    /**
+     * Clones an arbitrary object by instantiating a new instance and copying its fields.
+     *
+     * @param obj The object to clone.
+     * @return A shallow-cloned instance of the object, or the object itself if cloning fails.
+     */
+    public static Object cloneObject(Object obj) {
+        return cloneObject(obj, Function.identity());
+    }
+
+    /**
+     * Clones an arbitrary object by instantiating a new instance and copying its fields,
+     * applying a transformation or deep-cloning function to each field value.
+     *
+     * @param obj The object to clone.
+     * @param valueCloner Function to clone or transform field values.
+     * @return A cloned instance of the object.
+     */
+    public static Object cloneObject(Object obj, Function<Object, Object> valueCloner) {
+        if (obj == null) return null;
+        Class<?> clazz = obj.getClass();
+
+        if (clazz.isPrimitive() || Number.class.isAssignableFrom(clazz) ||
+                clazz == String.class || clazz == Boolean.class ||
+                clazz == Character.class || clazz.isEnum() || isSystemClass(clazz)) {
+            return obj;
+        }
+
+        try {
+            Object copy = tryInstantiate(clazz);
+            Class<?> current = clazz;
+
+            while (current != null && current != Object.class) {
+                if (isSystemClass(current)) break;
+
+                for (Field f : current.getDeclaredFields()) {
+                    if (isStaticOrTransient(f)) continue;
+                    try {
+                        f.setAccessible(true);
+                        Object val = f.get(obj);
+                        f.set(copy, valueCloner != null ? valueCloner.apply(val) : val);
+                    } catch (Throwable ignored) {}
+                }
+                current = current.getSuperclass();
+            }
+            return copy;
+        } catch (Exception e) {
+            return obj;
+        }
+    }
+
+    /**
+     * Performs a deep equality comparison supporting primitives, strings,
+     * arrays, collections, maps, sets, and POJOs without explicit {@code equals} implementations.
+     *
+     * @param a The first object.
+     * @param b The second object.
+     * @return True if both objects are deeply equal, false otherwise.
+     */
+    public static boolean deepEquals(Object a, Object b) {
+        if (Objects.deepEquals(a, b)) return true;
+        if (a == null || b == null) return false;
+
+        if (a.getClass().isArray() && b.getClass().isArray()) {
+            if (a instanceof Object[] arrA && b instanceof Object[] arrB) {
+                if (arrA.length != arrB.length) return false;
+                for (int i = 0; i < arrA.length; i++) {
+                    if (!deepEquals(arrA[i], arrB[i])) return false;
+                }
+                return true;
+            }
+            return Objects.deepEquals(a, b);
+        }
+
+        if (a.getClass().isArray() || b.getClass().isArray()) {
+            return false;
+        }
+
+        if (a instanceof List<?> || b instanceof List<?>) {
+            if (!(a instanceof List<?> listA && b instanceof List<?> listB)) return false;
+            if (listA.size() != listB.size()) return false;
+
+            for (int i = 0; i < listA.size(); i++) {
+                if (!deepEquals(listA.get(i), listB.get(i))) return false;
+            }
+            return true;
+        }
+
+        if (a instanceof Set<?> || b instanceof Set<?>) {
+            if (!(a instanceof Set<?> setA && b instanceof Set<?> setB)) return false;
+            if (setA.size() != setB.size()) return false;
+            List<Object> remainingB = new ArrayList<>(setB);
+
+            for (Object itemA : setA) {
+                boolean found = false;
+                Iterator<Object> itB = remainingB.iterator();
+                while (itB.hasNext()) {
+                    if (deepEquals(itemA, itB.next())) {
+                        itB.remove();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) return false;
+            }
+            return remainingB.isEmpty();
+        }
+
+        if (a instanceof Map<?, ?> || b instanceof Map<?, ?>) {
+            if (!(a instanceof Map<?, ?> mapA && b instanceof Map<?, ?> mapB)) return false;
+            if (mapA.size() != mapB.size()) return false;
+
+            for (Map.Entry<?, ?> entryA : mapA.entrySet()) {
+                if (!mapB.containsKey(entryA.getKey())) return false;
+                if (!deepEquals(entryA.getValue(), mapB.get(entryA.getKey()))) return false;
+            }
+            return true;
+        }
+
+        if (a instanceof Collection<?> || b instanceof Collection<?>) {
+            if (!(a instanceof Collection<?> collA && b instanceof Collection<?> collB)) return false;
+            if (collA.size() != collB.size()) return false;
+            Iterator<?> itA = collA.iterator();
+            Iterator<?> itB = collB.iterator();
+
+            while (itA.hasNext() && itB.hasNext()) {
+                if (!deepEquals(itA.next(), itB.next())) return false;
+            }
+            return !itA.hasNext() && !itB.hasNext();
+        }
+
+        if (a.getClass() == b.getClass() && !hasOverriddenEquals(a.getClass())) {
+            return compareFields(a, b);
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if a class has overridden the default {@link Object#equals(Object)} method.
+     *
+     * @param clazz The class to inspect.
+     * @return True if the class has a custom equals method, false otherwise.
+     */
+    public static boolean hasOverriddenEquals(Class<?> clazz) {
+        if (clazz == null || clazz.isPrimitive() || clazz.isArray()) return false;
+        try {
+            return clazz.getMethod("equals", Object.class).getDeclaringClass() != Object.class;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Recursively compares all non-static, non-transient fields of two objects of the same class.
+     *
+     * @param a The first object.
+     * @param b The second object.
+     * @return True if all non-static, non-transient fields match deeply, false otherwise.
+     */
+    public static boolean compareFields(Object a, Object b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        if (a.getClass() != b.getClass() || a.getClass().isArray()) return false;
+
+        Class<?> clazz = a.getClass();
+        if (isSystemClass(clazz)) return false;
+
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            if (isSystemClass(current)) break;
+
+            for (Field f : current.getDeclaredFields()) {
+                if (isStaticOrTransient(f)) continue;
+                try {
+                    f.setAccessible(true);
+                    Object valA = f.get(a);
+                    Object valB = f.get(b);
+                    if (!deepEquals(valA, valB)) return false;
+                } catch (Throwable t) {
+                    return false;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return true;
+    }
+
+    /**
+     * Performs a deep clone of collections, maps, arrays, and nested POJOs.
+     * Primitives, immutables (Strings, Numbers, Booleans), and enums are returned as-is.
+     *
+     * @param val The value to clone.
+     * @return A deep-cloned instance of the value.
+     */
+    public static Object cloneDeep(Object val) {
+        if (val == null) return null;
+        if (val instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>(list.size());
+            for (Object item : list) {
+                copy.add(cloneDeep(item));
+            }
+            return copy;
+        }
+        if (val instanceof SortedSet<?> sortedSet) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            SortedSet<Object> copy = sortedSet.comparator() != null
+                    ? new TreeSet(sortedSet.comparator())
+                    : new TreeSet<>();
+            for (Object item : sortedSet) {
+                copy.add(cloneDeep(item));
+            }
+            return copy;
+        }
+        if (val instanceof Set<?> set) {
+            Set<Object> copy = new LinkedHashSet<>(set.size());
+            for (Object item : set) {
+                copy.add(cloneDeep(item));
+            }
+            return copy;
+        }
+        if (val instanceof Queue<?> queue) {
+            Queue<Object> copy = new ArrayDeque<>(queue.size());
+            for (Object item : queue) {
+                copy.add(cloneDeep(item));
+            }
+            return copy;
+        }
+        if (val instanceof Collection<?> coll) {
+            List<Object> copy = new ArrayList<>(coll.size());
+            for (Object item : coll) {
+                copy.add(cloneDeep(item));
+            }
+            return copy;
+        }
+        if (val instanceof SortedMap<?, ?> sortedMap) {
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            SortedMap<Object, Object> copy = sortedMap.comparator() != null
+                    ? new TreeMap(sortedMap.comparator())
+                    : new TreeMap<>();
+            for (Map.Entry<?, ?> entry : sortedMap.entrySet()) {
+                copy.put(entry.getKey(), cloneDeep(entry.getValue()));
+            }
+            return copy;
+        }
+        if (val instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>(map.size());
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                copy.put(entry.getKey(), cloneDeep(entry.getValue()));
+            }
+            return copy;
+        }
+        if (val instanceof Object[] arr) {
+            Object[] copy = arr.clone();
+            for (int i = 0; i < copy.length; i++) {
+                copy[i] = cloneDeep(copy[i]);
+            }
+            return copy;
+        }
+        if (val instanceof int[] arr) return arr.clone();
+        if (val instanceof long[] arr) return arr.clone();
+        if (val instanceof float[] arr) return arr.clone();
+        if (val instanceof double[] arr) return arr.clone();
+        if (val instanceof boolean[] arr) return arr.clone();
+        if (val instanceof byte[] arr) return arr.clone();
+        if (val instanceof char[] arr) return arr.clone();
+        if (val instanceof short[] arr) return arr.clone();
+
+        Class<?> clazz = val.getClass();
+        if (!clazz.isPrimitive() && !Number.class.isAssignableFrom(clazz) &&
+                clazz != String.class && clazz != Boolean.class &&
+                clazz != Character.class && !clazz.isEnum() &&
+                !isSystemClass(clazz) &&
+                (hasNoArgsConstructor(clazz) || hasPublicNoArgsConstructor(clazz))) {
+            return cloneObject(val, ReflectionUtils::cloneDeep);
+        }
+
+        return val;
     }
 }
