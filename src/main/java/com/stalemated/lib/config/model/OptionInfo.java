@@ -92,6 +92,29 @@ public class OptionInfo implements ConfigNode {
 
     public RangeDouble getRangeDouble() { return rangeDouble; }
 
+    public int getIntStep() {
+        if (rangeInt != null) {
+            return Math.max(1, rangeInt.step());
+        }
+        return 1;
+    }
+
+    public float getFloatStep() {
+        if (rangeFloat != null) {
+            float s = rangeFloat.step();
+            return s > 0 ? s : 0.1f;
+        }
+        return 0.1f;
+    }
+
+    public double getDoubleStep() {
+        if (rangeDouble != null) {
+            double s = rangeDouble.step();
+            return s > 0 ? s : 0.1;
+        }
+        return 0.1;
+    }
+
     public String getComment() { return comment; }
 
     public Object getDefaultValue() { return defaultValue; }

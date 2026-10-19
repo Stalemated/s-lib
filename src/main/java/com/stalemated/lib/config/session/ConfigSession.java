@@ -27,23 +27,7 @@ public class ConfigSession<T> {
     private T createDraft() {
         T active = manager.getActiveConfig();
         if (active == null) return null;
-        T clone = manager.cloneConfig(active);
-        deepCloneCollections(active, clone);
-        return clone;
-    }
-
-    private void deepCloneCollections(T source, T target) {
-        if (source == null || target == null) return;
-        for (OptionInfo option : optionTree.all()) {
-            Object val = option.getValue(source);
-            if (val instanceof Collection<?> || val instanceof Map<?, ?> || (val != null && val.getClass().isArray())) {
-                option.setValue(target, OptionTree.cloneValueIfCollection(val));
-            }
-        }
-    }
-
-    public static Object cloneValueIfCollection(Object val) {
-        return OptionTree.cloneValueIfCollection(val);
+        return manager.cloneConfig(active);
     }
 
     public T getDraft() {
@@ -111,10 +95,7 @@ public class ConfigSession<T> {
             return;
         }
 
-        manager.modify(workingCopy -> {
-            optionTree.copyAllValues(draft, workingCopy);
-            deepCloneCollections(draft, workingCopy);
-        });
+        manager.modify(workingCopy -> optionTree.copyAllValues(draft, workingCopy));
         committed = true;
     }
 }
