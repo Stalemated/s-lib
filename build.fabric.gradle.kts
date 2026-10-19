@@ -70,6 +70,8 @@ dependencies {
     // JUnit Jupiter
     testImplementation("org.junit.jupiter:junit-jupiter:${property("deps.jupiter")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(files(sourceSets.main.get().compileClasspath))
+    testRuntimeOnly(files(sourceSets.main.get().compileClasspath))
 }
 
 tasks.withType<Test> {
