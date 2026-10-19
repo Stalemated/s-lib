@@ -10,8 +10,11 @@ import com.stalemated.lib.util.math.MathUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Immutable metadata descriptor for a single config option.
@@ -84,6 +87,10 @@ public class OptionInfo implements ConfigNode {
     @Override
     public Class<?> type() { return type; }
 
+    public Class<?> getType() { return type; }
+
+    public Type getGenericType() { return genericType; }
+
     public SyncMode getSyncMode() { return syncMode; }
 
     public RangeInt getRangeInt() { return rangeInt; }
@@ -122,6 +129,28 @@ public class OptionInfo implements ConfigNode {
     public boolean isTemplate() { return isTemplate; }
 
     public ConfigNode getTemplate() { return template; }
+
+    public ConfigNode getElementTemplate() { return template; }
+
+    public boolean isCollection() {
+        return type != null && Collection.class.isAssignableFrom(type);
+    }
+
+    public boolean isMap() {
+        return type != null && Map.class.isAssignableFrom(type);
+    }
+
+    public boolean isEnum() {
+        return type != null && type.isEnum();
+    }
+
+    public boolean hasRange() {
+        return rangeInt != null || rangeFloat != null || rangeDouble != null;
+    }
+
+    public boolean isNumeric() {
+        return type != null && (Number.class.isAssignableFrom(type) || (type.isPrimitive() && type != boolean.class && type != char.class));
+    }
 
     /**
      * Resolves and extracts the current value of this option from a root config instance.
@@ -174,7 +203,7 @@ public class OptionInfo implements ConfigNode {
         Object current = getValue(rootInstance);
         Object clamped = clampValue(current);
         
-        if (current != null && !current.equals(clamped)) {
+        if (!Objects.equals(current, clamped)) {
             setValue(rootInstance, clamped);
         }
     }

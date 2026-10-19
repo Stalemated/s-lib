@@ -45,7 +45,7 @@ public class OptionTree {
     }
 
     private ConfigNode buildNode(String key, Field field, Type genericType, List<Field> path, SyncMode syncMode, Object parentInstance, boolean isTemplate, boolean isTemplateRoot) {
-        Class<?> type = getRawClass(genericType);
+        Class<?> type = ReflectionUtils.getRawClass(genericType);
 
         if (field == null) {
             return buildCategoryNode(key, null, genericType, type, path, syncMode, parentInstance, isTemplate);
@@ -176,12 +176,6 @@ public class OptionTree {
         return Object.class;
     }
 
-    private Class<?> getRawClass(Type type) {
-        if (type instanceof Class<?> c) return c;
-        if (type instanceof ParameterizedType pType) return (Class<?>) pType.getRawType();
-        return Object.class;
-    }
-
     private boolean isNativeLeaf(Class<?> type) {
         if (type.isPrimitive() || Number.class.isAssignableFrom(type) ||
             type == String.class || type == Boolean.class ||
@@ -215,7 +209,7 @@ public class OptionTree {
         for (OptionInfo option : syncedOptions) {
             if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                 Object val = option.getValue(source);
-                option.setValue(target, cloneValueIfCollection(val));
+                option.setValue(target, ReflectionUtils.cloneDeep(val));
             }
         }
     }
@@ -231,32 +225,8 @@ public class OptionTree {
 
         for (OptionInfo option : options.values()) {
             Object val = option.getValue(source);
-            option.setValue(target, cloneValueIfCollection(val));
+            option.setValue(target, ReflectionUtils.cloneDeep(val));
         }
-    }
-
-    /**
-     * Defensive deep-clone helper for collections and maps.
-     *
-     * @param val The value to clone if it is a collection or map.
-     * @return A fresh instance of the collection/map, or the value itself if not a collection/map.
-     */
-    public static Object cloneValueIfCollection(Object val) {
-        if (val instanceof List<?> list) return new ArrayList<>(list);
-        if (val instanceof Set<?> set) return new LinkedHashSet<>(set);
-        if (val instanceof Queue<?> queue) return new ArrayDeque<>(queue);
-        if (val instanceof Collection<?> coll) return new ArrayList<>(coll);
-        if (val instanceof Map<?, ?> map) return new LinkedHashMap<>(map);
-        if (val instanceof Object[] arr) return arr.clone();
-        if (val instanceof int[] arr) return arr.clone();
-        if (val instanceof long[] arr) return arr.clone();
-        if (val instanceof float[] arr) return arr.clone();
-        if (val instanceof double[] arr) return arr.clone();
-        if (val instanceof boolean[] arr) return arr.clone();
-        if (val instanceof byte[] arr) return arr.clone();
-        if (val instanceof char[] arr) return arr.clone();
-        if (val instanceof short[] arr) return arr.clone();
-        return val;
     }
 
     /**
@@ -278,7 +248,7 @@ public class OptionTree {
             Object candidateVal = option.getValue(candidate);
             Object clampedVal = option.clampValue(candidateVal);
 
-            if (!Objects.deepEquals(currentVal, clampedVal)) {
+            if (!ReflectionUtils.deepEquals(currentVal, clampedVal)) {
                 changes.add(new OptionChange(option, clampedVal));
             }
         }
