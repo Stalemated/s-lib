@@ -141,7 +141,7 @@ public class OptionTree {
         return children;
     }
 
-    private boolean isIgnored(Field field) {
+    public static boolean isIgnored(Field field) {
         return ReflectionUtils.isStaticOrTransient(field) || field.isAnnotationPresent(Ignore.class);
     }
 

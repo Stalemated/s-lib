@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 import java.util.*;
 import java.util.function.Function;
 
@@ -431,5 +432,30 @@ public final class ReflectionUtils {
         }
 
         return val;
+    }
+
+    /**
+     * Resolves the actual Class of a type argument at the specified index from a {@link ParameterizedType},
+     * unwrapping wildcards if present.
+     *
+     * @param genericType The generic type to inspect.
+     * @param argumentIndex The 0-based argument index.
+     * @param fallback The fallback class if resolution is not possible.
+     * @return The resolved Class or fallback.
+     */
+    public static Class<?> resolveGenericTypeArgument(Type genericType, int argumentIndex, Class<?> fallback) {
+        if (genericType instanceof ParameterizedType pt) {
+            Type[] args = pt.getActualTypeArguments();
+            if (args.length > argumentIndex) {
+                Type target = args[argumentIndex];
+                if (target instanceof Class<?> clazz) {
+                    return clazz;
+                }
+                if (target instanceof WildcardType wt && wt.getUpperBounds().length > 0 && wt.getUpperBounds()[0] instanceof Class<?> clazz) {
+                    return clazz;
+                }
+            }
+        }
+        return fallback;
     }
 }

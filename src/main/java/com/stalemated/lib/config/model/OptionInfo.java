@@ -132,6 +132,42 @@ public class OptionInfo implements ConfigNode {
 
     public ConfigNode getElementTemplate() { return template; }
 
+    /**
+     * Resolves the element type if this option represents a {@link Collection}.
+     * Checks the element template first, then inspects the generic type argument.
+     *
+     * @return The element Class, or {@code Object.class} if not resolvable.
+     */
+    public Class<?> getCollectionElementType() {
+        if (template instanceof OptionInfo tInfo && tInfo.type() != null) {
+            return tInfo.type();
+        }
+        return ReflectionUtils.resolveGenericTypeArgument(genericType, 0, Object.class);
+    }
+
+    /**
+     * Resolves the value type if this option represents a {@link Map}.
+     * Checks the element template first, then the second generic type argument,
+     * and falls back to inspecting default map values or {@code String.class}.
+     *
+     * @return The map value Class.
+     */
+    public Class<?> getMapValueType() {
+        if (template instanceof OptionInfo tInfo && tInfo.type() != null) {
+            return tInfo.type();
+        }
+        Class<?> resolved = ReflectionUtils.resolveGenericTypeArgument(genericType, 1, null);
+        if (resolved != null) {
+            return resolved;
+        }
+        if (defaultValue instanceof Map<?, ?> defMap && !defMap.isEmpty()) {
+            for (Object val : defMap.values()) {
+                if (val != null) return val.getClass();
+            }
+        }
+        return String.class;
+    }
+
     public boolean isCollection() {
         return type != null && Collection.class.isAssignableFrom(type);
     }
