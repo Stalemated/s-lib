@@ -458,4 +458,26 @@ public final class ReflectionUtils {
         }
         return fallback;
     }
+
+    /**
+     * Searches a map keyed by {@link Class} for a value whose key matches the target type.
+     * Checks for exact match first (O(1)), then iterates through the map entries checking
+     * {@link Class#isAssignableFrom(Class)}.
+     *
+     * @param map The map to search in.
+     * @param targetType The class type to match.
+     * @param <V> The value type.
+     * @return The value matching the target type or an assignable supertype/interface, or null if not found.
+     */
+    public static <V> V findAssignable(Map<Class<?>, V> map, Class<?> targetType) {
+        if (map == null || targetType == null) return null;
+        V exact = map.get(targetType);
+        if (exact != null) return exact;
+        for (Map.Entry<Class<?>, V> entry : map.entrySet()) {
+            if (entry.getKey().isAssignableFrom(targetType)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
 }
