@@ -1,0 +1,42 @@
+package com.stalemated.lib.compat.yacl.factory;
+
+import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
+import com.stalemated.lib.config.model.OptionInfo;
+import dev.isxander.yacl3.api.Option;
+
+import java.lang.reflect.Field;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * Concise facade factory for constructing top-level YACL {@link Option} instances and delegating
+ * nested POJO field options to {@link YaclPojoFieldBuilder}.
+ *
+ * @param <T> The config model type.
+ * @param context The shared YACL UI construction context.
+ */
+public record YaclOptionFactory<T>(YaclContext<T> context) {
+
+    public YaclOptionFactory {
+        Objects.requireNonNull(context, "context cannot be null");
+    }
+
+    public Option<?> buildOption(OptionInfo optionInfo) {
+        return buildOption(optionInfo, null);
+    }
+
+    public Option<?> buildOption(OptionInfo optionInfo, Consumer<Option.Builder<?>> customizer) {
+        YaclOptionMetadata meta = context.resolveMetadata(optionInfo);
+        return context.controllerRegistry().createOption(context.session(), optionInfo, meta, customizer);
+    }
+
+    public Option<?> buildPojoFieldOption(
+            OptionInfo mapInfo,
+            String entryKey,
+            Field field,
+            Object sampleItem,
+            boolean available
+    ) {
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, mapInfo, entryKey, field, sampleItem, available);
+    }
+}
