@@ -4,14 +4,16 @@ import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
 /**
- * Utility helper methods for managing nested session buffers and map mutations in YACL.
+ * Utility helper methods for managing nested session buffers and container mutations in YACL.
  */
 public final class YaclSessionHelper {
 
@@ -50,7 +52,41 @@ public final class YaclSessionHelper {
                     || (mapInfo.getDefaultValue() instanceof SortedMap)) {
                 session.set(mapInfo, new TreeMap<>(newMap));
             } else {
-                session.set(mapInfo, new LinkedHashMap<>(newMap));
+                session.set(mapInfo, newMap);
+            }
+        }
+    }
+
+    /**
+     * Atomically mutates a nested item within a list stored in a {@link ConfigSession}, cloning it deeply
+     * to preserve draft isolation before applying the modification and persisting the cloned list back to the session.
+     *
+     * @param session  The config session holding the draft buffer.
+     * @param listInfo The {@link OptionInfo} representing the parent list option.
+     * @param index    The zero-based index of the item within the list.
+     * @param updater  A consumer that mutates the deeply cloned item.
+     * @param <N>      The type of the nested item.
+     */
+    @SuppressWarnings("unchecked")
+    public static <N> void updateNestedList(
+            ConfigSession<?> session,
+            OptionInfo listInfo,
+            int index,
+            Consumer<N> updater
+    ) {
+        List<N> currentList = session.get(listInfo);
+        if (currentList == null && listInfo.getDefaultValue() instanceof List<?> defList) {
+            currentList = (List<N>) defList;
+        }
+
+        List<N> newList = currentList != null ? new ArrayList<>(currentList) : new ArrayList<>();
+        if (index >= 0 && index < newList.size()) {
+            N item = newList.get(index);
+            if (item != null) {
+                N clonedItem = (N) ReflectionUtils.cloneDeep(item);
+                updater.accept(clonedItem);
+                newList.set(index, clonedItem);
+                session.set(listInfo, newList);
             }
         }
     }
