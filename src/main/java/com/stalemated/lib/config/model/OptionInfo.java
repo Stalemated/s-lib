@@ -5,6 +5,7 @@ import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.annotation.RangeDouble;
 import com.stalemated.lib.config.annotation.RangeFloat;
 import com.stalemated.lib.config.annotation.RangeInt;
+import com.stalemated.lib.config.annotation.RangeLong;
 import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
@@ -34,6 +35,7 @@ public class OptionInfo implements ConfigNode {
     private final Type genericType;
     private final SyncMode syncMode;
     private final RangeInt rangeInt;
+    private final RangeLong rangeLong;
     private final RangeFloat rangeFloat;
     private final RangeDouble rangeDouble;
     private final String comment;
@@ -67,6 +69,7 @@ public class OptionInfo implements ConfigNode {
 
         if (field != null) {
             this.rangeInt = field.getAnnotation(RangeInt.class);
+            this.rangeLong = field.getAnnotation(RangeLong.class);
             this.rangeFloat = field.getAnnotation(RangeFloat.class);
             this.rangeDouble = field.getAnnotation(RangeDouble.class);
             Comment commentAnn = field.getAnnotation(Comment.class);
@@ -76,6 +79,7 @@ public class OptionInfo implements ConfigNode {
             this.itemDropdown = field.getAnnotation(ItemDropdown.class);
         } else {
             this.rangeInt = null;
+            this.rangeLong = null;
             this.rangeFloat = null;
             this.rangeDouble = null;
             this.comment = null;
@@ -104,6 +108,8 @@ public class OptionInfo implements ConfigNode {
 
     public RangeInt getRangeInt() { return rangeInt; }
 
+    public RangeLong getRangeLong() { return rangeLong; }
+
     public RangeFloat getRangeFloat() { return rangeFloat; }
 
     public RangeDouble getRangeDouble() { return rangeDouble; }
@@ -113,6 +119,13 @@ public class OptionInfo implements ConfigNode {
             return Math.max(1, rangeInt.step());
         }
         return 1;
+    }
+
+    public long getLongStep() {
+        if (rangeLong != null) {
+            return Math.max(1L, rangeLong.step());
+        }
+        return 1L;
     }
 
     public float getFloatStep() {
@@ -206,7 +219,7 @@ public class OptionInfo implements ConfigNode {
     }
 
     public boolean hasRange() {
-        return rangeInt != null || rangeFloat != null || rangeDouble != null;
+        return rangeInt != null || rangeLong != null || rangeFloat != null || rangeDouble != null;
     }
 
     public boolean isNumeric() {
@@ -270,7 +283,7 @@ public class OptionInfo implements ConfigNode {
     }
 
     /**
-     * Clamps a numeric value according to any {@link RangeInt}, {@link RangeFloat} or {@link RangeDouble} annotations.
+     * Clamps a numeric value according to any {@link RangeInt}, {@link RangeLong}, {@link RangeFloat} or {@link RangeDouble} annotations.
      *
      * @param value The candidate value.
      * @return The clamped value if applicable, or the original value.
@@ -281,6 +294,11 @@ public class OptionInfo implements ConfigNode {
         if (rangeInt != null && (type == int.class || type == Integer.class) && value instanceof Number num) {
             int current = num.intValue();
             return MathUtils.clamp(current, rangeInt.min(), rangeInt.max());
+        }
+
+        if (rangeLong != null && (type == long.class || type == Long.class) && value instanceof Number num) {
+            long current = num.longValue();
+            return MathUtils.clamp(current, rangeLong.min(), rangeLong.max());
         }
 
         if ((type == float.class || type == Float.class) && value instanceof Number num) {

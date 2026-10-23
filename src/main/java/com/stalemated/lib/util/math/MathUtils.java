@@ -11,6 +11,13 @@ public class MathUtils {
         return Math.min(value, max);
     }
 
+    public static long clamp(long value, long min, long max) {
+        if (min > max) throw new IllegalArgumentException();
+
+        if (value < min) return min;
+        return Math.min(value, max);
+    }
+
     public static float clamp(float value, float min, float max) {
         if (min > max) throw new IllegalArgumentException();
 

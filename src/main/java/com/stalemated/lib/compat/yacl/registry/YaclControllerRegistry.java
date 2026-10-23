@@ -3,6 +3,7 @@ package com.stalemated.lib.compat.yacl.registry;
 import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
+import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.color.ColorUtils;
@@ -74,6 +75,16 @@ public class YaclControllerRegistry {
             return IntegerFieldControllerBuilder.create(opt);
         });
 
+        registerDirect(long.class, Long.class, (info, opt) -> {
+            if (info != null && info.getRangeLong() != null) {
+                long step = info.getLongStep();
+                return LongSliderControllerBuilder.create(opt)
+                        .range(info.getRangeLong().min(), info.getRangeLong().max())
+                        .step(step);
+            }
+            return LongFieldControllerBuilder.create(opt);
+        });
+
         registerDirect(float.class, Float.class, (info, opt) -> {
             if (info.getRangeFloat() != null) {
                 float step = info.getFloatStep();
@@ -94,7 +105,13 @@ public class YaclControllerRegistry {
             return DoubleFieldControllerBuilder.create(opt);
         });
 
-        registerDirect(String.class, (info, opt) -> StringControllerBuilder.create(opt));
+        registerDirect(String.class, (info, opt) -> {
+            if (info != null && info.hasItemDropdown()) {
+                return ItemOrTagControllerBuilder.create(opt).allowTags(info.allowItemTags());
+            }
+            return StringControllerBuilder.create(opt);
+        });
+
         registerDirect(Color.class, (info, opt) -> ColorControllerBuilder.create(opt).allowAlpha(true));
     }
 
@@ -118,7 +135,12 @@ public class YaclControllerRegistry {
                     return parsed != null ? parsed : ResourceLocation.tryParse("minecraft:air");
                 },
                 "minecraft:air",
-                (info, opt) -> ItemOrTagControllerBuilder.create(opt)
+                (info, opt) -> {
+                    if (info != null && info.hasItemDropdown()) {
+                        return ItemOrTagControllerBuilder.create(opt).allowTags(false);
+                    }
+                    return StringControllerBuilder.create(opt);
+                }
         );
 
         registerAdapted(
@@ -155,6 +177,8 @@ public class YaclControllerRegistry {
         registerInitialSupplier(Boolean.class, () -> false);
         registerInitialSupplier(int.class, () -> 0);
         registerInitialSupplier(Integer.class, () -> 0);
+        registerInitialSupplier(long.class, () -> 0L);
+        registerInitialSupplier(Long.class, () -> 0L);
         registerInitialSupplier(float.class, () -> 0.0f);
         registerInitialSupplier(Float.class, () -> 0.0f);
         registerInitialSupplier(double.class, () -> 0.0);
@@ -191,17 +215,20 @@ public class YaclControllerRegistry {
                        .available(meta.available());
 
                 V defaultVal = (V) info.getDefaultValue();
-                builder.binding(
+                return YaclBindingSynchronizer.buildSyncedOption(
+                        session,
+                        info,
+                        builder,
                         defaultVal,
                         () -> session.get(info),
-                        val -> session.set(info, val)
+                        val -> session.set(info, val),
+                        b -> {
+                            b.controller(opt -> factory.create(info, opt));
+                            if (customizer != null) {
+                                customizer.accept(b);
+                            }
+                        }
                 );
-                builder.controller(opt -> factory.create(info, opt));
-
-                if (customizer != null) {
-                    customizer.accept(builder);
-                }
-                return builder.build();
             }
         };
 
@@ -241,7 +268,10 @@ public class YaclControllerRegistry {
                 M modelDefault = (M) info.getDefaultValue();
                 G guiDefault = modelDefault != null ? toGui.apply(modelDefault) : fallbackGuiDefault;
 
-                builder.binding(
+                return YaclBindingSynchronizer.buildSyncedOption(
+                        session,
+                        info,
+                        builder,
                         guiDefault,
                         () -> {
                             M modelVal = session.get(info);
@@ -252,14 +282,14 @@ public class YaclControllerRegistry {
                             if (modelVal != null) {
                                 session.set(info, modelVal);
                             }
+                        },
+                        b -> {
+                            b.controller(opt -> guiControllerFactory.create(info, opt));
+                            if (customizer != null) {
+                                customizer.accept(b);
+                            }
                         }
                 );
-                builder.controller(opt -> guiControllerFactory.create(info, opt));
-
-                if (customizer != null) {
-                    customizer.accept(builder);
-                }
-                return builder.build();
             }
         });
     }
@@ -352,16 +382,19 @@ public class YaclControllerRegistry {
         builder.name(meta.name())
                .description(meta.description())
                .available(meta.available());
-        builder.binding(
+        return YaclBindingSynchronizer.buildSyncedOption(
+                session,
+                info,
+                builder,
                 (E) info.getDefaultValue(),
                 () -> session.get(info),
-                val -> session.set(info, val)
+                val -> session.set(info, val),
+                b -> {
+                    b.controller(SimpleEnumDropdownControllerBuilder::create);
+                    if (customizer != null) {
+                        customizer.accept(b);
+                    }
+                }
         );
-        builder.controller(SimpleEnumDropdownControllerBuilder::create);
-
-        if (customizer != null) {
-            customizer.accept(builder);
-        }
-        return builder.build();
     }
 }
