@@ -1,9 +1,11 @@
 package com.stalemated.lib.config.model;
 
 import com.stalemated.lib.config.annotation.Comment;
+import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.annotation.RangeDouble;
 import com.stalemated.lib.config.annotation.RangeFloat;
 import com.stalemated.lib.config.annotation.RangeInt;
+import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import com.stalemated.lib.util.math.MathUtils;
@@ -35,6 +37,8 @@ public class OptionInfo implements ConfigNode {
     private final RangeFloat rangeFloat;
     private final RangeDouble rangeDouble;
     private final String comment;
+    private final String title;
+    private final ItemDropdown itemDropdown;
     private final Object defaultValue;
     private final boolean isTemplate;
     private final ConfigNode template;
@@ -67,11 +71,16 @@ public class OptionInfo implements ConfigNode {
             this.rangeDouble = field.getAnnotation(RangeDouble.class);
             Comment commentAnn = field.getAnnotation(Comment.class);
             this.comment = commentAnn != null ? commentAnn.value() : null;
+            Title titleAnn = field.getAnnotation(Title.class);
+            this.title = titleAnn != null ? titleAnn.value() : null;
+            this.itemDropdown = field.getAnnotation(ItemDropdown.class);
         } else {
             this.rangeInt = null;
             this.rangeFloat = null;
             this.rangeDouble = null;
             this.comment = null;
+            this.title = null;
+            this.itemDropdown = null;
         }
     }
 
@@ -123,6 +132,22 @@ public class OptionInfo implements ConfigNode {
     }
 
     public String getComment() { return comment; }
+
+    public String getTitle() { return title; }
+
+    public boolean hasTitle() {
+        return title != null && !title.isBlank();
+    }
+
+    public ItemDropdown getItemDropdown() { return itemDropdown; }
+
+    public boolean hasItemDropdown() {
+        return itemDropdown != null;
+    }
+
+    public boolean allowItemTags() {
+        return itemDropdown != null && itemDropdown.allowTags();
+    }
 
     public Object getDefaultValue() { return defaultValue; }
     

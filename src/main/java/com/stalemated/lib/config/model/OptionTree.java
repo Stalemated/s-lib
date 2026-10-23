@@ -3,6 +3,7 @@ package com.stalemated.lib.config.model;
 import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.annotation.Sync;
+import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 
@@ -102,7 +103,10 @@ public class OptionTree {
         Object currentInstance = resolveCategoryInstance(field, parentInstance, isTemplate);
         List<Field> childrenPath = resolveCategoryPath(path, field, isTemplate);
         Map<String, ConfigNode> children = scanCategoryChildren(key, type, currentInstance, childrenPath, syncMode, isTemplate);
-        return new CategoryNode(type, genericType, children);
+        String title = field != null && field.isAnnotationPresent(Title.class)
+                ? field.getAnnotation(Title.class).value()
+                : null;
+        return new CategoryNode(type, genericType, children, title);
     }
 
     private List<Field> resolveCategoryPath(List<Field> path, Field field, boolean isTemplate) {

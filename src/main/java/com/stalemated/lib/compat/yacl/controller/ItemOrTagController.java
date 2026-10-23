@@ -16,24 +16,31 @@ import java.util.Set;
 public class ItemOrTagController extends AbstractDropdownController<String> {
 
     public ItemOrTagController(Option<String> option) {
-        super(option, getRegistryValues(), true, true);
+        this(option, true);
     }
 
-    private static List<String> getRegistryValues() {
+    public ItemOrTagController(Option<String> option, boolean allowTags) {
+        super(option, getRegistryValues(allowTags), true, true);
+    }
+
+    private static List<String> getRegistryValues(boolean allowTags) {
         List<String> values = new ArrayList<>();
         Set<String> namespaces = new HashSet<>();
 
-        values.add("*");
+        if (allowTags) values.add("*");
 
-        BuiltInRegistries.ITEM.keySet().forEach(id -> {
-            values.add(id.toString());
-            namespaces.add(id.getNamespace());
-        });
+        try {
+            BuiltInRegistries.ITEM.keySet().forEach(id -> {
+                values.add(id.toString());
+                if (allowTags) namespaces.add(id.getNamespace());
+            });
 
-        namespaces.forEach(ns -> values.add(ns + ":*"));
+            if (allowTags) {
+                namespaces.forEach(ns -> values.add(ns + ":*"));
+                ItemRegistryHelper.getTagNames().forEach(values::add);
+            }
+        } catch (Throwable ignored) {}
 
-        ItemRegistryHelper.getTagNames().forEach(values::add);
-        
         values.sort(String::compareTo);
         return values;
     }
