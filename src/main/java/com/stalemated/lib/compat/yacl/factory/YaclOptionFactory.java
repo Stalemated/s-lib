@@ -1,6 +1,7 @@
 package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
+import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.config.model.OptionInfo;
 import dev.isxander.yacl3.api.Option;
 
@@ -38,5 +39,25 @@ public record YaclOptionFactory<T>(YaclContext<T> context) {
             boolean available
     ) {
         return YaclPojoFieldBuilder.buildPojoFieldOption(context, mapInfo, entryKey, field, sampleItem, available);
+    }
+
+    public Option<?> buildPojoFieldOption(
+            OptionInfo listInfo,
+            int index,
+            Field field,
+            Object sampleItem,
+            boolean available
+    ) {
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, listInfo, index, field, sampleItem, available);
+    }
+
+    public Option<?> buildPojoFieldOption(
+            OptionInfo containerInfo,
+            NestedAccessor accessor,
+            Field field,
+            Object sampleItem,
+            boolean available
+    ) {
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, available);
     }
 }

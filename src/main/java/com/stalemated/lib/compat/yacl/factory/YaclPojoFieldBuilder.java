@@ -1,39 +1,39 @@
 package com.stalemated.lib.compat.yacl.factory;
 
-import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
-import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
-import com.stalemated.lib.config.annotation.RangeDouble;
-import com.stalemated.lib.config.annotation.RangeFloat;
-import com.stalemated.lib.config.annotation.RangeInt;
+import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
+import com.stalemated.lib.compat.yacl.util.NestedAccessor;
+import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
+import com.stalemated.lib.config.model.CategoryNode;
+import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.StringUtils;
 import com.stalemated.lib.util.TypeCoercionUtils;
-import com.stalemated.lib.util.math.MathUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
-import dev.isxander.yacl3.api.Binding;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
-import dev.isxander.yacl3.api.controller.*;
+import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
 
-import java.awt.Color;
 import java.lang.reflect.Field;
-import java.util.*;
-import java.util.function.Function;
-import java.util.function.UnaryOperator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Internal factory collaborator responsible for reflectively building YACL options
- * corresponding to fields within nested POJO objects stored inside {@code Map<String, ?>} configurations.
+ * corresponding to fields within nested POJO objects stored inside Map or List configurations.
+ * <p>
+ * Delegates controller construction and type adaptation to {@link YaclControllerRegistry}
+ * and numeric constraint enforcement to {@link OptionInfo}.
  */
+@SuppressWarnings({"unchecked", "rawtypes"})
 public final class YaclPojoFieldBuilder {
 
     private YaclPojoFieldBuilder() {}
 
     /**
-     * Builds a YACL option for a specific field of a POJO entry within a map option.
-     * Automatically resolves the localized display title and description using the naming strategy in the context.
+     * Builds a YACL option for a specific field of a POJO entry within a map option using a key.
      *
      * @param context The shared YACL context.
      * @param mapInfo The option metadata for the parent map.
@@ -52,17 +52,64 @@ public final class YaclPojoFieldBuilder {
             Object sampleItem,
             boolean available
     ) {
-        Component name = context.namingStrategy().resolvePojoFieldName(context.modId(), mapInfo, field);
-        OptionDescription desc = context.namingStrategy().resolvePojoFieldDescription(context.modId(), mapInfo, field, available);
-        return buildPojoFieldOption(context, mapInfo, entryKey, field, sampleItem, name, desc, available);
+        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey), field, sampleItem, available);
     }
 
     /**
-     * Builds a YACL option for a specific field of a POJO entry with an explicitly provided name and description.
+     * Builds a YACL option for a specific field of a POJO entry within a list option using an index.
      *
      * @param context The shared YACL context.
-     * @param mapInfo The option metadata for the parent map.
-     * @param entryKey The key of the entry within the map.
+     * @param listInfo The option metadata for the parent list.
+     * @param index The zero-based index of the entry within the list.
+     * @param field The reflective field in the POJO.
+     * @param sampleItem A sample or current instance of the POJO.
+     * @param available Whether the option should be interactively editable.
+     * @param <T> The configuration model type.
+     * @return The built {@link Option}, or null if the field type is unsupported.
+     */
+    public static <T> Option<?> buildPojoFieldOption(
+            YaclContext<T> context,
+            OptionInfo listInfo,
+            int index,
+            Field field,
+            Object sampleItem,
+            boolean available
+    ) {
+        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index), field, sampleItem, available);
+    }
+
+    /**
+     * Builds a YACL option for a specific field of a POJO entry with an explicit {@link NestedAccessor}.
+     * Automatically resolves the localized display title and description using the naming strategy in the context.
+     *
+     * @param context The shared YACL context.
+     * @param containerInfo The option metadata for the parent container (Map or List).
+     * @param accessor The nested entry accessor strategy.
+     * @param field The reflective field in the POJO.
+     * @param sampleItem A sample or current instance of the POJO.
+     * @param available Whether the option should be interactively editable.
+     * @param <T> The configuration model type.
+     * @return The built {@link Option}, or null if the field type is unsupported.
+     */
+    public static <T> Option<?> buildPojoFieldOption(
+            YaclContext<T> context,
+            OptionInfo containerInfo,
+            NestedAccessor accessor,
+            Field field,
+            Object sampleItem,
+            boolean available
+    ) {
+        Component name = context.namingStrategy().resolvePojoFieldName(context.modId(), containerInfo, field);
+        OptionDescription desc = context.namingStrategy().resolvePojoFieldDescription(context.modId(), containerInfo, field, available);
+        return buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, name, desc, available);
+    }
+
+    /**
+     * Builds a YACL option for a specific field of a POJO entry with an explicit name, description, and {@link NestedAccessor}.
+     *
+     * @param context The shared YACL context.
+     * @param containerInfo The option metadata for the parent container (Map or List).
+     * @param accessor The nested entry accessor strategy.
      * @param field The reflective field in the POJO.
      * @param sampleItem A sample or current instance of the POJO.
      * @param name The display title component.
@@ -73,8 +120,8 @@ public final class YaclPojoFieldBuilder {
      */
     public static <T> Option<?> buildPojoFieldOption(
             YaclContext<T> context,
-            OptionInfo mapInfo,
-            String entryKey,
+            OptionInfo containerInfo,
+            NestedAccessor accessor,
             Field field,
             Object sampleItem,
             Component name,
@@ -82,340 +129,243 @@ public final class YaclPojoFieldBuilder {
             boolean available
     ) {
         Class<?> fieldType = field.getType();
-        Object defaultFieldVal = resolveDefaultFieldValue(mapInfo, entryKey, field, sampleItem);
+        Object defaultFieldVal = resolveDefaultFieldValue(containerInfo, accessor, field, sampleItem);
+        OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
 
-        if (fieldType == boolean.class || fieldType == Boolean.class) {
-            return createBooleanOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
+        // Direct controllers registered in YaclControllerRegistry (primitives, String, Color, Enum, custom)
+        YaclControllerRegistry.ControllerFactory directFactory = context.controllerRegistry().findDirectController(fieldType);
+        if (directFactory != null) {
+            return createDirectFieldOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, directFactory);
         }
-        if (fieldType == int.class || fieldType == Integer.class) {
-            return createIntegerOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
+
+        // Adapted types registered in YaclControllerRegistry (TextColor, Identifier/ResourceLocation, UUID, Pattern, custom)
+        YaclControllerRegistry.AdaptedType adapted = context.controllerRegistry().findAdaptedType(fieldType);
+        if (adapted != null) {
+            return createAdaptedFieldOption(context.session(), containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, adapted);
         }
-        if (fieldType == long.class || fieldType == Long.class) {
-            return createLongOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
-        if (fieldType == float.class || fieldType == Float.class) {
-            return createFloatOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
-        if (fieldType == double.class || fieldType == Double.class) {
-            return createDoubleOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
-        if (fieldType == String.class) {
-            return createStringOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
-        if (fieldType.isEnum()) {
-            return createEnumOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
-        if (fieldType == Color.class) {
-            return createColorOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
-        }
+
+        // Inline comma-separated list options for List<E> fields inside nested POJOs
         if (List.class.isAssignableFrom(fieldType)) {
-            return createInlineCommaSeparatedListOption(context.session(), mapInfo, entryKey, field, defaultFieldVal, name, desc, available);
+            return createInlineCommaSeparatedListOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available);
         }
+
         return null;
     }
 
-    private static Object resolveDefaultFieldValue(OptionInfo mapInfo, String entryKey, Field field, Object sampleItem) {
+    private static Object resolveDefaultFieldValue(OptionInfo containerInfo, NestedAccessor accessor, Field field, Object sampleItem) {
         Object initialFieldVal = ReflectionUtils.getFieldValueSafe(field, sampleItem);
-
-        if (mapInfo.getDefaultValue() instanceof Map<?, ?> defMap && defMap.containsKey(entryKey)) {
-            Object defItem = defMap.get(entryKey);
-            if (defItem != null) {
-                Object defVal = ReflectionUtils.getFieldValueSafe(field, defItem);
-                if (defVal != null) return defVal;
-            }
+        Object defItem = accessor.getDefaultItem(containerInfo);
+        if (defItem != null) {
+            Object defVal = ReflectionUtils.getFieldValueSafe(field, defItem);
+            if (defVal != null) return defVal;
         }
         return initialFieldVal;
     }
 
-    private static <T, V> Binding<V> createFieldBinding(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            V defaultValue,
-            Function<Object, V> valueExtractor,
-            UnaryOperator<V> valueTransformer
-    ) {
-        return Binding.generic(
-                defaultValue,
-                () -> {
-                    Map<String, ?> m = session.get(mapInfo);
-                    if (m != null && m.get(entryKey) != null) {
-                        Object val = ReflectionUtils.getFieldValueSafe(field, m.get(entryKey));
-                        V extracted = valueExtractor.apply(val);
-                        if (extracted != null) return extracted;
-                    }
-                    return defaultValue;
-                },
-                val -> {
-                    V finalVal = valueTransformer != null ? valueTransformer.apply(val) : val;
-                    YaclSessionHelper.updateNestedMap(session, mapInfo, entryKey, item ->
-                            ReflectionUtils.setFieldValueSafe(field, item, finalVal)
-                    );
-                }
+    private static OptionInfo resolveFieldOptionInfo(OptionInfo containerInfo, Field field, Object defaultFieldVal) {
+        if (containerInfo.getElementTemplate() instanceof CategoryNode categoryNode) {
+            ConfigNode child = categoryNode.getChild(field.getName());
+            if (child instanceof OptionInfo childInfo) {
+                return childInfo;
+            }
+        }
+        return new OptionInfo(
+                containerInfo.getKey() + "." + field.getName(),
+                field,
+                Collections.emptyList(),
+                containerInfo.getSyncMode(),
+                defaultFieldVal,
+                field.getType(),
+                field.getGenericType(),
+                true,
+                null
         );
     }
 
-    private static <T> Option<Boolean> createBooleanOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
+    private static <T, V> Option<V> createDirectFieldOption(
+            YaclContext<T> context,
+            OptionInfo containerInfo,
+            OptionInfo fieldInfo,
+            NestedAccessor accessor,
             Field field,
             Object defaultVal,
             Component name,
             OptionDescription desc,
-            boolean available
+            boolean available,
+            YaclControllerRegistry.ControllerFactory<V> controllerFactory
     ) {
-        boolean def = defaultVal instanceof Boolean b ? b : false;
-        return Option.<Boolean>createBuilder()
+        V resolvedDefault = defaultVal != null
+                ? (V) defaultVal
+                : context.controllerRegistry().resolveInitialValue(field.getType());
+
+        Option.Builder<V> builder = Option.<V>createBuilder()
                 .name(name)
                 .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Boolean b ? b : null, null))
-                .controller(TickBoxControllerBuilder::create)
-                .build();
-    }
+                .available(available);
 
-    private static <T> Option<Integer> createIntegerOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        int def = defaultVal instanceof Integer i ? i : 0;
-        RangeInt range = field.getAnnotation(RangeInt.class);
-        UnaryOperator<Integer> clamp = range != null ? val -> MathUtils.clamp(val, range.min(), range.max()) : null;
-
-        Option.Builder<Integer> builder = Option.<Integer>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Integer i ? i : null, clamp));
-
-        if (range != null) {
-            builder.controller(opt -> IntegerSliderControllerBuilder.create(opt)
-                    .range(range.min(), range.max())
-                    .step(Math.max(1, range.step())));
-        } else {
-            builder.controller(IntegerFieldControllerBuilder::create);
-        }
-        return builder.build();
-    }
-
-    private static <T> Option<Long> createLongOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        long def = defaultVal instanceof Number num ? num.longValue() : 0L;
-        return Option.<Long>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Number num ? num.longValue() : null, null))
-                .controller(LongFieldControllerBuilder::create)
-                .build();
-    }
-
-    private static <T> Option<Float> createFloatOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        float def = defaultVal instanceof Number num ? num.floatValue() : 0.0f;
-        RangeFloat range = field.getAnnotation(RangeFloat.class);
-        UnaryOperator<Float> clamp = range != null
-                ? val -> MathUtils.roundFloat(MathUtils.clamp(val, range.min(), range.max()))
-                : null;
-
-        Option.Builder<Float> builder = Option.<Float>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Float f ? f : null, clamp));
-
-        if (range != null) {
-            builder.controller(opt -> FloatSliderControllerBuilder.create(opt)
-                    .range(range.min(), range.max())
-                    .step(range.step() > 0 ? range.step() : 0.1f));
-        } else {
-            builder.controller(FloatFieldControllerBuilder::create);
-        }
-        return builder.build();
-    }
-
-    private static <T> Option<Double> createDoubleOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        double def = defaultVal instanceof Number num ? num.doubleValue() : 0.0;
-        RangeDouble range = field.getAnnotation(RangeDouble.class);
-        UnaryOperator<Double> clamp = range != null
-                ? val -> MathUtils.roundDouble(MathUtils.clamp(val, range.min(), range.max()))
-                : null;
-
-        Option.Builder<Double> builder = Option.<Double>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Double d ? d : null, clamp));
-
-        if (range != null) {
-            builder.controller(opt -> DoubleSliderControllerBuilder.create(opt)
-                    .range(range.min(), range.max())
-                    .step(range.step() > 0 ? range.step() : 0.1));
-        } else {
-            builder.controller(DoubleFieldControllerBuilder::create);
-        }
-        return builder.build();
-    }
-
-    private static <T> Option<String> createStringOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        String def = defaultVal instanceof String s ? s : "";
-        return Option.<String>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof String s ? s : null, null))
-                .controller(StringControllerBuilder::create)
-                .build();
-    }
-
-    private static <T> Option<?> createEnumOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        return createEnumOptionHelper(session, mapInfo, entryKey, field, defaultVal, name, desc, available);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T, E extends Enum<E>> Option<E> createEnumOptionHelper(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        Class<?> rawType = field.getType();
-        E resolvedDefault = defaultVal != null
-                ? (E) defaultVal
-                : (E) TypeCoercionUtils.resolveDefaultInitial(rawType);
-
-        Option.Builder<E> b = Option.createBuilder();
-        b.name(name).description(desc).available(available);
-        b.binding(
+        return YaclBindingSynchronizer.buildSyncedOption(
+                context.session(),
+                containerInfo,
+                builder,
                 resolvedDefault,
                 () -> {
-                    Map<String, ?> m = session.get(mapInfo);
-                    if (m != null && m.get(entryKey) != null) {
-                        Object val = ReflectionUtils.getFieldValueSafe(field, m.get(entryKey));
-                        if (rawType.isInstance(val)) return (E) val;
+                    Object item = accessor.getItem(context.session(), containerInfo);
+                    if (item != null) {
+                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        if (val != null) return (V) val;
                     }
                     return resolvedDefault;
                 },
-                val -> YaclSessionHelper.updateNestedMap(session, mapInfo, entryKey, item ->
-                        ReflectionUtils.setFieldValueSafe(field, item, val)
-                )
+                val -> {
+                    Object clamped = fieldInfo.clampValue(val);
+                    accessor.updateItem(context.session(), containerInfo, item ->
+                            ReflectionUtils.setFieldValueSafe(field, item, clamped)
+                    );
+                },
+                b -> b.controller(opt -> controllerFactory.create(fieldInfo, opt))
         );
-        b.controller(SimpleEnumDropdownControllerBuilder::create);
-        return b.build();
     }
 
-    private static <T> Option<Color> createColorOption(
+    private static <T, M, G> Option<G> createAdaptedFieldOption(
             ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
+            OptionInfo containerInfo,
+            OptionInfo fieldInfo,
+            NestedAccessor accessor,
             Field field,
             Object defaultVal,
             Component name,
             OptionDescription desc,
-            boolean available
+            boolean available,
+            YaclControllerRegistry.AdaptedType<M, G> adapted
     ) {
-        Color def = defaultVal instanceof Color c ? c : Color.WHITE;
-        return Option.<Color>createBuilder()
+        M modelDefault = defaultVal != null ? (M) defaultVal : null;
+        G guiDefault = modelDefault != null ? adapted.toGui().apply(modelDefault) : adapted.fallbackGuiDefault();
+
+        Option.Builder<G> builder = Option.<G>createBuilder()
                 .name(name)
                 .description(desc)
-                .available(available)
-                .binding(createFieldBinding(session, mapInfo, entryKey, field, def, val -> val instanceof Color c ? c : null, null))
-                .controller(opt -> ColorControllerBuilder.create(opt).allowAlpha(true))
-                .build();
+                .available(available);
+
+        return YaclBindingSynchronizer.buildSyncedOption(
+                session,
+                containerInfo,
+                builder,
+                guiDefault,
+                () -> {
+                    Object item = accessor.getItem(session, containerInfo);
+                    if (item != null) {
+                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        if (val != null) {
+                            return adapted.toGui().apply((M) val);
+                        }
+                    }
+                    return guiDefault;
+                },
+                guiVal -> {
+                    M modelVal = adapted.fromGui().apply(guiVal);
+                    if (modelVal != null) {
+                        accessor.updateItem(session, containerInfo, item ->
+                                ReflectionUtils.setFieldValueSafe(field, item, modelVal)
+                        );
+                    }
+                },
+                b -> b.controller(opt -> adapted.guiControllerFactory().create(fieldInfo, opt))
+        );
     }
 
     private static <T> Option<String> createInlineCommaSeparatedListOption(
-            ConfigSession<T> session,
-            OptionInfo mapInfo,
-            String entryKey,
+            YaclContext<T> context,
+            OptionInfo containerInfo,
+            OptionInfo fieldInfo,
+            NestedAccessor accessor,
             Field field,
             Object defaultVal,
             Component name,
             OptionDescription desc,
             boolean available
     ) {
-        List<?> defVal = defaultVal instanceof List<?> l ? l : Collections.emptyList();
-        String defStr = StringUtils.joinCommaSeparated(defVal);
+        Class<?> elemType = fieldInfo.getCollectionElementType();
+        YaclControllerRegistry.AdaptedType adapted = elemType != null
+                ? context.controllerRegistry().findAdaptedType(elemType)
+                : null;
 
-        return Option.<String>createBuilder()
+        List<?> defVal = defaultVal instanceof List<?> l ? l : Collections.emptyList();
+        String defStr = formatListToString(defVal, adapted);
+
+        Option.Builder<String> builder = Option.<String>createBuilder()
                 .name(name)
                 .description(desc)
-                .available(available)
-                .binding(
-                        defStr,
-                        () -> {
-                            Map<String, ?> m = session.get(mapInfo);
-                            if (m != null && m.get(entryKey) != null) {
-                                Object val = ReflectionUtils.getFieldValueSafe(field, m.get(entryKey));
-                                if (val instanceof List<?> l) {
-                                    return StringUtils.joinCommaSeparated(l);
-                                }
-                            }
-                            return defStr;
-                        },
-                        val -> {
-                            List<String> parsedList = StringUtils.parseCommaSeparated(val);
-                            YaclSessionHelper.updateNestedMap(session, mapInfo, entryKey, item ->
-                                    ReflectionUtils.setFieldValueSafe(field, item, parsedList)
-                            );
+                .available(available);
+
+        return YaclBindingSynchronizer.buildSyncedOption(
+                context.session(),
+                containerInfo,
+                builder,
+                defStr,
+                () -> {
+                    Object item = accessor.getItem(context.session(), containerInfo);
+                    if (item != null) {
+                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        if (val instanceof List<?> l) {
+                            return formatListToString(l, adapted);
                         }
-                )
-                .controller(StringControllerBuilder::create)
-                .build();
+                    }
+                    return defStr;
+                },
+                val -> {
+                    List<?> parsedList = parseStringToList(val, elemType, adapted);
+                    accessor.updateItem(context.session(), containerInfo, item ->
+                            ReflectionUtils.setFieldValueSafe(field, item, parsedList)
+                    );
+                },
+                b -> b.controller(StringControllerBuilder::create)
+        );
+    }
+
+    private static String formatListToString(List<?> list, YaclControllerRegistry.AdaptedType adapted) {
+        if (list == null || list.isEmpty()) return "";
+        if (adapted != null) {
+            List<String> guiList = new ArrayList<>(list.size());
+            for (Object obj : list) {
+                if (obj != null) {
+                    guiList.add(String.valueOf(adapted.toGui().apply(obj)));
+                }
+            }
+            return StringUtils.joinCommaSeparated(guiList);
+        }
+        return StringUtils.joinCommaSeparated(list);
+    }
+
+    private static List<?> parseStringToList(String val, Class<?> elemType, YaclControllerRegistry.AdaptedType adapted) {
+        List<String> rawTokens = StringUtils.parseCommaSeparated(val);
+        if (adapted != null) {
+            List<Object> adaptedList = new ArrayList<>(rawTokens.size());
+            Object fallback = adapted.fallbackGuiDefault();
+            boolean isStringGui = fallback == null || fallback instanceof String;
+
+            for (String token : rawTokens) {
+                Object guiVal = isStringGui ? token : TypeCoercionUtils.coerce(token, fallback.getClass());
+                if (guiVal != null) {
+                    Object modelObj = adapted.fromGui().apply(guiVal);
+                    if (modelObj != null) {
+                        adaptedList.add(modelObj);
+                    }
+                }
+            }
+            return adaptedList;
+        }
+
+        if (elemType == null || elemType == String.class) {
+            return rawTokens;
+        }
+
+        List<Object> converted = new ArrayList<>(rawTokens.size());
+        for (String token : rawTokens) {
+            Object obj = TypeCoercionUtils.coerce(token, elemType);
+            if (obj != null) {
+                converted.add(obj);
+            }
+        }
+        return converted;
     }
 }
