@@ -76,6 +76,9 @@ public class AdvancedColorController extends ColorController {
         });
 
         this.stringOption.addEventListener((opt, event) -> {
+            if (this.option().available() != opt.available()) {
+                this.option().setAvailable(opt.available());
+            }
             Color parsed = ColorUtils.parseToAWT(opt.pendingValue());
             if (!parsed.equals(this.option().pendingValue())) {
                 this.option().requestSet(parsed);
@@ -116,6 +119,9 @@ public class AdvancedColorController extends ColorController {
 
     @Override
     public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
+        if (this.option().available() != this.stringOption.available()) {
+            this.option().setAvailable(this.stringOption.available());
+        }
         return new AdvancedColorControllerElement(this, screen, widgetDimension);
     }
 
