@@ -21,6 +21,7 @@ import java.util.function.Consumer;
  * Top-level fluent builder for creating YACL configuration screens backed by atomic session buffers.
  * Coordinates multi-manager sessions and orchestrates category composition.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class YaclScreenBuilder {
     private final Screen parent;
     private final Component title;
@@ -45,25 +46,21 @@ public class YaclScreenBuilder {
         return new YaclScreenBuilder(parent, title, modId);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclScreenBuilder modId(String modId) {
         this.modId = Objects.requireNonNull(modId, "modId cannot be null");
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclScreenBuilder namingStrategy(YaclNamingStrategy namingStrategy) {
         this.namingStrategy = Objects.requireNonNull(namingStrategy, "namingStrategy cannot be null");
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclScreenBuilder controllerRegistry(YaclControllerRegistry controllerRegistry) {
         this.controllerRegistry = Objects.requireNonNull(controllerRegistry, "controllerRegistry cannot be null");
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclScreenBuilder availabilityRule(OptionAvailabilityRule availabilityRule) {
         this.availabilityRule = Objects.requireNonNull(availabilityRule, "availabilityRule cannot be null");
         return this;
@@ -74,7 +71,6 @@ public class YaclScreenBuilder {
         return new YaclCategoryBuilder<>(new YaclContext<>(session, modId, namingStrategy, controllerRegistry, availabilityRule));
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T> YaclScreenBuilder category(LocalConfigManager<T> manager, Consumer<YaclCategoryBuilder<T>> consumer) {
         YaclCategoryBuilder<T> builder = createCategoryBuilder(manager);
         consumer.accept(builder);
@@ -82,12 +78,10 @@ public class YaclScreenBuilder {
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T> YaclScreenBuilder categoryFromNest(String tabKey, String nestPrefix, LocalConfigManager<T> manager) {
         return categoryFromNest(tabKey, nestPrefix, manager, null);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T> YaclScreenBuilder categoryFromNest(
             String tabKey,
             String nestPrefix,
@@ -103,12 +97,10 @@ public class YaclScreenBuilder {
         });
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T> YaclScreenBuilder categoryFromNestMap(String tabKey, String mapKey, LocalConfigManager<T> manager) {
         return categoryFromNestMap(tabKey, mapKey, manager, null);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T> YaclScreenBuilder categoryFromNestMap(
             String tabKey,
             String mapKey,
@@ -124,7 +116,25 @@ public class YaclScreenBuilder {
         });
     }
 
-    @SuppressWarnings("UnusedReturnValue")
+    public <T> YaclScreenBuilder categoryFromNestList(String tabKey, String listKey, LocalConfigManager<T> manager) {
+        return categoryFromNestList(tabKey, listKey, manager, null);
+    }
+
+    public <T> YaclScreenBuilder categoryFromNestList(
+            String tabKey,
+            String listKey,
+            LocalConfigManager<T> manager,
+            Consumer<YaclCategoryBuilder<T>> categoryConsumer
+    ) {
+        return category(manager, builder -> {
+            builder.name(namingStrategy.resolveCategoryName(modId, tabKey));
+            builder.listNestGroups(listKey);
+            if (categoryConsumer != null) {
+                categoryConsumer.accept(builder);
+            }
+        });
+    }
+
     public <T, N> YaclScreenBuilder categoryFromNestMapList(
             String tabKey,
             String mapKey,
@@ -134,7 +144,6 @@ public class YaclScreenBuilder {
         return categoryFromNestMapList(tabKey, mapKey, manager, binding, null);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public <T, N> YaclScreenBuilder categoryFromNestMapList(
             String tabKey,
             String mapKey,
@@ -151,7 +160,6 @@ public class YaclScreenBuilder {
         });
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclScreenBuilder category(ConfigCategory customCategory) {
         this.categories.add(customCategory);
         return this;
