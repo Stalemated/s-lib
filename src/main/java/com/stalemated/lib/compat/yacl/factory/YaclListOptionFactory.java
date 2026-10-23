@@ -2,6 +2,7 @@ package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
+import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.OptionInfo;
 import dev.isxander.yacl3.api.ListOption;
 
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
  * and a {@link YaclContext}.
  * <p>
  * Supports both direct element types (primitives, Color, String, Enum) and adapted element types
- * (e.g. TextColor, ResourceLocation, UUID, Pattern) through the Lens pattern.
+ * (e.g., TextColor, ResourceLocation, UUID, Pattern) through the Lens pattern.
  *
  * @param <T> The config model type.
  * @param context The shared YACL UI construction context.
@@ -55,7 +56,18 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
         List<E> defaultVal = (List<E>) info.getDefaultValue();
         List<E> defaultCopy = defaultVal != null ? new ArrayList<>(defaultVal) : new ArrayList<>();
 
-        builder.binding(
+        Supplier<E> initialSupplier = () -> context.controllerRegistry().resolveInitialValue(elemClass);
+        E initialVal = initialSupplier.get();
+        if (initialVal == null) {
+            throw new UnsupportedOperationException("Cannot create ListOption for option '" + info.getKey()
+                    + "' with element type " + elemClass.getName()
+                    + ": No initial value supplier registered. Register one via controllerRegistry.registerInitialSupplier.");
+        }
+
+        return YaclBindingSynchronizer.buildSyncedListOption(
+                context.session(),
+                info,
+                builder,
                 defaultCopy,
                 () -> {
                     Object raw = context.session().get(info);
@@ -64,23 +76,13 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                     }
                     return new ArrayList<>();
                 },
-                list -> persistCollection(info, list)
+                list -> persistCollection(info, list),
+                b -> {
+                    b.controller(opt -> controllerFactory.create(info, opt));
+                    b.initial(initialSupplier);
+                    if (customizer != null) customizer.accept(b);
+                }
         );
-
-        builder.controller(opt -> controllerFactory.create(info, opt));
-
-        Supplier<E> initialSupplier = () -> context.controllerRegistry().resolveInitialValue(elemClass);
-        E initialVal = initialSupplier.get();
-        if (initialVal == null) {
-            throw new UnsupportedOperationException("Cannot create ListOption for option '" + info.getKey()
-                    + "' with element type " + elemClass.getName()
-                    + ": No initial value supplier registered. Register one via controllerRegistry.registerInitialSupplier.");
-        }
-        builder.initial(initialSupplier);
-
-        if (customizer != null) customizer.accept(builder);
-
-        return builder.build();
     }
 
     @SuppressWarnings({"unchecked"})
@@ -103,7 +105,10 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
             }
         }
 
-        builder.binding(
+        return YaclBindingSynchronizer.buildSyncedListOption(
+                context.session(),
+                info,
+                builder,
                 guiDefault,
                 () -> {
                     List<M> modelList = context.session().get(info);
@@ -123,23 +128,20 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                         }
                     }
                     persistCollection(info, modelList);
+                },
+                b -> {
+                    b.controller(opt -> adaptedType.guiControllerFactory().create(info, opt));
+                    b.initial(() -> {
+                        M initialModel = context.controllerRegistry().resolveInitialValue(adaptedType.modelType());
+                        if (initialModel != null) {
+                            G initialGui = adaptedType.toGui().apply(initialModel);
+                            if (initialGui != null) return initialGui;
+                        }
+                        return adaptedType.fallbackGuiDefault();
+                    });
+                    if (customizer != null) customizer.accept(b);
                 }
         );
-
-        builder.controller(opt -> adaptedType.guiControllerFactory().create(info, opt));
-
-        builder.initial(() -> {
-            M initialModel = context.controllerRegistry().resolveInitialValue(adaptedType.modelType());
-            if (initialModel != null) {
-                G initialGui = adaptedType.toGui().apply(initialModel);
-                if (initialGui != null) return initialGui;
-            }
-            return adaptedType.fallbackGuiDefault();
-        });
-
-        if (customizer != null) customizer.accept(builder);
-
-        return builder.build();
     }
 
     private void persistCollection(OptionInfo info, Collection<?> collection) {
