@@ -51,6 +51,44 @@ public interface YaclNamingStrategy {
     }
 
     /**
+     * Resolves the localized display component for a {@code @Title} section header.
+     * <p>
+     * If {@code titleValue} already starts with {@code modId + "."} or {@code modId} is empty,
+     * it is treated as a fully qualified translation key. Otherwise, it automatically prepends
+     * {@code modId + ".title."} for concise declarations.
+     *
+     * @param modId The mod identifier.
+     * @param titleValue The raw value declared in {@code @Title}.
+     * @return The localized title component.
+     */
+    default Component resolveTitle(String modId, String titleValue) {
+        if (titleValue == null || titleValue.isBlank()) {
+            return Component.empty();
+        }
+        if (modId == null || modId.isEmpty() || titleValue.startsWith(modId + ".")) {
+            return Component.translatable(titleValue);
+        }
+        return Component.translatable(modId + ".title." + titleValue);
+    }
+
+    /**
+     * Resolves the localized description component for a {@code @Title} section or group.
+     *
+     * @param modId The mod identifier.
+     * @param titleValue The raw value declared in {@code @Title}.
+     * @return The localized title description component.
+     */
+    default Component resolveTitleDescription(String modId, String titleValue) {
+        if (titleValue == null || titleValue.isBlank()) {
+            return Component.empty();
+        }
+        if (modId == null || modId.isEmpty() || titleValue.startsWith(modId + ".")) {
+            return Component.translatable(titleValue + ".desc");
+        }
+        return Component.translatable(modId + ".title." + titleValue + ".desc");
+    }
+
+    /**
      * Resolves the localized display title for a category tab.
      *
      * @param modId The mod identifier.
