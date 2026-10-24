@@ -66,6 +66,27 @@ public class YaclScreenBuilder {
         return this;
     }
 
+    /**
+     * Binds a live preview instance to the session for {@code manager} so any pending option change
+     * in the YACL screen immediately updates {@code previewInstance} and invokes {@code onPreviewUpdate}
+     * without mutating the uncommitted session draft.
+     *
+     * @param manager         The config manager whose session should drive the preview.
+     * @param previewInstance The live preview instance to mutate on pending UI changes.
+     * @param onPreviewUpdate Optional callback invoked after each preview update (e.g., {@code TooltipEntry::invalidateCaches}).
+     * @param <T>             The config model type.
+     * @return This screen builder.
+     */
+    public <T> YaclScreenBuilder livePreview(
+            LocalConfigManager<T> manager,
+            T previewInstance,
+            Consumer<T> onPreviewUpdate
+    ) {
+        ConfigSession<T> session = coordinator.getOrCreate(manager);
+        session.bindPreview(previewInstance, onPreviewUpdate);
+        return this;
+    }
+
     private <T> YaclCategoryBuilder<T> createCategoryBuilder(LocalConfigManager<T> manager) {
         ConfigSession<T> session = coordinator.getOrCreate(manager);
         return new YaclCategoryBuilder<>(new YaclContext<>(session, modId, namingStrategy, controllerRegistry, availabilityRule));
