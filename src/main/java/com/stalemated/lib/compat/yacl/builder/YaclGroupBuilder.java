@@ -3,6 +3,7 @@ package com.stalemated.lib.compat.yacl.builder;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
 import com.stalemated.lib.config.model.OptionInfo;
+import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
@@ -17,6 +18,7 @@ import java.util.function.Consumer;
  *
  * @param <T> The config model type.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class YaclGroupBuilder<T> {
     private final YaclContext<T> context;
     private final YaclOptionFactory<T> optionFactory;
@@ -36,43 +38,58 @@ public class YaclGroupBuilder<T> {
         return context;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> name(Component name) {
         this.name = name;
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> description(OptionDescription description) {
         this.description = description;
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> description(Component description) {
         this.description = OptionDescription.of(description);
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> collapsed(boolean collapsed) {
         this.collapsed = collapsed;
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> option(Option<?> customOption) {
         this.actions.add(list -> list.add(customOption));
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
+    /**
+     * Appends a YACL {@link LabelOption} section header to this group.
+     *
+     * @param labelText The text component to display.
+     * @return This group builder.
+     */
+    public YaclGroupBuilder<T> label(Component labelText) {
+        this.actions.add(list -> list.add(LabelOption.create(labelText)));
+        return this;
+    }
+
+    /**
+     * Appends a YACL {@link LabelOption} section header resolved via the naming strategy.
+     *
+     * @param titleKey The translation key or literal title string.
+     * @return This group builder.
+     */
+    public YaclGroupBuilder<T> label(String titleKey) {
+        Component resolved = context.namingStrategy().resolveTitle(context.modId(), titleKey);
+        return label(resolved);
+    }
+
     public YaclGroupBuilder<T> configureOption(String key, Consumer<Option.Builder<?>> customizer) {
         this.overrides.put(key, customizer);
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> include(String... keys) {
         String[] keysCopy = keys.clone();
         actions.add(list -> {
@@ -87,14 +104,12 @@ public class YaclGroupBuilder<T> {
                             + " and cannot be included directly in an OptionGroup due to YACL hierarchy limits. "
                             + "Use category.listOption(\"" + key + "\") or category.mapPairsOption(\"" + key + "\") instead.");
                 }
-                Consumer<Option.Builder<?>> customizer = overrides.get(key);
-                list.add(optionFactory.buildOption(info, customizer));
+                appendOptionWithTitle(list, info);
             }
         });
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclGroupBuilder<T> includePrefix(String prefix) {
         String cleanPrefix = prefix.endsWith(".") ? prefix : prefix + ".";
         actions.add(list -> {
@@ -103,12 +118,30 @@ public class YaclGroupBuilder<T> {
                     if (info.isCollection() || info.isMap()) {
                         continue;
                     }
-                    Consumer<Option.Builder<?>> customizer = overrides.get(info.getKey());
-                    list.add(optionFactory.buildOption(info, customizer));
+                    appendOptionWithTitle(list, info);
                 }
             }
         });
         return this;
+    }
+
+    private boolean hasGroupTitle() {
+        return name != null && !name.equals(Component.empty()) && !name.getString().isEmpty();
+    }
+
+    private void appendOptionWithTitle(List<Option<?>> list, OptionInfo info) {
+        if (info.hasTitle()) {
+            Component titleComp = context.namingStrategy().resolveTitle(context.modId(), info.getTitle());
+            if (list.isEmpty()) {
+                if (!hasGroupTitle()) {
+                    this.name = titleComp;
+                }
+            } else {
+                list.add(LabelOption.create(titleComp));
+            }
+        }
+        Consumer<Option.Builder<?>> customizer = overrides.get(info.getKey());
+        list.add(optionFactory.buildOption(info, customizer));
     }
 
     public OptionGroup build() {

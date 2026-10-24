@@ -4,24 +4,23 @@ import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.factory.YaclListOptionFactory;
 import com.stalemated.lib.compat.yacl.factory.YaclMapOptionFactory;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
-import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
+import com.stalemated.lib.compat.yacl.util.NestedAccessor;
+import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
-import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.OptionGroup;
-import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
 import java.util.*;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Fluent builder for YACL {@link ConfigCategory}.
@@ -29,6 +28,7 @@ import java.util.function.Function;
  *
  * @param <T> The config model type.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class YaclCategoryBuilder<T> {
     private final YaclContext<T> context;
     private final YaclOptionFactory<T> optionFactory;
@@ -51,119 +51,167 @@ public class YaclCategoryBuilder<T> {
         return context;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> name(Component name) {
         this.name = name;
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> tooltip(Component tooltip) {
         this.tooltip = tooltip;
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> group(OptionGroup customGroup) {
         this.groups.add(customGroup);
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> group(String groupKey, Consumer<YaclGroupBuilder<T>> consumer) {
         Component groupName = context.namingStrategy().resolveGroupName(context.modId(), groupKey);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
+        builder.description(context.namingStrategy().resolveGroupDescription(context.modId(), groupKey));
         consumer.accept(builder);
         groups.add(builder.build());
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
+    /**
+     * Emits a standalone {@link LabelOption} section header group in this category
+     * without a collapsible arrow bar.
+     *
+     * @param labelText The label component to display.
+     * @return This category builder.
+     */
+    public YaclCategoryBuilder<T> label(Component labelText) {
+        groups.add(YaclSectionHeaderGroup.of(labelText));
+        return this;
+    }
+
+    /**
+     * Emits a standalone {@link LabelOption} section header group resolved via the naming strategy.
+     *
+     * @param titleKey The translation key or literal title text.
+     * @return This category builder.
+     */
+    public YaclCategoryBuilder<T> label(String titleKey) {
+        return label(context.namingStrategy().resolveTitle(context.modId(), titleKey));
+    }
+
     public YaclCategoryBuilder<T> listOption(String key) {
         return listOption(key, null);
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes", "UnusedReturnValue"})
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public YaclCategoryBuilder<T> listOption(String key, Consumer<ListOption.Builder<?>> customizer) {
-        OptionInfo info = context.session().getOptionTree().get(key);
-        if (info == null) {
-            throw new IllegalArgumentException("Unknown config option key: " + key);
+        OptionInfo info = requireOptionInfo(key);
+        if (info.hasTitle()) {
+            label(info.getTitle());
         }
         ListOption<?> listOpt = listOptionFactory.buildListOption(info, (Consumer) customizer);
         groups.add(listOpt);
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> mapPairsOption(String key) {
         return mapPairsOption(key, null);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> mapPairsOption(String key, Consumer<ListOption.Builder<String>> customizer) {
-        OptionInfo info = context.session().getOptionTree().get(key);
-        if (info == null) {
-            throw new IllegalArgumentException("Unknown config option key: " + key);
+        OptionInfo info = requireOptionInfo(key);
+        if (info.hasTitle()) {
+            label(info.getTitle());
         }
         ListOption<String> mapOpt = mapOptionFactory.buildMapPairsOption(info, customizer);
         groups.add(mapOpt);
         return this;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> nestedGroup(String nestPrefix) {
         return nestedGroup(nestPrefix, null);
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> nestedGroup(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
-        Component groupName = context.namingStrategy().resolveGroupName(context.modId(), nestPrefix);
+        CategoryNode catNode = resolveCategoryNode(nestPrefix);
+        Component groupName = (catNode != null && catNode.hasTitle())
+                ? context.namingStrategy().resolveTitle(context.modId(), catNode.title())
+                : context.namingStrategy().resolveGroupName(context.modId(), nestPrefix);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
-        builder.collapsed(true);
+        builder.collapsed(false);
+        if (catNode != null && catNode.hasTitle()) {
+            builder.description(context.namingStrategy().resolveTitleDescription(context.modId(), catNode.title()));
+        } else {
+            builder.description(context.namingStrategy().resolveGroupDescription(context.modId(), nestPrefix));
+        }
         builder.includePrefix(nestPrefix);
         if (customizer != null) {
             customizer.accept(builder);
         }
-        groups.add(builder.build());
+        OptionGroup builtGroup = builder.build();
+        if (!builtGroup.options().isEmpty()) {
+            groups.add(builtGroup);
+        }
+
+        // Emit any Collection or Map options nested under this prefix as sibling YACL groups
+        String cleanPrefix = nestPrefix.endsWith(".") ? nestPrefix : nestPrefix + ".";
+        for (OptionInfo info : context.session().getOptionTree().all()) {
+            if (info.getKey().startsWith(cleanPrefix) && (info.isCollection() || info.isMap())) {
+                emitCollectionOrMapOption(info);
+            }
+        }
         return this;
     }
 
-    @SuppressWarnings({"unchecked", "UnusedReturnValue"})
+    /**
+     * Maps entries of a nested POJO map into individual collapsible option groups.
+     *
+     * @param mapKey The key of the map option.
+     * @return This category builder.
+     */
+    @SuppressWarnings({"unchecked"})
     public YaclCategoryBuilder<T> mapNestGroups(String mapKey) {
-        OptionInfo info = context.session().getOptionTree().get(mapKey);
-        if (info == null) throw new IllegalArgumentException("Unknown config option key: " + mapKey);
-
+        OptionInfo info = requireOptionInfo(mapKey);
+        if (info.hasTitle()) {
+            label(info.getTitle());
+        }
         boolean available = context.availabilityRule().isAvailable(info, context.session());
 
         Map<String, ?> currentMap = context.session().get(info);
-        if (currentMap == null || currentMap.isEmpty()) {
-            if (info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
-                currentMap = (Map<String, ?>) defaultMap;
-            }
+        if ((currentMap == null || currentMap.isEmpty()) && info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
+            currentMap = (Map<String, ?>) defaultMap;
         }
         if (currentMap == null || currentMap.isEmpty()) return this;
 
-        for (String entryKey : currentMap.keySet()) {
-            Component groupName = Component.literal(entryKey);
-            OptionGroup.Builder groupBuilder = OptionGroup.createBuilder()
-                    .name(groupName)
-                    .collapsed(true);
+        for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
+            String entryKey = entry.getKey();
+            Object sampleItem = entry.getValue();
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey), Component.literal(entryKey), sampleItem, available));
+        }
+        return this;
+    }
 
-            List<Option<?>> groupOptions = new ArrayList<>();
-            Object sampleItem = currentMap.get(entryKey);
+    /**
+     * Maps elements of a nested POJO list into individual collapsible option groups.
+     *
+     * @param listKey The key of the list option.
+     * @return This category builder.
+     */
+    public YaclCategoryBuilder<T> listNestGroups(String listKey) {
+        OptionInfo info = requireOptionInfo(listKey);
+        if (info.hasTitle()) {
+            label(info.getTitle());
+        }
+        boolean available = context.availabilityRule().isAvailable(info, context.session());
 
-            if (sampleItem != null) {
-                Class<?> itemClass = sampleItem.getClass();
-                for (Field field : itemClass.getDeclaredFields()) {
-                    if (OptionTree.isIgnored(field)) continue;
+        List<?> currentList = context.session().get(info);
+        if ((currentList == null || currentList.isEmpty()) && info.getDefaultValue() instanceof List<?> defaultList) {
+            currentList = defaultList;
+        }
+        if (currentList == null || currentList.isEmpty()) return this;
 
-                    Option<?> opt = this.optionFactory.buildPojoFieldOption(info, entryKey, field, sampleItem, available);
-                    if (opt != null) groupOptions.add(opt);
-                }
-            }
-
-            groupBuilder.options(groupOptions);
-            groups.add(groupBuilder.build());
+        for (int i = 0; i < currentList.size(); i++) {
+            Object sampleItem = currentList.get(i);
+            Component groupName = resolveListEntryGroupName(i, sampleItem);
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i), groupName, sampleItem, available));
         }
         return this;
     }
@@ -176,140 +224,167 @@ public class YaclCategoryBuilder<T> {
      * @param <N> The type of the nested POJO item.
      * @return This category builder.
      */
-    @SuppressWarnings({"unchecked", "UnusedReturnValue"})
     public <N> YaclCategoryBuilder<T> mapNestListGroups(String mapKey, NestListBinding<N> binding) {
         OptionInfo mapInfo = context.session().getOptionTree().get(mapKey);
         if (mapInfo != null) {
-            boolean available = context.availabilityRule().isAvailable(mapInfo, context.session());
-
-            Map<String, N> currentMap = context.session().get(mapInfo);
-            if (currentMap == null && mapInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
-                currentMap = (Map<String, N>) defMap;
-            }
-
-            if (currentMap != null) {
-                for (String entryKey : currentMap.keySet()) {
-                    Component name = Component.literal(entryKey);
-                    OptionDescription desc = context.namingStrategy().resolveDescription(context.modId(), mapInfo, available);
-                    List<String> defaultList = resolveDefaultList(mapInfo, entryKey, binding.getter());
-
-                    ListOption<String> listOpt = createNestListOption(
-                            name, desc, available, defaultList, mapInfo, entryKey, binding
-                    );
-
-                    this.groups.add(listOpt);
-                }
-            }
+            this.groups.addAll(mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding));
         }
         return this;
     }
 
-    private <N> ListOption<String> createNestListOption(
-            Component name,
-            OptionDescription desc,
-            boolean available,
-            List<String> defaultList,
-            OptionInfo mapInfo,
-            String entryKey,
-            NestListBinding<N> binding
-    ) {
-        return ListOption.<String>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available)
-                .binding(
-                        defaultList,
-                        () -> getNestedList(mapInfo, entryKey, binding.getter()),
-                        val -> updateNestedList(mapInfo, entryKey, val, binding.setter())
-                )
-                .controller(StringControllerBuilder::create)
-                .initial("")
-                .build();
-    }
-
-    @SuppressWarnings("unchecked")
-    private <N> List<String> resolveDefaultList(
-            OptionInfo mapInfo,
-            String entryKey,
-            Function<N, List<String>> listGetter
-    ) {
-        if (mapInfo.getDefaultValue() instanceof Map<?, ?> defMap && defMap.containsKey(entryKey)) {
-            N defItem = (N) defMap.get(entryKey);
-            if (defItem != null) {
-                List<String> l = listGetter.apply(defItem);
-                if (l != null) return new ArrayList<>(l);
-            }
-        }
-        return new ArrayList<>();
-    }
-
-    private <N> List<String> getNestedList(
-            OptionInfo mapInfo,
-            String entryKey,
-            Function<N, List<String>> listGetter
-    ) {
-        Map<String, N> m = context.session().get(mapInfo);
-        if (m != null && m.containsKey(entryKey)) {
-            List<String> l = listGetter.apply(m.get(entryKey));
-            return l != null ? new ArrayList<>(l) : new ArrayList<>();
-        }
-        return new ArrayList<>();
-    }
-
-    private <N> void updateNestedList(
-            OptionInfo mapInfo,
-            String entryKey,
-            List<String> val,
-            BiConsumer<N, List<String>> listSetter
-    ) {
-        YaclSessionHelper.<N>updateNestedMap(context.session(), mapInfo, entryKey, item -> listSetter.accept(item, new ArrayList<>(val)));
-    }
-
     /**
-     * Automatically discovers all options and nested POJO categories from the OptionTree schema.
+     * Automatically discovers all options, collections, maps, and nested POJO categories
+     * from the {@link OptionTree} schema in declaration order.
+     *
+     * @return This category builder.
      */
-    @SuppressWarnings("UnusedReturnValue")
     public YaclCategoryBuilder<T> autoGenerate() {
         ConfigNode root = context.session().getOptionTree().getSchemaRoot();
 
         if (root instanceof CategoryNode categoryNode) {
-            List<String> rootLeaves = new ArrayList<>();
-            List<String> subcategories = new ArrayList<>();
+            List<String> pendingLeaves = new ArrayList<>();
+            String currentSectionTitle = null;
 
             for (Map.Entry<String, ConfigNode> entry : categoryNode.children().entrySet()) {
-                dispatchChildNode(entry, rootLeaves, subcategories);
+                String childKey = entry.getKey();
+                ConfigNode childNode = entry.getValue();
+
+                if (childNode instanceof OptionInfo info) {
+                    if (info.isCollection() || info.isMap()) {
+                        flushPendingLeaves(pendingLeaves, currentSectionTitle);
+                        currentSectionTitle = null;
+                        emitCollectionOrMapOption(info);
+                    } else {
+                        if (info.hasTitle()) {
+                            flushPendingLeaves(pendingLeaves, currentSectionTitle);
+                            currentSectionTitle = info.getTitle();
+                        }
+                        pendingLeaves.add(childKey);
+                    }
+                } else if (childNode instanceof CategoryNode) {
+                    flushPendingLeaves(pendingLeaves, currentSectionTitle);
+                    currentSectionTitle = null;
+                    nestedGroup(childKey);
+                }
             }
 
-            if (!rootLeaves.isEmpty()) {
-                group("general", g -> g.include(rootLeaves.toArray(String[]::new)));
-            }
-
-            for (String subKey : subcategories) {
-                nestedGroup(subKey);
-            }
+            flushPendingLeaves(pendingLeaves, currentSectionTitle);
         }
         return this;
     }
 
-    private void dispatchChildNode(Map.Entry<String, ConfigNode> entry, List<String> rootLeaves, List<String> subcategories) {
-        String childKey = entry.getKey();
-        ConfigNode childNode = entry.getValue();
-
-        if (childNode instanceof OptionInfo info) {
-            if (info.isCollection()) {
-                listOption(childKey);
-            } else if (info.isMap()) {
-                if (info.getElementTemplate() instanceof CategoryNode) {
-                    mapNestGroups(childKey);
-                } else {
-                    mapPairsOption(childKey);
-                }
+    private CategoryNode resolveCategoryNode(String nestPrefix) {
+        ConfigNode current = context.session().getOptionTree().getSchemaRoot();
+        for (String part : nestPrefix.split("\\.")) {
+            if (current instanceof CategoryNode catNode) {
+                current = catNode.getChild(part);
             } else {
-                rootLeaves.add(childKey);
+                return null;
             }
-        } else if (childNode instanceof CategoryNode) {
-            subcategories.add(childKey);
         }
+        return current instanceof CategoryNode cat ? cat : null;
+    }
+
+    private void flushPendingLeaves(List<String> pendingLeaves, String sectionTitleKey) {
+        if (pendingLeaves.isEmpty()) return;
+        boolean hasSectionTitle = sectionTitleKey != null && !sectionTitleKey.isBlank();
+        Component groupName = hasSectionTitle
+                ? context.namingStrategy().resolveTitle(context.modId(), sectionTitleKey)
+                : Component.empty();
+
+        YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
+        if (hasSectionTitle) {
+            builder.description(context.namingStrategy().resolveTitleDescription(context.modId(), sectionTitleKey));
+        }
+
+        builder.include(pendingLeaves.toArray(String[]::new));
+        groups.add(builder.build());
+        pendingLeaves.clear();
+    }
+
+    private void emitCollectionOrMapOption(OptionInfo info) {
+        String key = info.getKey();
+        if (info.isCollection()) {
+            if (info.getElementTemplate() instanceof CategoryNode) {
+                listNestGroups(key);
+            } else {
+                listOption(key);
+            }
+        } else if (info.isMap()) {
+            if (info.getElementTemplate() instanceof CategoryNode) {
+                mapNestGroups(key);
+            } else {
+                mapPairsOption(key);
+            }
+        }
+    }
+
+    private OptionGroup buildPojoEntryGroup(
+            OptionInfo containerInfo,
+            NestedAccessor accessor,
+            Component groupName,
+            Object sampleItem,
+            boolean available
+    ) {
+        OptionGroup.Builder groupBuilder = OptionGroup.createBuilder()
+                .name(groupName)
+                .collapsed(true);
+
+        List<Option<?>> groupOptions = new ArrayList<>();
+        if (sampleItem != null) {
+            for (Field field : resolvePojoFields(sampleItem.getClass())) {
+                if (field.isAnnotationPresent(Title.class)) {
+                    String titleVal = field.getAnnotation(Title.class).value();
+                    if (titleVal != null && !titleVal.isBlank()) {
+                        groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.modId(), titleVal)));
+                    }
+                }
+                Option<?> opt = this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem, available);
+                if (opt != null) {
+                    groupOptions.add(opt);
+                }
+            }
+        }
+
+        groupBuilder.options(groupOptions);
+        return groupBuilder.build();
+    }
+
+    private static List<Field> resolvePojoFields(Class<?> itemClass) {
+        List<Field> fields = new ArrayList<>();
+        Class<?> current = itemClass;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                if (!OptionTree.isIgnored(field)) {
+                    fields.add(field);
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return fields;
+    }
+
+    private static Component resolveListEntryGroupName(int index, Object sampleItem) {
+        if (sampleItem != null) {
+            for (String candidateField : List.of("comment", "name", "id")) {
+                Field f = ReflectionUtils.findField(sampleItem.getClass(), candidateField);
+                if (f != null) {
+                    Object val = ReflectionUtils.getFieldValueSafe(f, sampleItem);
+                    if (val instanceof String s && !s.isBlank()) {
+                        return Component.literal("#" + (index + 1) + ": " + s);
+                    }
+                }
+            }
+        }
+        return Component.literal("#" + (index + 1));
+    }
+
+    private OptionInfo requireOptionInfo(String key) {
+        OptionInfo info = context.session().getOptionTree().get(key);
+        if (info == null) {
+            throw new IllegalArgumentException("Unknown config option key: " + key);
+        }
+        return info;
     }
 
     public ConfigCategory build() {
