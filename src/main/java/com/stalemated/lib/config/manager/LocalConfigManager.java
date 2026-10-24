@@ -11,6 +11,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
@@ -61,6 +62,56 @@ public class LocalConfigManager<T> {
         this.logger = logger;
         this.optionTree = optionTree;
         this.defaultFactory = defaultFactory;
+    }
+
+    /**
+     * Creates a lightweight, in-memory {@link LocalConfigManager} wrapping a single POJO instance
+     * so it can participate in transactional {@code ConfigSession} buffers and YACL screens.
+     *
+     * @param instance The POJO instance to manage.
+     * @param onSave   Optional callback executed when changes are committed and saved.
+     * @param <T>      The POJO model type.
+     * @return An in-memory {@link LocalConfigManager} for the given instance.
+     */
+    public static <T> LocalConfigManager<T> forInstance(T instance, Consumer<T> onSave) {
+        return forInstance(instance, null, onSave);
+    }
+
+    /**
+     * Creates a lightweight, {@link LocalConfigManager} in memory, wrapping a single POJO instance
+     * with an explicit default instance factory.
+     *
+     * @param instance       The POJO instance to manage.
+     * @param defaultFactory Optional supplier providing default instances for cloning and defaults.
+     * @param onSave         Optional callback executed when changes are committed and saved.
+     * @param <T>            The POJO model type.
+     * @return An in-memory {@link LocalConfigManager} for the given instance.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> LocalConfigManager<T> forInstance(T instance, Supplier<T> defaultFactory, Consumer<T> onSave) {
+        Objects.requireNonNull(instance, "instance cannot be null");
+        Class<T> clazz = (Class<T>) instance.getClass();
+        OptionTree tree = OptionTree.of(clazz, defaultFactory);
+
+        ConfigProvider<T> provider = new ConfigProvider<>() {
+            @Override
+            public T instance() {
+                return instance;
+            }
+
+            @Override
+            public boolean load() {
+                return true;
+            }
+
+            @Override
+            public void save() {
+                if (onSave != null) {
+                    onSave.accept(instance);
+                }
+            }
+        };
+        return new LocalConfigManager<>(provider, null, null, tree, defaultFactory);
     }
 
     /**

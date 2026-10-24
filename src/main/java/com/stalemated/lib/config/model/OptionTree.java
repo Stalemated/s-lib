@@ -11,6 +11,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -20,11 +21,36 @@ import java.util.function.Supplier;
  */
 public class OptionTree {
 
+    private static final Map<Class<?>, OptionTree> CACHE = new ConcurrentHashMap<>();
+
     private final Class<?> rootClass;
     private final Map<String, OptionInfo> options = new LinkedHashMap<>();
     private final List<OptionInfo> syncedOptions = new ArrayList<>();
     private final List<OptionInfo> localOnlyOptions = new ArrayList<>();
     private final ConfigNode schemaRoot;
+
+    /**
+     * Retrieves or creates a cached {@link OptionTree} for the specified config class.
+     *
+     * @param rootClass The config model class.
+     * @return The cached {@link OptionTree} instance.
+     */
+    public static OptionTree of(Class<?> rootClass) {
+        return CACHE.computeIfAbsent(rootClass, c -> new OptionTree(c, null));
+    }
+
+    /**
+     * Retrieves or creates a cached {@link OptionTree} for the specified config class
+     * using the provided default factory on first initialization.
+     *
+     * @param rootClass      The config model class.
+     * @param defaultFactory Supplier providing a default instance of the model.
+     * @param <T>            The config model type.
+     * @return The cached {@link OptionTree} instance.
+     */
+    public static <T> OptionTree of(Class<T> rootClass, Supplier<T> defaultFactory) {
+        return CACHE.computeIfAbsent(rootClass, c -> new OptionTree(c, defaultFactory));
+    }
 
     public OptionTree(Class<?> rootClass, Supplier<?> defaultFactory) {
         this.rootClass = rootClass;
