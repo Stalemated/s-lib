@@ -5,6 +5,7 @@ import dev.isxander.yacl3.api.OptionDescription;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
+import java.util.Locale;
 
 /**
  * Strategy interface for resolving localized names, descriptions, and category/group titles for YACL.
@@ -22,6 +23,17 @@ public interface YaclNamingStrategy {
     Component resolveName(String modId, OptionInfo option);
 
     /**
+     * Resolves the display title for an option key (such as a projected list element option).
+     *
+     * @param modId The mod identifier.
+     * @param optionKey The option key.
+     * @return The localized name component.
+     */
+    default Component resolveName(String modId, String optionKey) {
+        return Component.translatable(resolveBaseKey(modId, optionKey));
+    }
+
+    /**
      * Resolves the description or tooltip for a config option.
      *
      * @param modId The mod identifier.
@@ -30,7 +42,22 @@ public interface YaclNamingStrategy {
      * @return The option description.
      */
     default OptionDescription resolveDescription(String modId, OptionInfo option, boolean available) {
-        String baseKey = resolveBaseKey(modId, option);
+        return resolveDescriptionByBaseKey(modId, resolveBaseKey(modId, option), available);
+    }
+
+    /**
+     * Resolves the description or tooltip for an option key (such as a projected list element option).
+     *
+     * @param modId The mod identifier.
+     * @param optionKey The option key.
+     * @param available Whether the option is currently interactively editable.
+     * @return The option description.
+     */
+    default OptionDescription resolveDescription(String modId, String optionKey, boolean available) {
+        return resolveDescriptionByBaseKey(modId, resolveBaseKey(modId, optionKey), available);
+    }
+
+    private OptionDescription resolveDescriptionByBaseKey(String modId, String baseKey, boolean available) {
         Component descText = Component.translatable(baseKey + ".desc");
         if (!available) {
             Component warnText = Component.translatable(modId + ".config_screen.op_required");
@@ -47,7 +74,33 @@ public interface YaclNamingStrategy {
      * @return The canonical base key string.
      */
     default String resolveBaseKey(String modId, OptionInfo option) {
-        return modId + ".option." + option.getKey().replace('.', '_');
+        return resolveBaseKey(modId, option.getKey());
+    }
+
+    /**
+     * Resolves the translation base key for an option key string.
+     *
+     * @param modId The mod identifier.
+     * @param optionKey The option key.
+     * @return The canonical base key string.
+     */
+    default String resolveBaseKey(String modId, String optionKey) {
+        return modId + ".option." + optionKey.replace('.', '_');
+    }
+
+    /**
+     * Resolves the localized display component for an enum constant of a config option.
+     * Uses {@code <baseKey>.<enumConstant.name().toLowerCase()>} with a fallback to {@code value.toString()}.
+     *
+     * @param modId The mod identifier.
+     * @param option The option metadata.
+     * @param value The enum constant value.
+     * @return The localized or fallback enum value component.
+     */
+    default Component resolveEnumValue(String modId, OptionInfo option, Enum<?> value) {
+        if (value == null) return Component.empty();
+        String key = resolveBaseKey(modId, option) + "." + value.name().toLowerCase(Locale.ROOT);
+        return Component.translatableWithFallback(key, value.toString());
     }
 
     /**
@@ -83,9 +136,9 @@ public interface YaclNamingStrategy {
             return Component.empty();
         }
         if (modId == null || modId.isEmpty() || titleValue.startsWith(modId + ".")) {
-            return Component.translatable(titleValue + ".desc");
+            return Component.translatableWithFallback(titleValue + ".desc", "");
         }
-        return Component.translatable(modId + ".title." + titleValue + ".desc");
+        return Component.translatableWithFallback(modId + ".title." + titleValue + ".desc", "");
     }
 
     /**
@@ -129,7 +182,7 @@ public interface YaclNamingStrategy {
      * @return The localized group description component.
      */
     default Component resolveGroupDescription(String modId, String groupKey) {
-        return Component.translatable(modId + ".group." + groupKey.replace('.', '_') + ".desc");
+        return Component.translatableWithFallback(modId + ".group." + groupKey.replace('.', '_') + ".desc", "");
     }
 
     /**

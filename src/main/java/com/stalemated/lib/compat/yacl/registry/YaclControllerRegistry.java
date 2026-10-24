@@ -54,12 +54,14 @@ public class YaclControllerRegistry {
     private final Map<Class<?>, AdaptedType<?, ?>> adaptedTypes = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
 
+    public YaclControllerRegistry() {
+        registerDefaultPrimitives();
+        registerDefaultAdaptedTypes();
+        registerDefaultInitialSuppliers();
+    }
+
     public static YaclControllerRegistry createDefault() {
-        YaclControllerRegistry reg = new YaclControllerRegistry();
-        reg.registerDefaultPrimitives();
-        reg.registerDefaultAdaptedTypes();
-        reg.registerDefaultInitialSuppliers();
-        return reg;
+        return new YaclControllerRegistry();
     }
 
     private void registerDefaultPrimitives() {
@@ -111,11 +113,17 @@ public class YaclControllerRegistry {
             }
             return StringControllerBuilder.create(opt);
         });
-
-        registerDirect(Color.class, (info, opt) -> ColorControllerBuilder.create(opt).allowAlpha(true));
     }
 
     private void registerDefaultAdaptedTypes() {
+        registerAdapted(
+                Color.class,
+                c -> c != null ? ColorUtils.toRGBAHexString(c) : "#FFFFFF",
+                str -> ColorUtils.parseRGBAToAWT(str != null ? str : "#FFFFFF"),
+                "#FFFFFF",
+                (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(true)
+        );
+
         registerAdapted(
                 TextColor.class,
                 c -> c != null ? c.serialize() : "white",
@@ -390,7 +398,7 @@ public class YaclControllerRegistry {
                 () -> session.get(info),
                 val -> session.set(info, val),
                 b -> {
-                    b.controller(SimpleEnumDropdownControllerBuilder::create);
+                    b.controller(opt -> SimpleEnumDropdownControllerBuilder.create(opt).formatValue(meta::formatEnum));
                     if (customizer != null) {
                         customizer.accept(b);
                     }
