@@ -118,8 +118,8 @@ public class YaclControllerRegistry {
     private void registerDefaultAdaptedTypes() {
         registerAdapted(
                 Color.class,
-                c -> c != null ? ColorUtils.toRGBAHexString(c) : "#FFFFFF",
-                str -> ColorUtils.parseRGBAToAWT(str != null ? str : "#FFFFFF"),
+                c -> c != null ? ColorUtils.toHexString(c) : "#FFFFFF",
+                str -> ColorUtils.parseToAWT(str != null ? str : "#FFFFFF"),
                 "#FFFFFF",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(true)
         );
