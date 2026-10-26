@@ -11,7 +11,11 @@ public class KeyBindingUtil {
     public static boolean isKeyDownInGui(KeyMapping keyBinding) {
         if (keyBinding == null || keyBinding.isUnbound()) return false;
 
+        //? if forge || neoforge {
+        /*InputConstants.Key boundKey = keyBinding.getKey();
+        *///?} else {
         InputConstants.Key boundKey = ((KeyBindingAccessor) keyBinding).getBoundKey();
+        //?}
 
         //? if <1.21.11 {
         long window = Minecraft.getInstance().getWindow().getWindow();
