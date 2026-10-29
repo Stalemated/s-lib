@@ -102,7 +102,11 @@ tasks {
             register("minecraft", sc.properties["mod.mc_compat"])
         }
 
-        filesMatching("META-INF/neoforge.mods.toml") { expand(props) }
+        val usesLegacyModsToml = sc.current.parsed < "1.20.5"
+        filesMatching("META-INF/neoforge.mods.toml") {
+            expand(props)
+            if (usesLegacyModsToml) path = "META-INF/mods.toml"
+        }
 
         val mixinJava = "JAVA_${requiredJava.majorVersion}"
         filesMatching("*.mixins.json") { expand("java" to mixinJava) }
