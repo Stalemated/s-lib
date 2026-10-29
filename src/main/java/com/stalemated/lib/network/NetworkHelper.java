@@ -32,27 +32,23 @@ import static com.stalemated.lib.SLib.MOD_ID;
 //? if neoforge{
 /*import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.bus.api.IEventBus;
 
 //? if <=1.20.4 {
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
+/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
 import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
-import net.neoforged.fml.common.Mod.EventBusSubscriber;
-//?} else {
-/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+^///?} else {
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-import net.neoforged.fml.common.EventBusSubscriber;
-^///?}
+//?}
 
 //? if >=1.21.11
-/^import net.neoforged.neoforge.client.network.ClientPacketDistributor;^/
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static com.stalemated.lib.SLib.MOD_ID;
-
-@EventBusSubscriber(modid = MOD_ID)
 *///?}
 public class NetworkHelper {
 
@@ -122,8 +118,11 @@ public class NetworkHelper {
     *///?}
 
     //? if neoforge && <=1.20.4 {
-    /*@SubscribeEvent
-    public static void register(RegisterPayloadHandlerEvent event) {
+    /*public static void registerModBusListeners(IEventBus modBus) {
+        modBus.addListener(RegisterPayloadHandlerEvent.class, NetworkHelper::register);
+    }
+
+    private static void register(RegisterPayloadHandlerEvent event) {
         IPayloadRegistrar registrar = event.registrar(MOD_ID).optional();
         registrar.play(
                 WrapperPayload.ID,
@@ -132,8 +131,11 @@ public class NetworkHelper {
         );
     }
     *///?} elif neoforge {
-    /*@SubscribeEvent
-    public static void register(RegisterPayloadHandlersEvent event) {
+    /*public static void registerModBusListeners(IEventBus modBus) {
+        modBus.addListener(RegisterPayloadHandlersEvent.class, NetworkHelper::register);
+    }
+
+    private static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
         registrar.playBidirectional(
                 WrapperPayload.ID,

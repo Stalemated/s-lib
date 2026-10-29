@@ -17,12 +17,16 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 *///?} elif neoforge {
-/*import net.neoforged.bus.api.SubscribeEvent;
+/*import com.stalemated.lib.client.SLibClient;
+import com.stalemated.lib.network.NetworkHelper;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.bus.api.SubscribeEvent;
 //? if <=1.20.4 {
-import net.neoforged.fml.common.Mod.EventBusSubscriber;
-//?} else {
-/^import net.neoforged.fml.common.EventBusSubscriber;
-^///?}
+/^import net.neoforged.fml.common.Mod.EventBusSubscriber;
+^///?} else {
+import net.neoforged.fml.common.EventBusSubscriber;
+//?}
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 *///?}
@@ -45,16 +49,23 @@ implements ModInitializer
         LOGGER.info("S-Lib loaded successfully");
     }
 
-    //? if forge || neoforge {
+    //? if forge {
     /*public SLib() {
         init();
 
-        //? if forge {
-        /^MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedIn);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             SLibClient.init();
         }
-        ^///?}
+    }
+    *///?} elif neoforge {
+    /*public SLib(IEventBus modBus, Dist dist) {
+        init();
+
+        NetworkHelper.registerModBusListeners(modBus);
+        if (dist == Dist.CLIENT) {
+            SLibClient.registerModBusListeners(modBus);
+        }
     }
     *///?}
 

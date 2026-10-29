@@ -23,12 +23,13 @@ import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 //? if neoforge{
 /*import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 //? if <=1.20.4 {
-import net.neoforged.fml.common.Mod.EventBusSubscriber;
-//?} else {
-/^import net.neoforged.fml.common.EventBusSubscriber;
-^///?}
+/^import net.neoforged.fml.common.Mod.EventBusSubscriber;
+^///?} else {
+import net.neoforged.fml.common.EventBusSubscriber;
+//?}
 import net.neoforged.api.distmarker.Dist;
 import com.stalemated.lib.SLib;
 
@@ -59,12 +60,14 @@ implements ClientModInitializer
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogIn);
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogOut);
     }
+    *///?} elif neoforge {
+    /*public static void registerModBusListeners(IEventBus modBus) {
+        modBus.addListener(RegisterKeyMappingsEvent.class, SLibClient::onRegisterKeyMappings);
+    }
     *///?}
 
     //? if forge || neoforge {
-    /*//? if neoforge
-    //@SubscribeEvent
-    private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+    /*private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         for (KeyMapping kb : PlatformHelper.KEYBINDINGS) {
             event.register(kb);
         }
