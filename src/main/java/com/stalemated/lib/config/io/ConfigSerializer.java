@@ -1,5 +1,7 @@
 package com.stalemated.lib.config.io;
 
+import com.stalemated.lib.config.io.exception.ConfigSyntaxException;
+
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 
@@ -22,8 +24,11 @@ public interface ConfigSerializer<T> {
      * Deserializes text content into a config instance.
      *
      * @param content The raw text content.
-     * @param defaultFactory Factory to create the default instance if content is empty or corrupt.
-     * @return Result containing the deserialized instance and whether a disk re-save is required.
+     * @param defaultFactory Factory for the instance that the valid values are read into.
+     * @return Result containing the deserialized instance, the values that were rejected,
+     * and whether a disk re-save is required.
+     * @throws ConfigSyntaxException If the content cannot be parsed at all. Callers rely on this
+     * exception to tell an unreadable file apart from one with invalid values.
      */
     DeserializationResult<T> deserialize(String content, Supplier<T> defaultFactory);
 

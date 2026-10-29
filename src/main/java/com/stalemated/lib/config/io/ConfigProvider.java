@@ -6,7 +6,7 @@ package com.stalemated.lib.config.io;
 public interface ConfigProvider<T> {
     /**
      * Loads the config from disk.
-     * @return true if successful, false if it failed and requires a backup.
+     * @return true if successful, false if the stored config was unreadable or had invalid values.
      */
     boolean load();
 

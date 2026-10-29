@@ -4,10 +4,8 @@ import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -134,19 +132,8 @@ public class LocalConfigManager<T> {
      * saving defaults if the file is new, and invoking lifecycle listeners.
      */
     public final void register() {
-        File configFile = configPath.toFile();
-        boolean isNewOrEmpty = FileUtils.isNewOrEmpty(configFile);
+        configLoadFailed = !provider.load();
 
-        FileUtils.deleteIfEmpty(configFile, logger);
-        boolean loaded = provider.load();
-
-        if (!loaded && !isNewOrEmpty) {
-            configLoadFailed = true;
-            FileUtils.createBackupSafe(configFile.toPath(), logger);
-        }
-
-        if (isNewOrEmpty) save();
-        
         for (Consumer<T> listener : loadListeners) {
             listener.accept(getConfig());
         }

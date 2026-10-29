@@ -1,13 +1,14 @@
 package com.stalemated.lib.config.io;
 
+import com.stalemated.lib.config.io.exception.ConfigSyntaxException;
 import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
-import java.io.File;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.StandardCopyOption;
 import java.util.function.Supplier;
 
 /**
@@ -39,53 +40,60 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
 
     @Override
     public boolean load() {
-        File configFile = configPath.toFile();
-        if (!configFile.exists() || configFile.length() == 0) {
+        if (FileUtils.isNewOrEmpty(configPath.toFile())) {
             this.instance = defaultFactory.get();
             save();
             return true;
         }
 
+        DeserializationResult<T> result;
         try {
-            String content = Files.readString(configPath, StandardCharsets.UTF_8);
-            DeserializationResult<T> result = serializer.deserialize(content, defaultFactory);
-            this.instance = result.instance();
-
-            if (result.partialCorruptionDetected()) {
-                logger.error("Syntax or type errors detected in {}. Creating a backup before salvaging...", configPath.getFileName());
-                FileUtils.createBackupSafe(configPath, logger);
-            }
-
-            // If new fields were added, values were clamped, or corrupted types were salvaged, rewrite the file
-            if (result.requiresSave()) {
-                logger.info("Updating config file format for: {}", configPath.getFileName());
-                save();
-            }
-
-            return true;
-        } catch (Exception e) {
-            logger.error("Failed to load config from {}: {}", configPath, e.getMessage(), e);
+            result = serializer.deserialize(Files.readString(configPath, StandardCharsets.UTF_8), defaultFactory);
+        } catch (IOException e) {
+            logger.error("Could not read {}: {}", configPath, e.getMessage(), e);
             return false;
+        } catch (ConfigSyntaxException e) {
+            logger.error("{} is not valid JSON5 and was not loaded: {}", configPath, e.getMessage());
+            FileUtils.createTimestampedBackup(configPath, logger);
+            return false;
+        }
+
+        return applyLoaded(result);
+    }
+
+    private boolean applyLoaded(DeserializationResult<T> result) {
+        this.instance = result.instance();
+        logDroppedContent(result);
+
+        if (result.dropsFileContent()) {
+            FileUtils.createTimestampedBackup(configPath, logger);
+        }
+        if (result.requiresSave()) {
+            save();
+        }
+        return !result.hasRejectedValues();
+    }
+
+    private void logDroppedContent(DeserializationResult<T> result) {
+        if (!result.unknownKeys().isEmpty()) {
+            logger.warn("Removing keys that are not options from {}: {}", configPath.getFileName(), result.unknownKeys());
+        }
+        if (result.hasRejectedValues()) {
+            logger.error("Using defaults for invalid values in {}: {}", configPath.getFileName(), result.rejectedValues());
         }
     }
 
     @Override
     public void save() {
+        Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
         try {
             if (configPath.getParent() != null) {
                 Files.createDirectories(configPath.getParent());
             }
 
-            String serialized = serializer.serialize(instance());
-            Files.writeString(
-                    configPath,
-                    serialized,
-                    StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE
-            );
-        } catch (Exception e) {
+            Files.writeString(tempPath, serializer.serialize(instance()), StandardCharsets.UTF_8);
+            Files.move(tempPath, configPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
             logger.error("Failed to save config to {}: {}", configPath, e.getMessage(), e);
         }
     }

@@ -3,29 +3,17 @@ package com.stalemated.lib.util.io;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public final class FileUtils {
 
-    private FileUtils() {}
+    private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
-    /**
-     * Deletes a file if it is empty.
-     *
-     * @param file The file to check and delete.
-     * @param logger The {@link Logger} to report any errors.
-     */
-    public static void deleteIfEmpty(File file, Logger logger) {
-        if (file.exists() && file.length() == 0) {
-            try {
-                boolean ignored = file.delete();
-            } catch (Exception e) {
-                logger.warn("Failed to delete empty file: ", e);
-            }
-        }
-    }
+    private FileUtils() {}
 
     /**
      * Checks if a file does not exist or is empty.
@@ -38,27 +26,29 @@ public final class FileUtils {
     }
 
     /**
-     * Creates a safe backup of the given file.
-     * The backup will be named using the original filename with a "_backup" suffix.
+     * Copies the given file next to itself as {@code name_backup_yyyyMMdd-HHmmss.ext}.
+     * Existing backups are never overwritten.
      *
      * @param path The path of the original file.
      * @param logger The logger to report success or failure.
      */
-    public static void createBackupSafe(Path path, Logger logger) {
-        if (path == null || !Files.exists(path)) return;
-
+    public static void createTimestampedBackup(Path path, Logger logger) {
         String fileName = path.getFileName().toString();
         int dotIndex = fileName.lastIndexOf('.');
-        String backupFileName = dotIndex > 0
-                ? fileName.substring(0, dotIndex) + "_backup" + fileName.substring(dotIndex)
-                : fileName + "_backup";
+        String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
+        String extension = dotIndex > 0 ? fileName.substring(dotIndex) : "";
+        String backupPrefix = baseName + "_backup_" + LocalDateTime.now().format(BACKUP_TIMESTAMP);
 
-        Path backupPath = path.getParent().resolve(backupFileName);
+        Path backupPath = path.resolveSibling(backupPrefix + extension);
+        for (int copy = 2; Files.exists(backupPath); copy++) {
+            backupPath = path.resolveSibling(backupPrefix + "-" + copy + extension);
+        }
+
         try {
-            Files.copy(path, backupPath, StandardCopyOption.REPLACE_EXISTING);
-            logger.error("A backup of the corrupted file was saved to: {}", backupPath.getFileName());
-        } catch (Exception e) {
-            logger.error("Failed to create backup of the corrupted file!", e);
+            Files.copy(path, backupPath);
+            logger.warn("Saved a backup of {} to {}", fileName, backupPath.getFileName());
+        } catch (IOException e) {
+            logger.error("Failed to back up {} to {}", path, backupPath, e);
         }
     }
 }

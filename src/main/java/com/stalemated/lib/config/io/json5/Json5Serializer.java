@@ -10,14 +10,15 @@ import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
+import com.stalemated.lib.config.io.exception.ConfigSyntaxException;
 import com.stalemated.lib.config.io.DeserializationResult;
 import com.stalemated.lib.config.validation.ConfigValidator;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -30,26 +31,20 @@ import java.util.function.Supplier;
  */
 public class Json5Serializer<T> implements ConfigSerializer<T> {
 
-    private final Class<T> configClass;
     private final OptionTree optionTree;
     private final Jankson jankson;
     private final JsonGrammar grammar;
-    private final Json5SchemaValidator schemaValidator;
     private final Gson gson;
+    private final Json5KeyLayout layout;
+    private final OptionValueReader reader;
 
-    public Json5Serializer(Class<T> configClass, OptionTree optionTree) {
-        this(configClass, optionTree, null);
+    public Json5Serializer(OptionTree optionTree) {
+        this(optionTree, null);
     }
 
-    public Json5Serializer(
-            Class<T> configClass,
-            OptionTree optionTree,
-            Consumer<GsonBuilder> gsonCustomizer
-    ) {
-        this.configClass = configClass;
+    public Json5Serializer(OptionTree optionTree, Consumer<GsonBuilder> gsonCustomizer) {
         this.optionTree = optionTree;
-        this.schemaValidator = new Json5SchemaValidator(optionTree);
-        
+
         // Jankson used as preprocessor
         this.jankson = Jankson.builder().build();
 
@@ -59,6 +54,9 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
             gsonCustomizer.accept(gBuilder);
         }
         this.gson = gBuilder.create();
+
+        this.layout = new Json5KeyLayout(optionTree, gson.fieldNamingStrategy());
+        this.reader = new OptionValueReader(gson, layout::jsonName);
 
         this.grammar = JsonGrammar.builder()
                 .withComments(true)
@@ -75,17 +73,19 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
      */
     @Override
     public String serialize(T instance) {
-        String standardJson = gson.toJson(instance);
+        com.google.gson.JsonObject tree = new com.google.gson.JsonObject();
+        for (OptionInfo option : optionTree.all()) {
+            layout.put(tree, option, gson.toJsonTree(option.getValue(instance), option.getGenericType()));
+        }
 
         JsonObject rootObject;
         try {
-            rootObject = jankson.load(standardJson);
+            rootObject = jankson.load(gson.toJson(tree));
         } catch (SyntaxError e) {
-            throw new RuntimeException("Unexpected syntax error from internal GSON output: " + e.getMessage(), e);
+            throw new IllegalStateException("Jankson rejected JSON produced by GSON: " + e.getCompleteMessage(), e);
         }
 
-        formatAndCleanAst("", rootObject);
-        Json5CommentInjector.inject(rootObject, optionTree.getSchemaRoot());
+        Json5CommentInjector.inject(rootObject, optionTree.getSchemaRoot(), layout::jsonName);
         return rootObject.toJson(grammar);
     }
 
@@ -94,36 +94,35 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
      * detecting schema migrations across all nesting levels based on the OptionTree.
      *
      * @param json5Content The raw JSON5 string content.
-     * @param defaultFactory Factory to create the default instance if content is empty or corrupt.
-     * @return Result containing the deserialized instance and whether disk resave is required.
+     * @param defaultFactory Factory for the instance that the valid values are read into.
+     * @return Result containing the deserialized instance, whether a migration is required,
+     * and the entries that were rejected or are not options of this config.
+     * @throws ConfigSyntaxException If the content is not a valid JSON5.
      */
     @Override
     public DeserializationResult<T> deserialize(String json5Content, Supplier<T> defaultFactory) {
-        if (json5Content == null || json5Content.trim().isEmpty()) {
-            return new DeserializationResult<>(defaultFactory.get(), true, false);
+        T instance = defaultFactory.get();
+        if (json5Content == null || json5Content.isBlank()) {
+            return new DeserializationResult<>(instance, true, List.of(), List.of());
         }
 
         JsonObject rootObject;
         try {
             rootObject = jankson.load(json5Content);
         } catch (SyntaxError e) {
-            throw new RuntimeException("Syntax error while parsing JSON5 config: " + e.getMessage(), e);
+            throw new ConfigSyntaxException(e.getCompleteMessage(), e);
         }
 
-        T instance = gson.fromJson(rootObject.toJson(false, false), configClass);
-        if (instance == null) instance = defaultFactory.get();
+        LoadReport report = new LoadReport();
+        layout.reportUnexpectedKeys(rootObject, report);
+        for (OptionInfo option : optionTree.all()) {
+            readOption(instance, rootObject, option, report);
+        }
 
-        boolean requiresSave = ConfigValidator.validate(instance, optionTree.getSchemaRoot());
-        
-        if (!requiresSave) {
-            requiresSave = schemaValidator.containsOrphanedNodes(rootObject);
+        if (ConfigValidator.validate(instance, optionTree.getSchemaRoot())) {
+            report.requireMigration();
         }
-        
-        if (!requiresSave) {
-            requiresSave = hasMissingKeys(rootObject);
-        }
-        
-        return new DeserializationResult<>(instance, requiresSave, false);
+        return report.toResult(instance);
     }
 
     @Override
@@ -135,72 +134,23 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     public Object deserializeOption(String rawJson, Type targetType) {
         return gson.fromJson(rawJson, targetType);
     }
-    
-    private boolean hasMissingKeys(JsonObject rootObject) {
-        for (OptionInfo option : optionTree.all()) {
-            if (getElementFromJson(rootObject, option.getKey()) == null) {
-                return true;
-            }
+
+    private void readOption(T instance, JsonObject rootObject, OptionInfo option, LoadReport report) {
+        JsonElement raw = layout.find(rootObject, option);
+        if (raw == null) {
+            report.requireMigration();
+            return;
         }
-        return false;
-    }
-    
-    private JsonElement getElementFromJson(JsonObject rootObject, String optionKey) {
-        String[] path = optionKey.split("\\.");
-        JsonObject current = rootObject;
 
-        for (int i = 0; i < path.length; i++) {
-            if (current == null || !current.containsKey(path[i])) {
-                return null;
+        String path = layout.pathOf(option);
+        try {
+            Object value = reader.read(option, path, raw, report);
+            option.setValue(instance, value);
+            if (!Objects.equals(value, option.getValue(instance))) {
+                report.requireMigration();
             }
-
-            JsonElement elem = current.get(path[i]);
-            if (i == path.length - 1) {
-                return elem;
-            } else if (elem instanceof JsonObject childObject) {
-                current = childObject;
-            } else {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private void formatAndCleanAst(String prefix, JsonObject jsonObject) {
-        List<String> keys = new ArrayList<>(jsonObject.keySet());
-        
-        for (String localKey : keys) {
-            String fullKey = prefix.isEmpty() ? localKey : prefix + "." + localKey;
-            OptionInfo info = optionTree.get(fullKey);
-            
-            if (info != null) {
-                applyComment(jsonObject, localKey, info);
-                continue;
-            }
-            
-            if (schemaValidator.isPrefixRegistered(fullKey)) {
-                cleanChildNode(jsonObject, localKey, fullKey);
-            } else {
-                jsonObject.remove(localKey); // Remove orphaned nodes
-            }
-        }
-    }
-
-    private void applyComment(JsonObject jsonObject, String localKey, OptionInfo info) {
-        if (info.getComment() != null) {
-            jsonObject.setComment(localKey, info.getComment());
-        }
-    }
-
-    private void cleanChildNode(JsonObject parentObject, String localKey, String fullKey) {
-        JsonElement childElem = parentObject.get(localKey);
-        
-        if (childElem instanceof JsonObject childObject) {
-            formatAndCleanAst(fullKey, childObject);
-
-            if (childObject.isEmpty()) {
-                parentObject.remove(localKey);
-            }
+        } catch (RuntimeException e) {
+            report.reject(path, raw, e);
         }
     }
 }
