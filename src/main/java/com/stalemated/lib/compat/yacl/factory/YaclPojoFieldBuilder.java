@@ -138,7 +138,7 @@ public final class YaclPojoFieldBuilder {
             return createDirectFieldOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, directFactory);
         }
 
-        // Adapted types registered in YaclControllerRegistry (TextColor, Identifier/ResourceLocation, UUID, Pattern, custom)
+        // Adapted types registered in YaclControllerRegistry (TextColor, ResourceLocation, UUID, Pattern, custom)
         YaclControllerRegistry.AdaptedType adapted = context.controllerRegistry().findAdaptedType(fieldType);
         if (adapted != null) {
             return createAdaptedFieldOption(context.session(), containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, adapted);

@@ -43,6 +43,8 @@ dependencies {
     jarJar("blue.endless:jankson:${property("deps.jankson")}")
     api("blue.endless:jankson:${property("deps.jankson")}")
 
+    annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
+
     // JUnit Jupiter
     testImplementation("org.junit.jupiter:junit-jupiter:${property("deps.jupiter")}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -90,6 +92,11 @@ legacyForge {
     }
 }
 
+mixin {
+    add(sourceSets.main.get(), "s_lib.refmap.json")
+    config("s-lib.mixins.json")
+}
+
 java {
     withSourcesJar()
     targetCompatibility = requiredJava
@@ -118,9 +125,16 @@ tasks {
         filesMatching("META-INF/mods.toml") { expand(props) }
 
         val mixinJava = "JAVA_${requiredJava.majorVersion}"
-        filesMatching("*.mixins.json") { expand("java" to mixinJava) }
+        filesMatching("*.mixins.json") {
+            expand("java" to mixinJava)
+            filter { line -> if (line.contains("\"package\"")) "    \"refmap\": \"s_lib.refmap.json\",\n$line" else line }
+        }
 
         exclude("fabric.mod.json", "*.ct", "*.classtweaker", "META-INF/neoforge.mods.toml")
+    }
+
+    named<Jar>("jar") {
+        manifest.attributes("MixinConfigs" to "s-lib.mixins.json")
     }
 
     named("createMinecraftArtifacts") {

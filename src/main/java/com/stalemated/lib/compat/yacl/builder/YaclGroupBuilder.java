@@ -96,7 +96,7 @@ public class YaclGroupBuilder<T> {
     }
 
     /**
-     * Configures a {@code String} or {@code ResourceLocation} ({@code Identifier}) option
+     * Configures a {@code String} or {@code ResourceLocation} option
      * to render as a dropdown populated with the given string values, and includes it in this group.
      *
      * @param key    The option key.
@@ -108,7 +108,7 @@ public class YaclGroupBuilder<T> {
     }
 
     /**
-     * Configures a {@code String} or {@code ResourceLocation} ({@code Identifier}) option
+     * Configures a {@code String} or {@code ResourceLocation} option
      * to render as a dropdown with a custom display formatter, and includes it in this group.
      *
      * @param key       The option key.
