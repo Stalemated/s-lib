@@ -4,8 +4,7 @@
     "compatibilityLevel": "${java}",
     "minVersion": "0.8",
     "client": [
-        "client.accessor.OrderedTextTooltipComponentAccessor",
-        "client.accessor.KeyBindingAccessor"
+        "client.accessor.OrderedTextTooltipComponentAccessor"
     ],
     "mixins": [
     ],

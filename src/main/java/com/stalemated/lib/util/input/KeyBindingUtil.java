@@ -1,11 +1,18 @@
 package com.stalemated.lib.util.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.stalemated.lib.mixin.client.accessor.KeyBindingAccessor;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 //? if <26.3
 import org.lwjgl.glfw.GLFW;
+
+//? if fabric {
+//? if <26.1 {
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+//?} else {
+/*import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+*///?}
+//?}
 
 public class KeyBindingUtil {
     public static boolean isKeyDownInGui(KeyMapping keyBinding) {
@@ -13,9 +20,11 @@ public class KeyBindingUtil {
 
         //? if forge || neoforge {
         /*InputConstants.Key boundKey = keyBinding.getKey();
-        *///?} else {
-        InputConstants.Key boundKey = ((KeyBindingAccessor) keyBinding).getBoundKey();
-        //?}
+        *///?} elif <26.1 {
+        InputConstants.Key boundKey = KeyBindingHelper.getBoundKeyOf(keyBinding);
+        //?} else {
+        /*InputConstants.Key boundKey = KeyMappingHelper.getBoundKeyOf(keyBinding);
+        *///?}
 
         //? if <1.21.11 {
         long window = Minecraft.getInstance().getWindow().getWindow();
