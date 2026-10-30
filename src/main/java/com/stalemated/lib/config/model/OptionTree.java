@@ -4,6 +4,7 @@ import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.annotation.Sync;
 import com.stalemated.lib.config.annotation.Title;
+import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 
@@ -239,7 +240,7 @@ public class OptionTree {
         for (OptionInfo option : syncedOptions) {
             if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                 Object val = option.getValue(source);
-                option.setValue(target, ReflectionUtils.cloneDeep(val));
+                option.setValue(target, DeepCopy.of(val, option.getGenericType()));
             }
         }
     }
@@ -255,7 +256,7 @@ public class OptionTree {
 
         for (OptionInfo option : options.values()) {
             Object val = option.getValue(source);
-            option.setValue(target, ReflectionUtils.cloneDeep(val));
+            option.setValue(target, DeepCopy.of(val, option.getGenericType()));
         }
     }
 

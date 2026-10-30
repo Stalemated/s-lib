@@ -1,8 +1,8 @@
 package com.stalemated.lib.compat.yacl.util;
 
+import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -45,7 +45,7 @@ public final class YaclSessionHelper {
         N item = newMap.get(entryKey);
 
         if (item != null) {
-            N clonedItem = (N) ReflectionUtils.cloneDeep(item);
+            N clonedItem = DeepCopy.of(item, item.getClass());
             updater.accept(clonedItem);
             newMap.put(entryKey, clonedItem);
             if ((mapInfo.type() != null && SortedMap.class.isAssignableFrom(mapInfo.type()))
@@ -83,7 +83,7 @@ public final class YaclSessionHelper {
         if (index >= 0 && index < newList.size()) {
             N item = newList.get(index);
             if (item != null) {
-                N clonedItem = (N) ReflectionUtils.cloneDeep(item);
+                N clonedItem = DeepCopy.of(item, item.getClass());
                 updater.accept(clonedItem);
                 newList.set(index, clonedItem);
                 session.set(listInfo, newList);

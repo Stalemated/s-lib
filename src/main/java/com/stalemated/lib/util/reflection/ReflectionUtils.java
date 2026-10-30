@@ -6,7 +6,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.*;
-import java.util.function.Function;
 
 public final class ReflectionUtils {
 
@@ -155,57 +154,6 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Clones an arbitrary object by instantiating a new instance and copying its fields.
-     *
-     * @param obj The object to clone.
-     * @return A shallow-cloned instance of the object, or the object itself if cloning fails.
-     */
-    public static Object cloneObject(Object obj) {
-        return cloneObject(obj, Function.identity());
-    }
-
-    /**
-     * Clones an arbitrary object by instantiating a new instance and copying its fields,
-     * applying a transformation or deep-cloning function to each field value.
-     *
-     * @param obj The object to clone.
-     * @param valueCloner Function to clone or transform field values.
-     * @return A cloned instance of the object.
-     */
-    public static Object cloneObject(Object obj, Function<Object, Object> valueCloner) {
-        if (obj == null) return null;
-        Class<?> clazz = obj.getClass();
-
-        if (clazz.isPrimitive() || Number.class.isAssignableFrom(clazz) ||
-                clazz == String.class || clazz == Boolean.class ||
-                clazz == Character.class || clazz.isEnum() || isSystemClass(clazz)) {
-            return obj;
-        }
-
-        try {
-            Object copy = tryInstantiate(clazz);
-            Class<?> current = clazz;
-
-            while (current != null && current != Object.class) {
-                if (isSystemClass(current)) break;
-
-                for (Field f : current.getDeclaredFields()) {
-                    if (isStaticOrTransient(f)) continue;
-                    try {
-                        f.setAccessible(true);
-                        Object val = f.get(obj);
-                        f.set(copy, valueCloner != null ? valueCloner.apply(val) : val);
-                    } catch (Throwable ignored) {}
-                }
-                current = current.getSuperclass();
-            }
-            return copy;
-        } catch (Exception e) {
-            return obj;
-        }
-    }
-
-    /**
      * Performs a deep equality comparison supporting primitives, strings,
      * arrays, collections, maps, sets, and POJOs without explicit {@code equals} implementations.
      *
@@ -340,98 +288,6 @@ public final class ReflectionUtils {
             current = current.getSuperclass();
         }
         return true;
-    }
-
-    /**
-     * Performs a deep clone of collections, maps, arrays, and nested POJOs.
-     * Primitives, immutables (Strings, Numbers, Booleans), and enums are returned as-is.
-     *
-     * @param val The value to clone.
-     * @return A deep-cloned instance of the value.
-     */
-    public static Object cloneDeep(Object val) {
-        if (val == null) return null;
-        if (val instanceof List<?> list) {
-            List<Object> copy = new ArrayList<>(list.size());
-            for (Object item : list) {
-                copy.add(cloneDeep(item));
-            }
-            return copy;
-        }
-        if (val instanceof SortedSet<?> sortedSet) {
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            SortedSet<Object> copy = sortedSet.comparator() != null
-                    ? new TreeSet(sortedSet.comparator())
-                    : new TreeSet<>();
-            for (Object item : sortedSet) {
-                copy.add(cloneDeep(item));
-            }
-            return copy;
-        }
-        if (val instanceof Set<?> set) {
-            Set<Object> copy = new LinkedHashSet<>(set.size());
-            for (Object item : set) {
-                copy.add(cloneDeep(item));
-            }
-            return copy;
-        }
-        if (val instanceof Queue<?> queue) {
-            Queue<Object> copy = new ArrayDeque<>(queue.size());
-            for (Object item : queue) {
-                copy.add(cloneDeep(item));
-            }
-            return copy;
-        }
-        if (val instanceof Collection<?> coll) {
-            List<Object> copy = new ArrayList<>(coll.size());
-            for (Object item : coll) {
-                copy.add(cloneDeep(item));
-            }
-            return copy;
-        }
-        if (val instanceof SortedMap<?, ?> sortedMap) {
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            SortedMap<Object, Object> copy = sortedMap.comparator() != null
-                    ? new TreeMap(sortedMap.comparator())
-                    : new TreeMap<>();
-            for (Map.Entry<?, ?> entry : sortedMap.entrySet()) {
-                copy.put(entry.getKey(), cloneDeep(entry.getValue()));
-            }
-            return copy;
-        }
-        if (val instanceof Map<?, ?> map) {
-            Map<Object, Object> copy = new LinkedHashMap<>(map.size());
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                copy.put(entry.getKey(), cloneDeep(entry.getValue()));
-            }
-            return copy;
-        }
-        if (val instanceof Object[] arr) {
-            Object[] copy = arr.clone();
-            for (int i = 0; i < copy.length; i++) {
-                copy[i] = cloneDeep(copy[i]);
-            }
-            return copy;
-        }
-        if (val instanceof int[] arr) return arr.clone();
-        if (val instanceof long[] arr) return arr.clone();
-        if (val instanceof float[] arr) return arr.clone();
-        if (val instanceof double[] arr) return arr.clone();
-        if (val instanceof boolean[] arr) return arr.clone();
-        if (val instanceof byte[] arr) return arr.clone();
-        if (val instanceof char[] arr) return arr.clone();
-        if (val instanceof short[] arr) return arr.clone();
-
-        Class<?> clazz = val.getClass();
-        if (!clazz.isPrimitive() && !Number.class.isAssignableFrom(clazz) &&
-                clazz != String.class && clazz != Boolean.class &&
-                clazz != Character.class && !clazz.isEnum() &&
-                !isSystemClass(clazz) &&
-                (hasNoArgsConstructor(clazz) || hasPublicNoArgsConstructor(clazz))) {
-            return cloneObject(val, ReflectionUtils::cloneDeep);
-        }
-
-        return val;
     }
 
     /**
