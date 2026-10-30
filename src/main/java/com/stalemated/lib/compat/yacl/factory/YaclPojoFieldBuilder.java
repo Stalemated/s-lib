@@ -152,10 +152,10 @@ public final class YaclPojoFieldBuilder {
     }
 
     private static Object resolveDefaultFieldValue(OptionInfo containerInfo, NestedAccessor accessor, Field field, Object sampleItem) {
-        Object initialFieldVal = ReflectionUtils.getFieldValueSafe(field, sampleItem);
+        Object initialFieldVal = ReflectionUtils.getFieldValue(field, sampleItem);
         Object defItem = accessor.getDefaultItem(containerInfo);
         if (defItem != null) {
-            Object defVal = ReflectionUtils.getFieldValueSafe(field, defItem);
+            Object defVal = ReflectionUtils.getFieldValue(field, defItem);
             if (defVal != null) return defVal;
         }
         return initialFieldVal;
@@ -209,7 +209,7 @@ public final class YaclPojoFieldBuilder {
                 () -> {
                     Object item = accessor.getItem(context.session(), containerInfo);
                     if (item != null) {
-                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        Object val = ReflectionUtils.getFieldValue(field, item);
                         if (val != null) return (V) val;
                     }
                     return resolvedDefault;
@@ -217,7 +217,7 @@ public final class YaclPojoFieldBuilder {
                 val -> {
                     Object clamped = fieldInfo.clampValue(val);
                     accessor.updateItem(context.session(), containerInfo, item ->
-                            ReflectionUtils.setFieldValueSafe(field, item, clamped)
+                            ReflectionUtils.setFieldValue(field, item, clamped)
                     );
                 },
                 b -> b.controller(opt -> controllerFactory.create(fieldInfo, opt))
@@ -252,7 +252,7 @@ public final class YaclPojoFieldBuilder {
                 () -> {
                     Object item = accessor.getItem(session, containerInfo);
                     if (item != null) {
-                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        Object val = ReflectionUtils.getFieldValue(field, item);
                         if (val != null) {
                             return adapted.toGui().apply((M) val);
                         }
@@ -263,7 +263,7 @@ public final class YaclPojoFieldBuilder {
                     M modelVal = adapted.fromGui().apply(guiVal);
                     if (modelVal != null) {
                         accessor.updateItem(session, containerInfo, item ->
-                                ReflectionUtils.setFieldValueSafe(field, item, modelVal)
+                                ReflectionUtils.setFieldValue(field, item, modelVal)
                         );
                     }
                 },
@@ -302,7 +302,7 @@ public final class YaclPojoFieldBuilder {
                 () -> {
                     Object item = accessor.getItem(context.session(), containerInfo);
                     if (item != null) {
-                        Object val = ReflectionUtils.getFieldValueSafe(field, item);
+                        Object val = ReflectionUtils.getFieldValue(field, item);
                         if (val instanceof List<?> l) {
                             return formatListToString(l, adapted);
                         }
@@ -312,7 +312,7 @@ public final class YaclPojoFieldBuilder {
                 val -> {
                     List<?> parsedList = parseStringToList(val, elemType, adapted);
                     accessor.updateItem(context.session(), containerInfo, item ->
-                            ReflectionUtils.setFieldValueSafe(field, item, parsedList)
+                            ReflectionUtils.setFieldValue(field, item, parsedList)
                     );
                 },
                 b -> b.controller(StringControllerBuilder::create)

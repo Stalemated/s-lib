@@ -106,7 +106,7 @@ public class OptionTree {
 
     private Object resolveDefaultValue(Field field, Object parentInstance, boolean isTemplate) {
         if (!isTemplate && parentInstance != null && field != null) {
-            return ReflectionUtils.getFieldValueSafe(field, parentInstance);
+            return ReflectionUtils.getFieldValue(field, parentInstance);
         }
         return null;
     }
@@ -186,10 +186,10 @@ public class OptionTree {
     private Object getOrCreateNestedInstance(Field field, Object parentInstance) {
         if (parentInstance == null) return null;
 
-        Object nested = ReflectionUtils.getFieldValueSafe(field, parentInstance);
+        Object nested = ReflectionUtils.getFieldValue(field, parentInstance);
         if (nested == null) {
             nested = ReflectionUtils.tryInstantiate(field.getType());
-            ReflectionUtils.setFieldValueSafe(field, parentInstance, nested);
+            ReflectionUtils.setFieldValue(field, parentInstance, nested);
         }
         return nested;
     }
