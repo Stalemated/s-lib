@@ -1,8 +1,11 @@
 package com.stalemated.lib.config.session;
 
+import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.manager.LocalConfigManager;
+import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.util.reflection.ReflectionUtils;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -17,6 +20,7 @@ import java.util.function.Consumer;
 public class ConfigSession<T> {
     private final LocalConfigManager<T> manager;
     private final OptionTree optionTree;
+    private T base;
     private T draft;
     private T preview;
     private Consumer<T> previewListener;
@@ -26,13 +30,12 @@ public class ConfigSession<T> {
     public ConfigSession(LocalConfigManager<T> manager) {
         this.manager = Objects.requireNonNull(manager, "manager cannot be null");
         this.optionTree = Objects.requireNonNull(manager.getOptionTree(), "optionTree cannot be null");
-        this.draft = createDraft();
+        rebase();
     }
 
-    private T createDraft() {
-        T active = manager.getActiveConfig();
-        if (active == null) return null;
-        return manager.cloneConfig(active);
+    private void rebase() {
+        this.base = manager.cloneConfig(manager.getActiveConfig());
+        this.draft = manager.cloneConfig(base);
     }
 
     private T activeTarget() {
@@ -69,7 +72,7 @@ public class ConfigSession<T> {
      *
      * @param mutation The mutation closure (typically an option binding setter).
      */
-    public synchronized void applyToPreview(Runnable mutation) {
+    public void applyToPreview(Runnable mutation) {
         if (preview == null || mutation == null) return;
         boolean prev = this.applyingToPreview;
         this.applyingToPreview = true;
@@ -125,25 +128,44 @@ public class ConfigSession<T> {
     }
 
     public boolean hasChanges() {
-        if (draft == null || manager.getActiveConfig() == null) return false;
-        return !optionTree.findChanges(manager.getActiveConfig(), draft).isEmpty();
+        return !optionTree.findChanges(base, draft).isEmpty();
     }
 
     public void reset() {
-        this.draft = createDraft();
+        rebase();
         this.committed = false;
     }
 
     /**
-     * Commits all buffered modifications into the active manager via a single atomic call.
+     * Commits the options edited in this session into the active manager via a single atomic call.
+     * Options the session did not touch keep whatever value they have now, even if it changed
+     * after the session was opened. Edits the manager rejects stay pending in the session.
      */
-    public synchronized void commit() {
-        if (!hasChanges()) {
-            committed = true;
-            return;
+    public void commit() {
+        List<OptionChange> edits = optionTree.findChanges(base, draft);
+        if (!edits.isEmpty()) {
+            manager.modify(workingCopy -> applyEdits(edits, workingCopy));
+            advanceBaseToAppliedEdits(edits);
         }
+        this.committed = true;
+    }
 
-        manager.modify(workingCopy -> optionTree.copyAllValues(draft, workingCopy));
-        committed = true;
+    private static void applyEdits(List<OptionChange> edits, Object workingCopy) {
+        for (OptionChange edit : edits) {
+            OptionInfo option = edit.option();
+            option.setValue(workingCopy, DeepCopy.of(edit.clampedValue(), option.getGenericType()));
+        }
+    }
+
+    private void advanceBaseToAppliedEdits(List<OptionChange> edits) {
+        T active = manager.getActiveConfig();
+        for (OptionChange edit : edits) {
+            OptionInfo option = edit.option();
+            Object applied = option.getValue(active);
+
+            if (ReflectionUtils.deepEquals(applied, edit.clampedValue())) {
+                option.setValue(base, DeepCopy.of(applied, option.getGenericType()));
+            }
+        }
     }
 }
