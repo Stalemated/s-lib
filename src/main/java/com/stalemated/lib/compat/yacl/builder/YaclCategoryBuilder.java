@@ -176,10 +176,10 @@ public class YaclCategoryBuilder<T> {
         boolean available = context.availabilityRule().isAvailable(info, context.session());
 
         Map<String, ?> currentMap = context.session().get(info);
-        if ((currentMap == null || currentMap.isEmpty()) && info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
+        if (currentMap == null && info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
             currentMap = (Map<String, ?>) defaultMap;
         }
-        if (currentMap == null || currentMap.isEmpty()) return this;
+        if (currentMap == null || currentMap.isEmpty()) return emptyEntriesLabel(info);
 
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
@@ -203,10 +203,10 @@ public class YaclCategoryBuilder<T> {
         boolean available = context.availabilityRule().isAvailable(info, context.session());
 
         List<?> currentList = context.session().get(info);
-        if ((currentList == null || currentList.isEmpty()) && info.getDefaultValue() instanceof List<?> defaultList) {
+        if (currentList == null && info.getDefaultValue() instanceof List<?> defaultList) {
             currentList = defaultList;
         }
-        if (currentList == null || currentList.isEmpty()) return this;
+        if (currentList == null || currentList.isEmpty()) return emptyEntriesLabel(info);
 
         for (int i = 0; i < currentList.size(); i++) {
             Object sampleItem = currentList.get(i);
@@ -226,10 +226,17 @@ public class YaclCategoryBuilder<T> {
      */
     public <N> YaclCategoryBuilder<T> mapNestListGroups(String mapKey, NestListBinding<N> binding) {
         OptionInfo mapInfo = context.session().getOptionTree().get(mapKey);
-        if (mapInfo != null) {
-            this.groups.addAll(mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding));
-        }
+        if (mapInfo == null) return this;
+
+        List<ListOption<String>> projectedLists = mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding);
+        if (projectedLists.isEmpty()) return emptyEntriesLabel(mapInfo);
+
+        this.groups.addAll(projectedLists);
         return this;
+    }
+
+    private YaclCategoryBuilder<T> emptyEntriesLabel(OptionInfo info) {
+        return label(context.namingStrategy().resolveEmptyEntries(context.modId(), info));
     }
 
     /**

@@ -103,6 +103,10 @@ public interface YaclNamingStrategy {
         return Component.translatableWithFallback(key, value.toString());
     }
 
+    default Component resolveEmptyEntries(String modId, OptionInfo option) {
+        return Component.translatableWithFallback(resolveBaseKey(modId, option) + ".empty", "No entries");
+    }
+
     /**
      * Resolves the localized display component for a {@code @Title} section header.
      * <p>

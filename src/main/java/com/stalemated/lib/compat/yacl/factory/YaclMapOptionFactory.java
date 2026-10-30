@@ -86,7 +86,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
 
         boolean available = context.availabilityRule().isAvailable(mapInfo, context.session());
         Map<String, N> currentMap = context.session().get(mapInfo);
-        if ((currentMap == null || currentMap.isEmpty()) && mapInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
+        if (currentMap == null && mapInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
             currentMap = (Map<String, N>) defMap;
         }
         if (currentMap == null || currentMap.isEmpty()) {
