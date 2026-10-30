@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
@@ -235,8 +236,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      *     <li>{@link SyncMode#NONE}: Applied locally and saved to disk.</li>
      *     <li>{@link SyncMode#INFORM_SERVER}: Applied locally, saved, and dispatched via C2S inform packet.</li>
      *     <li>{@link SyncMode#OVERRIDE_CLIENT}: On dedicated/singleplayer, applied locally; on modded multiplayer,
-     *         applied to active cache and sent to server via C2S override packet without saving locally until server echo;
-     *         on unmodded multiplayer, rejected with a warning.</li>
+     * only the changed options are sent to the server via C2S override packet and applied to the active cache
+     * once sent, without saving locally until server echo; rejected with an error if the packet is over the
+     * server-bound size limit; on unmodded multiplayer, rejected with a warning.</li>
      * </ul>
      * All disk I/O and network packet transmissions are batched and executed at most once per transaction.
      *
@@ -261,13 +263,10 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     }
 
     private void applyChange(OptionChange change, SyncBatch batch) {
-        OptionInfo option = change.option();
-        Object value = change.clampedValue();
-
         switch (change.syncMode()) {
-            case NONE -> applyLocalChange(option, value, batch);
-            case INFORM_SERVER -> applyInformChange(option, value, batch);
-            case OVERRIDE_CLIENT -> applyOverrideChange(option, value, batch);
+            case NONE -> applyLocalChange(change.option(), change.clampedValue(), batch);
+            case INFORM_SERVER -> applyInformChange(change.option(), change.clampedValue(), batch);
+            case OVERRIDE_CLIENT -> applyOverrideChange(change, batch);
         }
     }
 
@@ -281,55 +280,59 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     private void applyInformChange(OptionInfo option, Object value, SyncBatch batch) {
         applyLocalChange(option, value, batch);
-        if (this.state == ConnectionState.MULTIPLAYER_MODDED) {
+        if (this.state == ConnectionState.MULTIPLAYER_MODDED || this.state == ConnectionState.SINGLEPLAYER) {
             batch.sendInform = true;
-        } else if (this.state == ConnectionState.SINGLEPLAYER) {
-            batch.sendLocalInform = true;
         }
     }
 
-    private void applyOverrideChange(OptionInfo option, Object value, SyncBatch batch) {
+    private void applyOverrideChange(OptionChange change, SyncBatch batch) {
         if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
-            option.setValue(this.serverConfig, value);
-            batch.sendOverride = true;
+            batch.serverOverrides.add(change);
         } else if (this.state == ConnectionState.MULTIPLAYER_UNMODDED) {
-            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", option.getKey());
-            batch.rejectedUnmodded = true;
+            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
+            batch.rejected = true;
         } else {
-            applyLocalChange(option, value, batch);
+            applyLocalChange(change.option(), change.clampedValue(), batch);
             if (this.state == ConnectionState.SINGLEPLAYER) {
-                batch.sendLocalOverride = true;
+                batch.requestOverrideBroadcast = true;
             }
         }
     }
 
     private void flush(SyncBatch batch) {
+        if (!batch.serverOverrides.isEmpty() && !sendOverridesToServer(batch.serverOverrides)) {
+            batch.rejected = true;
+        }
+
         if (batch.localChanged) {
             super.save();
             notifySyncListeners(getActiveConfig());
-        } else if (batch.rejectedUnmodded) {
+        } else if (batch.rejected) {
             notifySyncListeners(getActiveConfig());
         }
 
         if (batch.sendInform) {
-            networkHandler.sendInformPacketToServer();
-        } else if (batch.sendLocalInform) {
-            networkHandler.sendLocalInformPacketToServer();
+            networkHandler.sendInformToServer();
         }
-
-        if (batch.sendOverride) {
-            networkHandler.sendOverridePacketToServer();
-        } else if (batch.sendLocalOverride) {
-            networkHandler.sendLocalOverridePacketToServer();
+        if (batch.requestOverrideBroadcast) {
+            networkHandler.requestOverrideBroadcast();
         }
     }
 
+    private boolean sendOverridesToServer(List<OptionChange> overrides) {
+        if (!networkHandler.sendOverridesToServer(overrides)) return false;
+
+        for (OptionChange override : overrides) {
+            override.option().setValue(this.serverConfig, override.clampedValue());
+        }
+        return true;
+    }
+
     private static class SyncBatch {
+        final List<OptionChange> serverOverrides = new ArrayList<>();
         boolean localChanged = false;
         boolean sendInform = false;
-        boolean sendOverride = false;
-        boolean sendLocalOverride = false;
-        boolean sendLocalInform = false;
-        boolean rejectedUnmodded = false;
+        boolean requestOverrideBroadcast = false;
+        boolean rejected = false;
     }
 }

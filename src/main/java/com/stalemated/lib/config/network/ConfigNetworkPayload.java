@@ -4,9 +4,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.stalemated.lib.config.io.ConfigSerializer;
+import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
+import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+
+import java.util.List;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -15,20 +19,24 @@ import static com.stalemated.lib.SLib.LOGGER;
  * <p>
  * Guarantees that:
  * <ul>
- *   <li>Only options matching the target {@link SyncMode} are transmitted.</li>
+ *   <li>Only options matching the target {@link SyncMode} are transmitted and applied.</li>
  *   <li>Local-only options ({@link SyncMode#NONE}) and transient fields are never leaked.</li>
  *   <li>Incoming values are strictly clamped against numeric boundary constraints before being applied.</li>
- *   <li>Packets support up to 256KB safely, avoiding Minecraft's default 32KB string limit.</li>
+ *   <li>Client-bound payloads carry up to 256 KB; server-bound payloads must stay under the vanilla 32 KB limit.</li>
  * </ul>
  */
 public final class ConfigNetworkPayload {
 
-    public static final int MAX_PAYLOAD_SIZE = 262144; // 256 KB
+    public static final int MAX_PAYLOAD_BYTES = 262144;
+
+    private static final int VANILLA_SERVER_BOUND_LIMIT_BYTES = 32767;
+    private static final int CHANNEL_WRAPPER_BYTES = 512;
+    public static final int MAX_SERVER_BOUND_BYTES = VANILLA_SERVER_BOUND_LIMIT_BYTES - CHANNEL_WRAPPER_BYTES;
 
     private ConfigNetworkPayload() {}
 
     /**
-     * Serializes synced options from a config instance into a compact JSON string.
+     * Serializes every option of one sync mode into a flat JSON object.
      * <p>
      * To save network bandwidth and reduce parsing complexity, this method does NOT
      * produce a fully nested JSON object (e.g., {@code {"combat": {"attackSpeed": 1.6}}}).
@@ -41,58 +49,28 @@ public final class ConfigNetworkPayload {
      * @param serializer The config serializer used to map individual options.
      * @return Compact flat JSON representation of the filtered options.
      */
-    public static String serialize(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
-        JsonObject jsonObject = buildPayloadObject(tree, configInstance, targetMode, serializer);
-        return jsonObject.toString();
-    }
-
-    private static JsonObject buildPayloadObject(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
-        JsonObject jsonObject = new JsonObject();
-
+    public static String snapshot(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
+        JsonObject payload = new JsonObject();
         for (OptionInfo option : tree.getSyncedOptions()) {
             if (option.getSyncMode() == targetMode) {
-                Object val = option.getValue(configInstance);
-                if (val != null) {
-                    String jsonStr = serializer.serializeOption(val);
-                    JsonElement elem = JsonParser.parseString(jsonStr);
-                    jsonObject.add(option.getKey(), elem);
-                }
+                put(payload, option, option.getValue(configInstance), serializer);
             }
         }
-        return jsonObject;
+        return payload.toString();
     }
 
-    /**
-     * Writes filtered config options into a packet buffer.
-     *
-     * @param buf The target packet buffer.
-     * @param tree The option schema tree.
-     * @param configInstance The source config POJO.
-     * @param targetMode The sync mode filter.
-     * @param serializer The config serializer.
-     */
-    public static void write(FriendlyByteBuf buf, OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
-        String json = serialize(tree, configInstance, targetMode, serializer);
-        
-        if (json.length() > MAX_PAYLOAD_SIZE) {
-            LOGGER.error("Config payload is too large to sync! Size: {} chars, Max: {} ({}KB). Sync aborted to prevent server disconnect.", json.length(), MAX_PAYLOAD_SIZE, MAX_PAYLOAD_SIZE / 1024);
-            // Empty string so the receiver reads and ignores it safely
-            buf.writeUtf("", MAX_PAYLOAD_SIZE);
-            return;
+    public static String changes(List<OptionChange> changes, ConfigSerializer<?> serializer) {
+        JsonObject payload = new JsonObject();
+        for (OptionChange change : changes) {
+            put(payload, change.option(), change.clampedValue(), serializer);
         }
-        buf.writeUtf(json, MAX_PAYLOAD_SIZE);
+        return payload.toString();
     }
 
-    /**
-     * Serializes all server-synced options.
-     *
-     * @param buf The target packet buffer.
-     * @param tree The option schema tree.
-     * @param configInstance The source config POJO.
-     * @param serializer The config serializer.
-     */
-    public static void writeSynced(FriendlyByteBuf buf, OptionTree tree, Object configInstance, ConfigSerializer<?> serializer) {
-        write(buf, tree, configInstance, SyncMode.OVERRIDE_CLIENT, serializer);
+    public static FriendlyByteBuf encode(String json) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeUtf(json, MAX_PAYLOAD_BYTES);
+        return buf;
     }
 
     /**
@@ -104,10 +82,11 @@ public final class ConfigNetworkPayload {
      *
      * @param json The raw flat JSON payload received.
      * @param tree The option schema tree.
+     * @param acceptedMode The only sync mode this payload is allowed to change.
      * @param targetInstance The target config POJO to update.
      * @param serializer The config serializer to parse custom types.
      */
-    public static void applyFromJson(String json, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
+    public static void applyFromJson(String json, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
         if (json == null || json.trim().isEmpty() || targetInstance == null || serializer == null) {
             return;
         }
@@ -115,23 +94,42 @@ public final class ConfigNetworkPayload {
         try {
             JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
             for (String key : jsonObject.keySet()) {
-                applySingleOption(key, jsonObject.get(key), tree, targetInstance, serializer);
+                applySingleOption(key, jsonObject.get(key), tree, acceptedMode, targetInstance, serializer);
             }
         } catch (Exception e) {
             LOGGER.error("Failed to parse config sync payload: {}", e.getMessage(), e);
         }
     }
 
-    private static void applySingleOption(String key, JsonElement elem, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
+    /**
+     * Reads a config payload from a packet buffer and safely applies clamped values.
+     *
+     * @param buf The incoming packet buffer.
+     * @param tree The option schema tree.
+     * @param acceptedMode The only sync mode this payload is allowed to change.
+     * @param targetInstance The target config POJO to update.
+     * @param serializer The config serializer.
+     */
+    public static void readAndApply(FriendlyByteBuf buf, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+        applyFromJson(buf.readUtf(MAX_PAYLOAD_BYTES), tree, acceptedMode, targetInstance, serializer);
+    }
+
+    private static void put(JsonObject payload, OptionInfo option, Object value, ConfigSerializer<?> serializer) {
+        if (value != null) {
+            payload.add(option.getKey(), JsonParser.parseString(serializer.serializeOption(value)));
+        }
+    }
+
+    private static void applySingleOption(String key, JsonElement elem, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
         OptionInfo option = tree.get(key);
-        
+
         if (option == null) {
             LOGGER.debug("Skipping unknown config key received over network: {}", key);
             return;
         }
 
-        if (option.getSyncMode() == SyncMode.NONE) {
-            LOGGER.warn("Rejected attempt to remotely modify local-only option: {}", key);
+        if (option.getSyncMode() != acceptedMode) {
+            LOGGER.warn("Rejected remote change to '{}': it is a {} option and this payload only carries {} options", key, option.getSyncMode(), acceptedMode);
             return;
         }
 
@@ -144,18 +142,5 @@ public final class ConfigNetworkPayload {
         } catch (Exception e) {
             LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
         }
-    }
-
-    /**
-     * Reads a config payload from a packet buffer and safely applies clamped values.
-     *
-     * @param buf The incoming packet buffer.
-     * @param tree The option schema tree.
-     * @param targetInstance The target config POJO to update.
-     * @param serializer The config serializer.
-     */
-    public static void readAndApply(FriendlyByteBuf buf, OptionTree tree, Object targetInstance, ConfigSerializer<?> serializer) {
-        String json = buf.readUtf(MAX_PAYLOAD_SIZE);
-        applyFromJson(json, tree, targetInstance, serializer);
     }
 }
