@@ -31,16 +31,8 @@ public final class ItemRegistryHelper {
     }
 
     public static Item getItem(String rawId) {
-        try {
-            //? if <1.21 {
-            ResourceLocation id = new ResourceLocation(rawId);
-            //?} else {
-            /*ResourceLocation id = ResourceLocation.parse(rawId);
-            *///?}
-            return getItem(id);
-        } catch (Exception ignored) {
-            return Items.AIR;
-        }
+        ResourceLocation id = ResourceLocation.tryParse(rawId);
+        return id != null ? getItem(id) : Items.AIR;
     }
 
     public static Component getItemName(Item item) {

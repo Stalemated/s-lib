@@ -99,6 +99,11 @@ public class ColorUtils {
         return argb != null ? new Color(argb, true) : Color.WHITE;
     }
 
+    public static Color parseToAWT(String colorStr, Color fallback) {
+        Integer argb = resolveARGBColor(colorStr);
+        return argb != null ? new Color(argb, true) : fallback;
+    }
+
     public static int parseColor(String colorStr) {
         TextColor color = resolveTextColor(colorStr);
         return color != null ? color.getValue() : DEFAULT_COLOR;

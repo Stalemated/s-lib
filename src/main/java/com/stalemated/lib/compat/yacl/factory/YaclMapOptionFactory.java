@@ -160,7 +160,10 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         Map<String, Object> convertedMap = new LinkedHashMap<>(stringMap.size());
 
         for (Map.Entry<String, String> entry : stringMap.entrySet()) {
-            convertedMap.put(entry.getKey(), TypeCoercionUtils.coerce(entry.getValue(), valClass));
+            Object value = TypeCoercionUtils.coerce(entry.getValue(), valClass);
+            if (value != null) {
+                convertedMap.put(entry.getKey(), value);
+            }
         }
 
         if ((info.type() != null && SortedMap.class.isAssignableFrom(info.type()))

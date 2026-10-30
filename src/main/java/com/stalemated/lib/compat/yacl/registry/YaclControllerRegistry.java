@@ -21,6 +21,8 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import static com.stalemated.lib.SLib.LOGGER;
+
 /**
  * Registry of controller builders and type adapters for YACL.
  * Decouples model types from GUI controller implementations, supporting both
@@ -125,7 +127,7 @@ public class YaclControllerRegistry {
         registerAdapted(
                 Color.class,
                 c -> c != null ? ColorUtils.toHexString(c) : "#FFFFFF",
-                str -> ColorUtils.parseToAWT(str != null ? str : "#FFFFFF"),
+                str -> parseOrWarn("color", str, input -> ColorUtils.parseToAWT(input, null)),
                 "#FFFFFF",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(true)
         );
@@ -133,10 +135,7 @@ public class YaclControllerRegistry {
         registerAdapted(
                 TextColor.class,
                 c -> c != null ? c.serialize() : "white",
-                str -> {
-                    TextColor tc = ColorUtils.resolveTextColor(str);
-                    return tc != null ? tc : ColorUtils.resolveTextColor("white");
-                },
+                str -> parseOrWarn("text color", str, ColorUtils::resolveTextColor),
                 "white",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(false)
         );
@@ -144,10 +143,7 @@ public class YaclControllerRegistry {
         registerAdapted(
                 ResourceLocation.class,
                 loc -> loc != null ? loc.toString() : "minecraft:air",
-                str -> {
-                    ResourceLocation parsed = ResourceLocation.tryParse(str != null ? str : "minecraft:air");
-                    return parsed != null ? parsed : ResourceLocation.tryParse("minecraft:air");
-                },
+                str -> parseOrWarn("id", str, ResourceLocation::tryParse),
                 "minecraft:air",
                 (info, opt) -> {
                     if (info != null && info.hasItemDropdown()) {
@@ -160,13 +156,7 @@ public class YaclControllerRegistry {
         registerAdapted(
                 UUID.class,
                 uuid -> uuid != null ? uuid.toString() : "00000000-0000-0000-0000-000000000000",
-                str -> {
-                    try {
-                        return UUID.fromString(str);
-                    } catch (Exception e) {
-                        return UUID.fromString("00000000-0000-0000-0000-000000000000");
-                    }
-                },
+                str -> parseOrWarn("UUID", str, UUID::fromString),
                 "00000000-0000-0000-0000-000000000000",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );
@@ -174,16 +164,24 @@ public class YaclControllerRegistry {
         registerAdapted(
                 Pattern.class,
                 p -> p != null ? p.pattern() : ".*",
-                str -> {
-                    try {
-                        return Pattern.compile(str);
-                    } catch (Exception e) {
-                        return Pattern.compile(".*");
-                    }
-                },
+                str -> parseOrWarn("regex", str, Pattern::compile),
                 ".*",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );
+    }
+
+    private static <M> M parseOrWarn(String kind, String input, Function<String, M> parser) {
+        M parsed;
+        try {
+            parsed = parser.apply(input);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Ignoring invalid {} '{}': {}", kind, input, e.getMessage());
+            return null;
+        }
+        if (parsed == null) {
+            LOGGER.warn("Ignoring invalid {} '{}'", kind, input);
+        }
+        return parsed;
     }
 
     private void registerDefaultInitialSuppliers() {
@@ -325,9 +323,8 @@ public class YaclControllerRegistry {
                 return (E) constants[0];
             }
         }
-        try {
+        if (ReflectionUtils.hasNoArgsConstructor(elementType)) {
             return (E) ReflectionUtils.tryInstantiate(elementType);
-        } catch (Exception ignored) {
         }
         return null;
     }

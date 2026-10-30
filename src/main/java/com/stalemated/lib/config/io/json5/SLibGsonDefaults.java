@@ -82,14 +82,18 @@ public final class SLibGsonDefaults {
 
         @Override
         public Color deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            if (json.isJsonPrimitive()) {
-                JsonPrimitive prim = json.getAsJsonPrimitive();
-                if (prim.isNumber()) {
-                    return new Color(prim.getAsInt(), true);
-                }
-                return ColorUtils.parseToAWT(prim.getAsString());
+            if (!json.isJsonPrimitive()) {
+                throw new JsonParseException(json + " is not a color");
             }
-            return Color.WHITE;
+            JsonPrimitive prim = json.getAsJsonPrimitive();
+            if (prim.isNumber()) {
+                return new Color(prim.getAsInt(), true);
+            }
+            Color color = ColorUtils.parseToAWT(prim.getAsString(), null);
+            if (color == null) {
+                throw new JsonParseException(json + " is not a color");
+            }
+            return color;
         }
     }
 
@@ -101,11 +105,11 @@ public final class SLibGsonDefaults {
 
         @Override
         public TextColor deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            if (json.isJsonPrimitive()) {
-                TextColor color = ColorUtils.resolveTextColor(json.getAsString());
-                if (color != null) return color;
+            TextColor color = json.isJsonPrimitive() ? ColorUtils.resolveTextColor(json.getAsString()) : null;
+            if (color == null) {
+                throw new JsonParseException(json + " is not a text color");
             }
-            return TextColor.fromRgb(ColorUtils.DEFAULT_COLOR);
+            return color;
         }
     }
 
