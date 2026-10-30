@@ -1,14 +1,16 @@
 package com.stalemated.lib.config.io;
 
+import java.util.Optional;
+
 /**
  * Provider for config loading and saving.
  */
 public interface ConfigProvider<T> {
     /**
      * Loads the config from disk.
-     * @return true if successful, false if the stored config was unreadable or had invalid values.
+     * @return Why the stored config was unreadable or had invalid values or empty if it loaded as written.
      */
-    boolean load();
+    Optional<ConfigLoadFailure> load();
 
     /**
      * Saves the config to disk.

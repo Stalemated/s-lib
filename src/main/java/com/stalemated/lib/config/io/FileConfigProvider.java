@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -39,11 +40,11 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     }
 
     @Override
-    public boolean load() {
+    public Optional<ConfigLoadFailure> load() {
         if (FileUtils.isNewOrEmpty(configPath.toFile())) {
             this.instance = defaultFactory.get();
             save();
-            return true;
+            return Optional.empty();
         }
 
         DeserializationResult<T> result;
@@ -51,17 +52,17 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
             result = serializer.deserialize(Files.readString(configPath, StandardCharsets.UTF_8), defaultFactory);
         } catch (IOException e) {
             logger.error("Could not read {}: {}", configPath, e.getMessage(), e);
-            return false;
+            return Optional.of(ConfigLoadFailure.unreadable(configPath, "could not be read: " + e.getMessage()));
         } catch (ConfigSyntaxException e) {
             logger.error("{} is not valid JSON5 and was not loaded: {}", configPath, e.getMessage());
             FileUtils.createTimestampedBackup(configPath, logger);
-            return false;
+            return Optional.of(ConfigLoadFailure.unreadable(configPath, "is not valid JSON5: " + e.getMessage()));
         }
 
         return applyLoaded(result);
     }
 
-    private boolean applyLoaded(DeserializationResult<T> result) {
+    private Optional<ConfigLoadFailure> applyLoaded(DeserializationResult<T> result) {
         this.instance = result.instance();
         logDroppedContent(result);
 
@@ -71,7 +72,9 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
         if (result.requiresSave()) {
             save();
         }
-        return !result.hasRejectedValues();
+        return result.hasRejectedValues()
+                ? Optional.of(ConfigLoadFailure.invalidValues(configPath, result.rejectedValues()))
+                : Optional.empty();
     }
 
     private void logDroppedContent(DeserializationResult<T> result) {

@@ -48,7 +48,6 @@ public interface ConfigSerializer<T> {
      * @param rawJson The raw JSON string representing the field's value
      * @param targetType The generic type to deserialize into
      * @return The deserialized Java object
-     * @throws Exception If deserialization fails
      */
-    Object deserializeOption(String rawJson, Type targetType) throws Exception;
+    Object deserializeOption(String rawJson, Type targetType);
 }
