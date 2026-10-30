@@ -376,7 +376,7 @@ public class YaclCategoryBuilder<T> {
             for (String candidateField : List.of("comment", "name", "id")) {
                 Field f = ReflectionUtils.findField(sampleItem.getClass(), candidateField);
                 if (f != null) {
-                    Object val = ReflectionUtils.getFieldValueSafe(f, sampleItem);
+                    Object val = ReflectionUtils.getFieldValue(f, sampleItem);
                     if (val instanceof String s && !s.isBlank()) {
                         return Component.literal("#" + (index + 1) + ": " + s);
                     }

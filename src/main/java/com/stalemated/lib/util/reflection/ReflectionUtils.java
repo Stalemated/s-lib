@@ -61,37 +61,44 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Safely retrieves the value of a field from an instance without throwing checked exceptions.
+     * Retrieves the value of a field from an instance without throwing checked exceptions.
      *
      * @param field The field to retrieve.
      * @param instance The instance to retrieve the field from.
-     * @return The field value, or null if retrieval fails or instance is null.
+     * @return The field value, or null if instance is null.
+     * @throws IllegalStateException If the field cannot be read.
      */
-    public static Object getFieldValueSafe(Field field, Object instance) {
+    public static Object getFieldValue(Field field, Object instance) {
         if (instance == null) return null;
 
         try {
             field.setAccessible(true);
             return field.get(instance);
-        } catch (Exception ignored) {
-            return null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            throw new IllegalStateException("Cannot read " + describe(field) + " from " + instance.getClass().getName(), e);
         }
     }
 
     /**
-     * Safely sets the value of a field on an instance without throwing checked exceptions.
+     * Sets the value of a field on an instance without throwing checked exceptions.
      *
      * @param field The field to set.
      * @param instance The instance to modify.
      * @param value The value to set.
+     * @throws IllegalStateException If the field cannot hold the value.
      */
-    public static void setFieldValueSafe(Field field, Object instance, Object value) {
-        if (instance == null) return;
-
+    public static void setFieldValue(Field field, Object instance, Object value) {
         try {
             field.setAccessible(true);
             field.set(instance, value);
-        } catch (Exception ignored) {}
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            String valueType = value == null ? "null" : value.getClass().getSimpleName();
+            throw new IllegalStateException("Cannot set " + describe(field) + " to '" + value + "' (" + valueType + ")", e);
+        }
+    }
+
+    private static String describe(Field field) {
+        return field.getDeclaringClass().getSimpleName() + "." + field.getName() + " (" + field.getType().getSimpleName() + ")";
     }
 
     /**

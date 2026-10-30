@@ -64,22 +64,20 @@ public class ConfigValidator {
             String fieldName = entry.getKey();
             ConfigNode childSchema = entry.getValue();
 
-            try {
-                Field field = ReflectionUtils.findField(currentClass, fieldName);
-                if (field == null) continue;
+            Field field = ReflectionUtils.findField(currentClass, fieldName);
+            if (field == null) continue;
 
-                Object fieldValue = ReflectionUtils.getFieldValueSafe(field, obj);
+            Object fieldValue = ReflectionUtils.getFieldValue(field, obj);
 
-                if (childSchema instanceof OptionInfo optionInfo && optionInfo.getTemplate() == null) {
-                    Object clamped = optionInfo.clampValue(fieldValue);
-                    if (clamped != null && !clamped.equals(fieldValue)) {
-                        ReflectionUtils.setFieldValueSafe(field, obj, clamped);
-                        mutated = true;
-                    }
-                } else {
-                    mutated |= validateNode(fieldValue, childSchema, visited);
+            if (childSchema instanceof OptionInfo optionInfo && optionInfo.getTemplate() == null) {
+                Object clamped = optionInfo.clampValue(fieldValue);
+                if (clamped != null && !clamped.equals(fieldValue)) {
+                    ReflectionUtils.setFieldValue(field, obj, clamped);
+                    mutated = true;
                 }
-            } catch (Exception ignored) { }
+            } else {
+                mutated |= validateNode(fieldValue, childSchema, visited);
+            }
         }
         return mutated;
     }
