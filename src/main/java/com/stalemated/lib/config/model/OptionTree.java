@@ -12,7 +12,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -22,8 +21,6 @@ import java.util.function.Supplier;
  */
 public class OptionTree {
 
-    private static final Map<Class<?>, OptionTree> CACHE = new ConcurrentHashMap<>();
-
     private final Class<?> rootClass;
     private final Map<String, OptionInfo> options = new LinkedHashMap<>();
     private final List<OptionInfo> syncedOptions = new ArrayList<>();
@@ -31,26 +28,25 @@ public class OptionTree {
     private final ConfigNode schemaRoot;
 
     /**
-     * Retrieves or creates a cached {@link OptionTree} for the specified config class.
+     * Creates an {@link OptionTree} for the specified config class, using its no-arg constructor for defaults.
      *
      * @param rootClass The config model class.
-     * @return The cached {@link OptionTree} instance.
+     * @return A new {@link OptionTree} instance.
      */
     public static OptionTree of(Class<?> rootClass) {
-        return CACHE.computeIfAbsent(rootClass, c -> new OptionTree(c, null));
+        return new OptionTree(rootClass, null);
     }
 
     /**
-     * Retrieves or creates a cached {@link OptionTree} for the specified config class
-     * using the provided default factory on first initialization.
+     * Creates an {@link OptionTree} for the specified config class using the provided default factory.
      *
      * @param rootClass      The config model class.
      * @param defaultFactory Supplier providing a default instance of the model.
      * @param <T>            The config model type.
-     * @return The cached {@link OptionTree} instance.
+     * @return A new {@link OptionTree} instance.
      */
     public static <T> OptionTree of(Class<T> rootClass, Supplier<T> defaultFactory) {
-        return CACHE.computeIfAbsent(rootClass, c -> new OptionTree(c, defaultFactory));
+        return new OptionTree(rootClass, defaultFactory);
     }
 
     public OptionTree(Class<?> rootClass, Supplier<?> defaultFactory) {

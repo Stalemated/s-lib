@@ -1,5 +1,7 @@
 package com.stalemated.lib.util.reflection;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -8,6 +10,35 @@ import java.lang.reflect.WildcardType;
 import java.util.*;
 
 public final class ReflectionUtils {
+
+    private static final ClassValue<Boolean> OVERRIDES_EQUALS = new ClassValue<>() {
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            try {
+                return type.getMethod("equals", Object.class).getDeclaringClass() != Object.class;
+            } catch (NoSuchMethodException e) {
+                return false;
+            }
+        }
+    };
+
+    private static final ClassValue<List<Field>> COMPARED_FIELDS = new ClassValue<>() {
+        @Override
+        protected List<Field> computeValue(@NotNull Class<?> type) {
+            List<Field> fields = new ArrayList<>();
+            for (Class<?> current = type; 
+                 current != null && current != Object.class && !isSystemClass(current);
+                 current = current.getSuperclass()
+            ) {
+                for (Field field : current.getDeclaredFields()) {
+                    if (isStaticOrTransient(field)) continue;
+                    field.setAccessible(true);
+                    fields.add(field);
+                }
+            }
+            return List.copyOf(fields);
+        }
+    };
 
     private ReflectionUtils() {}
 
@@ -248,11 +279,7 @@ public final class ReflectionUtils {
      */
     public static boolean hasOverriddenEquals(Class<?> clazz) {
         if (clazz == null || clazz.isPrimitive() || clazz.isArray()) return false;
-        try {
-            return clazz.getMethod("equals", Object.class).getDeclaringClass() != Object.class;
-        } catch (NoSuchMethodException e) {
-            return false;
-        }
+        return OVERRIDES_EQUALS.get(clazz);
     }
 
     /**
@@ -267,27 +294,20 @@ public final class ReflectionUtils {
         if (a == null || b == null) return false;
         if (a.getClass() != b.getClass() || a.getClass().isArray()) return false;
 
-        Class<?> clazz = a.getClass();
-        if (isSystemClass(clazz)) return false;
+        if (isSystemClass(a.getClass())) return false;
 
-        Class<?> current = clazz;
-        while (current != null && current != Object.class) {
-            if (isSystemClass(current)) break;
-
-            for (Field f : current.getDeclaredFields()) {
-                if (isStaticOrTransient(f)) continue;
-                try {
-                    f.setAccessible(true);
-                    Object valA = f.get(a);
-                    Object valB = f.get(b);
-                    if (!deepEquals(valA, valB)) return false;
-                } catch (Throwable t) {
-                    return false;
-                }
-            }
-            current = current.getSuperclass();
+        for (Field field : COMPARED_FIELDS.get(a.getClass())) {
+            if (!deepEquals(readField(field, a), readField(field, b))) return false;
         }
         return true;
+    }
+
+    private static Object readField(Field field, Object instance) {
+        try {
+            return field.get(instance);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Field " + field + " is not readable after setAccessible", e);
+        }
     }
 
     /**
