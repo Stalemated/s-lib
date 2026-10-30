@@ -1,48 +1,31 @@
 package com.stalemated.lib.compat.yacl.controller;
 
+import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.AbstractWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownController;
-import net.minecraft.core.registries.BuiltInRegistries;
-import com.stalemated.lib.compat.yacl.controller.helper.ItemRegistryHelper;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.function.Supplier;
 
 public class ItemOrTagController extends AbstractDropdownController<String> {
 
-    public ItemOrTagController(Option<String> option) {
-        this(option, true);
+    private final Supplier<ItemTargetIndex> targets;
+
+    public ItemOrTagController(Option<String> option, Supplier<ItemTargetIndex> targets) {
+        super(option, List.of(), true, true);
+        this.targets = targets;
     }
 
-    public ItemOrTagController(Option<String> option, boolean allowTags) {
-        super(option, getRegistryValues(allowTags), true, true);
+    public ItemTargetIndex targets() {
+        return targets.get();
     }
 
-    private static List<String> getRegistryValues(boolean allowTags) {
-        List<String> values = new ArrayList<>();
-        Set<String> namespaces = new HashSet<>();
-
-        if (allowTags) values.add("*");
-
-        try {
-            BuiltInRegistries.ITEM.keySet().forEach(id -> {
-                values.add(id.toString());
-                if (allowTags) namespaces.add(id.getNamespace());
-            });
-
-            if (allowTags) {
-                namespaces.forEach(ns -> values.add(ns + ":*"));
-                ItemRegistryHelper.getTagNames().forEach(values::add);
-            }
-        } catch (Throwable ignored) {}
-
-        values.sort(String::compareTo);
-        return values;
+    @Override
+    public List<String> getAllowedValues(String inputField) {
+        return targets.get().all();
     }
 
     @Override

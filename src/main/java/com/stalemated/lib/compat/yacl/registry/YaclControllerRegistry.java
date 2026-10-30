@@ -3,7 +3,7 @@ package com.stalemated.lib.compat.yacl.registry;
 import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
+import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
@@ -54,6 +54,7 @@ public class YaclControllerRegistry {
     private final Map<Class<?>, ControllerFactory<?>> directControllers = new LinkedHashMap<>();
     private final Map<Class<?>, AdaptedType<?, ?>> adaptedTypes = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
+    private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
 
     public YaclControllerRegistry() {
         registerDefaultPrimitives();
@@ -63,6 +64,10 @@ public class YaclControllerRegistry {
 
     public static YaclControllerRegistry createDefault() {
         return new YaclControllerRegistry();
+    }
+
+    private ItemTargetIndex itemTargets(boolean includeTags) {
+        return itemTargetsByTagInclusion.computeIfAbsent(includeTags, ItemTargetIndex::fromRegistry);
     }
 
     private void registerDefaultPrimitives() {
@@ -110,7 +115,7 @@ public class YaclControllerRegistry {
 
         registerDirect(String.class, (info, opt) -> {
             if (info != null && info.hasItemDropdown()) {
-                return ItemOrTagControllerBuilder.create(opt).allowTags(info.allowItemTags());
+                return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(info.allowItemTags()));
             }
             return StringControllerBuilder.create(opt);
         });
@@ -146,7 +151,7 @@ public class YaclControllerRegistry {
                 "minecraft:air",
                 (info, opt) -> {
                     if (info != null && info.hasItemDropdown()) {
-                        return ItemOrTagControllerBuilder.create(opt).allowTags(false);
+                        return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(false));
                     }
                     return StringControllerBuilder.create(opt);
                 }

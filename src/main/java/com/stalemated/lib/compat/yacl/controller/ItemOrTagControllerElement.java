@@ -21,11 +21,10 @@ import com.stalemated.lib.compat.yacl.controller.helper.ItemRegistryHelper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ItemOrTagControllerElement extends AbstractDropdownControllerElement<String, String> {
     private final ItemOrTagController itemOrTagController;
-    private final Map<String, ItemStack> itemCache = new HashMap<>();
+    private final Map<String, ItemStack> iconsByTarget = new HashMap<>();
     private ItemStack currentItemIcon = ItemStack.EMPTY;
 
     public ItemOrTagControllerElement(ItemOrTagController control, YACLScreen screen, Dimension<Integer> dim) {
@@ -33,8 +32,18 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
         this.itemOrTagController = control;
     }
 
-    private boolean isSpecialTarget(String value) {
+    private static boolean isSpecialTarget(String value) {
         return value.equals("*") || value.startsWith("!") || value.startsWith("regex:") || value.endsWith(":*") || value.startsWith("#");
+    }
+
+    private static ItemStack iconFor(String target) {
+        if (isSpecialTarget(target)) return ItemStack.EMPTY;
+        Item item = ItemRegistryHelper.getItem(target);
+        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+    }
+
+    private ItemStack cachedIconFor(String target) {
+        return iconsByTarget.computeIfAbsent(target, ItemOrTagControllerElement::iconFor);
     }
 
     private Component formatTargetText(String value) {
@@ -180,29 +189,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
     @Override
     public List<String> computeMatchingValues() {
-        List<String> identifiers = this.itemOrTagController.getAllowedValues(this.inputField).stream()
-                .filter(s -> s.toLowerCase().contains(this.inputField.toLowerCase()))
-                .collect(Collectors.toList());
-
-        this.currentItemIcon = ItemStack.EMPTY;
-        if (!isSpecialTarget(this.inputField)) {
-            Item item = ItemRegistryHelper.getItem(this.inputField);
-            if (item != Items.AIR) {
-                this.currentItemIcon = new ItemStack(item);
-            }
-        }
-
-        this.itemCache.clear();
-        for (String id : identifiers) {
-            if (!isSpecialTarget(id)) {
-                Item item = ItemRegistryHelper.getItem(id);
-                if (item != Items.AIR) {
-                    this.itemCache.put(id, new ItemStack(item));
-                }
-            }
-        }
-
-        return identifiers;
+        this.currentItemIcon = iconFor(this.inputField);
+        return this.itemOrTagController.targets().matching(this.inputField);
     }
 
     //? if yacl: <3.9.0 {
@@ -221,8 +209,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
         graphics.drawString(this.textRenderer, text, leftEdge + 4, this.getTextY(entryDimension), -1, true);
 
-        ItemStack stack = this.itemCache.get(value);
-        if (stack != null && !stack.isEmpty()) {
+        ItemStack stack = cachedIconFor(value);
+        if (!stack.isEmpty()) {
             graphics.renderFakeItem(stack, entryDimension.xLimit() - 20, entryDimension.y() + 1);
         }
     }
@@ -242,8 +230,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
 
         graphics.text(this.textRenderer, text, leftEdge + 4, this.getTextY(entryDimension), -1, true);
 
-        ItemStack stack = this.itemCache.get(value);
-        if (stack != null && !stack.isEmpty()) {
+        ItemStack stack = cachedIconFor(value);
+        if (!stack.isEmpty()) {
             graphics.fakeItem(stack, entryDimension.xLimit() - 20, entryDimension.y() + 1);
         }
     }
