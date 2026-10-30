@@ -4,7 +4,6 @@ import com.stalemated.lib.compat.yacl.controller.builder.SimpleStringDropdownCon
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.OptionInfo;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
@@ -270,8 +269,7 @@ public class YaclGroupBuilder<T> {
                 .description(optDesc)
                 .available(available);
 
-        return YaclBindingSynchronizer.buildSyncedOption(
-                context.session(),
+        return context.synchronizer().buildSyncedOption(
                 syntheticElementInfo,
                 builder,
                 guiDefault,

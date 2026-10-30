@@ -4,6 +4,7 @@ import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
+import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.manager.LocalConfigManager;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.config.session.ConfigSessionCoordinator;
@@ -13,7 +14,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -26,6 +29,7 @@ public class YaclScreenBuilder {
     private final Screen parent;
     private final Component title;
     private final ConfigSessionCoordinator coordinator = new ConfigSessionCoordinator();
+    private final Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
     private final List<ConfigCategory> categories = new ArrayList<>();
     private String modId;
     private YaclNamingStrategy namingStrategy = YaclNamingStrategy.DEFAULT;
@@ -89,7 +93,8 @@ public class YaclScreenBuilder {
 
     private <T> YaclCategoryBuilder<T> createCategoryBuilder(LocalConfigManager<T> manager) {
         ConfigSession<T> session = coordinator.getOrCreate(manager);
-        return new YaclCategoryBuilder<>(new YaclContext<>(session, modId, namingStrategy, controllerRegistry, availabilityRule));
+        YaclBindingSynchronizer synchronizer = synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new);
+        return new YaclCategoryBuilder<>(new YaclContext<>(session, synchronizer, modId, namingStrategy, controllerRegistry, availabilityRule));
     }
 
     public <T> YaclScreenBuilder category(LocalConfigManager<T> manager, Consumer<YaclCategoryBuilder<T>> consumer) {

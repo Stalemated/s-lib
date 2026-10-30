@@ -2,7 +2,6 @@ package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.OptionInfo;
 import dev.isxander.yacl3.api.ListOption;
 
@@ -64,8 +63,7 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                     + ": No initial value supplier registered. Register one via controllerRegistry.registerInitialSupplier.");
         }
 
-        return YaclBindingSynchronizer.buildSyncedListOption(
-                context.session(),
+        return context.synchronizer().buildSyncedListOption(
                 info,
                 builder,
                 defaultCopy,
@@ -105,8 +103,7 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
             }
         }
 
-        return YaclBindingSynchronizer.buildSyncedListOption(
-                context.session(),
+        return context.synchronizer().buildSyncedListOption(
                 info,
                 builder,
                 guiDefault,

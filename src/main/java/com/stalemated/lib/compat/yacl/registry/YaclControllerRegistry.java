@@ -4,6 +4,7 @@ import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorController
 import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
+import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.color.ColorUtils;
@@ -42,7 +43,7 @@ public class YaclControllerRegistry {
 
     public interface OptionBinder {
         <T> Option<?> bindOption(
-                ConfigSession<T> session,
+                YaclContext<T> context,
                 OptionInfo info,
                 YaclOptionMetadata meta,
                 Consumer<Option.Builder<?>> customizer
@@ -212,7 +213,7 @@ public class YaclControllerRegistry {
             @Override
             @SuppressWarnings("unchecked")
             public <T> Option<?> bindOption(
-                    ConfigSession<T> session,
+                    YaclContext<T> context,
                     OptionInfo info,
                     YaclOptionMetadata meta,
                     Consumer<Option.Builder<?>> customizer
@@ -223,8 +224,8 @@ public class YaclControllerRegistry {
                        .available(meta.available());
 
                 V defaultVal = (V) info.getDefaultValue();
-                return YaclBindingSynchronizer.buildSyncedOption(
-                        session,
+                ConfigSession<?> session = context.session();
+                return context.synchronizer().buildSyncedOption(
                         info,
                         builder,
                         defaultVal,
@@ -263,7 +264,7 @@ public class YaclControllerRegistry {
             @Override
             @SuppressWarnings("unchecked")
             public <T> Option<?> bindOption(
-                    ConfigSession<T> session,
+                    YaclContext<T> context,
                     OptionInfo info,
                     YaclOptionMetadata meta,
                     Consumer<Option.Builder<?>> customizer
@@ -276,8 +277,8 @@ public class YaclControllerRegistry {
                 M modelDefault = (M) info.getDefaultValue();
                 G guiDefault = modelDefault != null ? toGui.apply(modelDefault) : fallbackGuiDefault;
 
-                return YaclBindingSynchronizer.buildSyncedOption(
-                        session,
+                ConfigSession<?> session = context.session();
+                return context.synchronizer().buildSyncedOption(
                         info,
                         builder,
                         guiDefault,
@@ -346,7 +347,7 @@ public class YaclControllerRegistry {
     }
 
     public <T> Option<?> createOption(
-            ConfigSession<T> session,
+            YaclContext<T> context,
             OptionInfo info,
             YaclOptionMetadata meta,
             Consumer<Option.Builder<?>> customizer
@@ -355,11 +356,11 @@ public class YaclControllerRegistry {
 
         OptionBinder binder = findBinder(type);
         if (binder != null) {
-            return binder.bindOption(session, info, meta, customizer);
+            return binder.bindOption(context, info, meta, customizer);
         }
 
         if (info.isEnum()) {
-            return bindEnumOption(session, info, meta, customizer);
+            return bindEnumOption(context, info, meta, customizer);
         }
 
         throw new UnsupportedOperationException("No YACL controller or adapter registered for type: "
@@ -371,17 +372,17 @@ public class YaclControllerRegistry {
     }
 
     private static Option<?> bindEnumOption(
-            ConfigSession<?> session,
+            YaclContext<?> context,
             OptionInfo info,
             YaclOptionMetadata meta,
             Consumer<Option.Builder<?>> customizer
     ) {
-        return bindEnumOptionHelper(session, info, meta, customizer);
+        return bindEnumOptionHelper(context, info, meta, customizer);
     }
 
     @SuppressWarnings("unchecked")
     private static <E extends Enum<E>> Option<E> bindEnumOptionHelper(
-            ConfigSession<?> session,
+            YaclContext<?> context,
             OptionInfo info,
             YaclOptionMetadata meta,
             Consumer<Option.Builder<?>> customizer
@@ -390,8 +391,8 @@ public class YaclControllerRegistry {
         builder.name(meta.name())
                .description(meta.description())
                .available(meta.available());
-        return YaclBindingSynchronizer.buildSyncedOption(
-                session,
+        ConfigSession<?> session = context.session();
+        return context.synchronizer().buildSyncedOption(
                 info,
                 builder,
                 (E) info.getDefaultValue(),

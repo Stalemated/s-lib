@@ -6,12 +6,10 @@ import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -19,26 +17,27 @@ import java.util.function.Supplier;
 
 /**
  * Coordinates reactive state synchronization across YACL {@link Option} and {@link ListOption}
- * instances bound to the same {@link ConfigSession} and {@link OptionInfo}.
+ * instances bound to the same {@link ConfigSession} and {@link OptionInfo} within one screen.
  * <p>
  * Prevents stale duplicate widgets in multi-tab screens from overwriting changes during
  * YACL's two-pass {@code finishOrSave()} cycle, and normalizes pending widget values when
- * setters clamp or reformat input data.
+ * setters clamp or reformat input data. One instance lives as long as the screen that owns it.
  */
 public final class YaclBindingSynchronizer {
 
-    private static final Map<ConfigSession<?>, Map<String, List<Option<?>>>> SESSION_OPTIONS =
-            Collections.synchronizedMap(new WeakHashMap<>());
+    private final ConfigSession<?> session;
+    private final Map<String, List<Option<?>>> optionsByKey = new HashMap<>();
 
-    private YaclBindingSynchronizer() {}
+    public YaclBindingSynchronizer(ConfigSession<?> session) {
+        this.session = Objects.requireNonNull(session, "session cannot be null");
+    }
 
     @FunctionalInterface
     private interface BindingStep<B, V> {
         void bind(B builder, V def, Supplier<V> getter, Consumer<V> setter);
     }
 
-    private static <V, O extends Option<V>, B> O buildSynced(
-            ConfigSession<?> session,
+    private <V, O extends Option<V>, B> O buildSynced(
             OptionInfo info,
             B builder,
             V defaultValue,
@@ -53,16 +52,16 @@ public final class YaclBindingSynchronizer {
                 builder,
                 defaultValue,
                 getter,
-                val -> applySyncedMutation(session, info, optRef.get(), () -> setter.accept(val))
+                val -> applySyncedMutation(info, optRef.get(), () -> setter.accept(val))
         );
         if (postConfigurer != null) {
             postConfigurer.accept(builder);
         }
         O built = buildStep.apply(builder);
         optRef.set(built);
-        registerOption(session, info, built);
+        optionsByKey.computeIfAbsent(info.getKey(), key -> new ArrayList<>()).add(built);
         built.addEventListener((opt, event) -> {
-            if (session != null && session.hasPreview()) {
+            if (session.hasPreview()) {
                 session.applyToPreview(() -> setter.accept(opt.pendingValue()));
             }
         });
@@ -71,9 +70,8 @@ public final class YaclBindingSynchronizer {
 
     /**
      * Binds, configures, and builds a standard YACL {@link Option}, registering it for cross-tab
-     * synchronization and post-setter normalization within the given {@link ConfigSession}.
+     * sync and post-setter normalization within this screen.
      *
-     * @param session        The configuration session holding the draft buffer.
      * @param info           The option metadata associated with this binding.
      * @param builder        The YACL option builder.
      * @param defaultValue   The default GUI value.
@@ -83,8 +81,7 @@ public final class YaclBindingSynchronizer {
      * @param <V>            The GUI value type of the option.
      * @return The built and registered {@link Option}.
      */
-    public static <V> Option<V> buildSyncedOption(
-            ConfigSession<?> session,
+    public <V> Option<V> buildSyncedOption(
             OptionInfo info,
             Option.Builder<V> builder,
             V defaultValue,
@@ -92,15 +89,14 @@ public final class YaclBindingSynchronizer {
             Consumer<V> setter,
             Consumer<Option.Builder<V>> postConfigurer
     ) {
-        return buildSynced(session, info, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(info, builder, defaultValue, getter, setter, postConfigurer,
                 Option.Builder::binding, Option.Builder::build);
     }
 
     /**
      * Binds, configures, and builds a YACL {@link ListOption}, registering it for cross-tab
-     * synchronization and post-setter normalization within the given {@link ConfigSession}.
+     * sync and post-setter normalization within this screen.
      *
-     * @param session        The configuration session holding the draft buffer.
      * @param info           The option metadata associated with this binding.
      * @param builder        The YACL list option builder.
      * @param defaultValue   The default GUI list value.
@@ -110,8 +106,7 @@ public final class YaclBindingSynchronizer {
      * @param <E>            The GUI element type of the list option.
      * @return The built and registered {@link ListOption}.
      */
-    public static <E> ListOption<E> buildSyncedListOption(
-            ConfigSession<?> session,
+    public <E> ListOption<E> buildSyncedListOption(
             OptionInfo info,
             ListOption.Builder<E> builder,
             List<E> defaultValue,
@@ -119,35 +114,13 @@ public final class YaclBindingSynchronizer {
             Consumer<List<E>> setter,
             Consumer<ListOption.Builder<E>> postConfigurer
     ) {
-        return buildSynced(session, info, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(info, builder, defaultValue, getter, setter, postConfigurer,
                 ListOption.Builder::binding, ListOption.Builder::build);
     }
 
-    private static void registerOption(ConfigSession<?> session, OptionInfo info, Option<?> option) {
-        if (session == null || info == null || option == null) return;
-        Map<String, List<Option<?>>> byKey = SESSION_OPTIONS.computeIfAbsent(
-                session,
-                k -> new ConcurrentHashMap<>()
-        );
-        byKey.computeIfAbsent(info.getKey(), k -> new CopyOnWriteArrayList<>()).add(option);
-    }
-
-    private static List<Option<?>> getRegisteredOptions(ConfigSession<?> session, OptionInfo info) {
-        if (session == null || info == null) return Collections.emptyList();
-        Map<String, List<Option<?>>> byKey = SESSION_OPTIONS.get(session);
-        if (byKey == null) return Collections.emptyList();
-        return byKey.getOrDefault(info.getKey(), Collections.emptyList());
-    }
-
-    private static void applySyncedMutation(
-            ConfigSession<?> session,
-            OptionInfo info,
-            Option<?> sourceOption,
-            Runnable mutation
-    ) {
-        List<Option<?>> siblings = getRegisteredOptions(session, info);
+    private void applySyncedMutation(OptionInfo info, Option<?> sourceOption, Runnable mutation) {
         List<Option<?>> unchangedSiblings = new ArrayList<>();
-        for (Option<?> sibling : siblings) {
+        for (Option<?> sibling : optionsByKey.getOrDefault(info.getKey(), List.of())) {
             if (sibling != sourceOption && !sibling.changed()) {
                 unchangedSiblings.add(sibling);
             }

@@ -28,7 +28,7 @@ public record YaclOptionFactory<T>(YaclContext<T> context) {
 
     public Option<?> buildOption(OptionInfo optionInfo, Consumer<Option.Builder<?>> customizer) {
         YaclOptionMetadata meta = context.resolveMetadata(optionInfo);
-        return context.controllerRegistry().createOption(context.session(), optionInfo, meta, customizer);
+        return context.controllerRegistry().createOption(context, optionInfo, meta, customizer);
     }
 
     public Option<?> buildPojoFieldOption(

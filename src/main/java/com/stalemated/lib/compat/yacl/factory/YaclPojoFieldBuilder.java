@@ -2,7 +2,6 @@ package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -141,7 +140,7 @@ public final class YaclPojoFieldBuilder {
         // Adapted types registered in YaclControllerRegistry (TextColor, ResourceLocation, UUID, Pattern, custom)
         YaclControllerRegistry.AdaptedType adapted = context.controllerRegistry().findAdaptedType(fieldType);
         if (adapted != null) {
-            return createAdaptedFieldOption(context.session(), containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, adapted);
+            return createAdaptedFieldOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, adapted);
         }
 
         // Inline comma-separated list options for List<E> fields inside nested POJOs
@@ -203,8 +202,7 @@ public final class YaclPojoFieldBuilder {
                 .description(desc)
                 .available(available);
 
-        return YaclBindingSynchronizer.buildSyncedOption(
-                context.session(),
+        return context.synchronizer().buildSyncedOption(
                 containerInfo,
                 builder,
                 resolvedDefault,
@@ -227,7 +225,7 @@ public final class YaclPojoFieldBuilder {
     }
 
     private static <T, M, G> Option<G> createAdaptedFieldOption(
-            ConfigSession<T> session,
+            YaclContext<T> context,
             OptionInfo containerInfo,
             OptionInfo fieldInfo,
             NestedAccessor accessor,
@@ -246,8 +244,8 @@ public final class YaclPojoFieldBuilder {
                 .description(desc)
                 .available(available);
 
-        return YaclBindingSynchronizer.buildSyncedOption(
-                session,
+        ConfigSession<T> session = context.session();
+        return context.synchronizer().buildSyncedOption(
                 containerInfo,
                 builder,
                 guiDefault,
@@ -297,8 +295,7 @@ public final class YaclPojoFieldBuilder {
                 .description(desc)
                 .available(available);
 
-        return YaclBindingSynchronizer.buildSyncedOption(
-                context.session(),
+        return context.synchronizer().buildSyncedOption(
                 containerInfo,
                 builder,
                 defStr,

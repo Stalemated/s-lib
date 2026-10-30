@@ -2,7 +2,6 @@ package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.builder.NestListBinding;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.TypeCoercionUtils;
@@ -49,8 +48,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         Map<String, ?> defaultMap = (Map<String, ?>) info.getDefaultValue();
         List<String> defaultGui = KeyValuePair.toLines(defaultMap);
 
-        return YaclBindingSynchronizer.buildSyncedListOption(
-                context.session(),
+        return context.synchronizer().buildSyncedListOption(
                 info,
                 builder,
                 defaultGui,
@@ -105,8 +103,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
                     .description(desc)
                     .available(available);
 
-            ListOption<String> listOpt = YaclBindingSynchronizer.buildSyncedListOption(
-                    context.session(),
+            ListOption<String> listOpt = context.synchronizer().buildSyncedListOption(
                     mapInfo,
                     builder,
                     defaultList,
