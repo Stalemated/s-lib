@@ -1,57 +1,54 @@
-package com.stalemated.lib.config.registry;
+package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.manager.SyncedConfigManager;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.Collections;
+import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
 /**
- * Registry managing all registered {@link SyncedConfigManager} instances.
+ * Registry of the config files and sync channels in use, and of the synced managers that S-Lib's platform hooks drive.
  */
 public final class ConfigRegistry {
 
-    private static final List<SyncedConfigManager<?>> MANAGERS = new CopyOnWriteArrayList<>();
+    private static final Map<Path, LocalConfigManager<?>> FILES = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, SyncedConfigManager<?>> CHANNELS = new ConcurrentHashMap<>();
 
     private ConfigRegistry() {}
 
-    /**
-     * Registers a synced config manager.
-     *
-     * @param manager The manager to register.
-     */
-    public static void register(SyncedConfigManager<?> manager) {
-        if (manager != null && !MANAGERS.contains(manager)) {
-            MANAGERS.add(manager);
+    static void claimFile(LocalConfigManager<?> manager) {
+        claim(FILES, manager.getConfigPath().toAbsolutePath().normalize(), manager, "Config file");
+    }
+
+    static void claimChannel(SyncedConfigManager<?> manager) {
+        claim(CHANNELS, manager.getSyncChannel(), manager, "Sync channel");
+    }
+
+    private static <K, M extends LocalConfigManager<?>> void claim(Map<K, M> claims, K key, M manager, String kind) {
+        M owner = claims.putIfAbsent(key, manager);
+        if (owner != null && owner != manager) {
+            throw new IllegalStateException(kind + " " + key + " of " + describe(manager) + " is already used by " + describe(owner));
         }
     }
 
-    /**
-     * Unregisters a synced config manager.
-     *
-     * @param manager The manager to unregister.
-     */
-    public static void unregister(SyncedConfigManager<?> manager) {
-        MANAGERS.remove(manager);
+    private static String describe(LocalConfigManager<?> manager) {
+        return manager.getOptionTree().getRootClass().getSimpleName() + " ('" + manager.getName() + "')";
     }
 
     /**
-     * Clears all registered managers.
+     * Releases every claimed file and channel. Meant for tests that register the same config more than once.
      */
     public static void clear() {
-        MANAGERS.clear();
+        FILES.clear();
+        CHANNELS.clear();
     }
 
-    /**
-     * Gets an unmodifiable list of all registered managers.
-     *
-     * @return List of registered managers.
-     */
-    public static List<SyncedConfigManager<?>> getManagers() {
-        return Collections.unmodifiableList(MANAGERS);
+    static List<SyncedConfigManager<?>> getManagers() {
+        return List.copyOf(CHANNELS.values());
     }
 
     /**
@@ -61,7 +58,7 @@ public final class ConfigRegistry {
      * @param player The connected player.
      */
     public static void onPlayerJoinServer(ServerPlayer player) {
-        for (SyncedConfigManager<?> manager : MANAGERS) {
+        for (SyncedConfigManager<?> manager : CHANNELS.values()) {
             try {
                 manager.sendConfigToPlayer(player);
             } catch (Exception e) {
@@ -77,7 +74,7 @@ public final class ConfigRegistry {
      * @param isSingleplayer true if connected to an integrated singleplayer server, false if multiplayer.
      */
     public static void onClientJoin(boolean isSingleplayer) {
-        for (SyncedConfigManager<?> manager : MANAGERS) {
+        for (SyncedConfigManager<?> manager : CHANNELS.values()) {
             try {
                 if (isSingleplayer) {
                     manager.onClientJoinSingleplayer();
@@ -95,7 +92,7 @@ public final class ConfigRegistry {
      * Invoked automatically by S-Lib platform hooks on the client logical side.
      */
     public static void onClientDisconnect() {
-        for (SyncedConfigManager<?> manager : MANAGERS) {
+        for (SyncedConfigManager<?> manager : CHANNELS.values()) {
             try {
                 manager.clearServerConfig();
             } catch (Exception e) {

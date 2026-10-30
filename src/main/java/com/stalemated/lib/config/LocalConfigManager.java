@@ -1,18 +1,20 @@
-package com.stalemated.lib.config.manager;
+package com.stalemated.lib.config;
 
+import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.util.reflection.ReflectionUtils;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
 
 /**
  * Base config manager for handling local configs.
@@ -21,42 +23,21 @@ import com.stalemated.lib.util.reflection.ReflectionUtils;
  * @param <T> The config data model class.
  */
 public class LocalConfigManager<T> {
-    
+
     protected final ConfigProvider<T> provider;
     protected final Path configPath;
     protected final Logger logger;
     protected final OptionTree optionTree;
     protected final Supplier<T> defaultFactory;
-    
-    protected final List<Consumer<T>> loadListeners = new ArrayList<>();
-    protected final List<Consumer<T>> saveListeners = new ArrayList<>();
 
-    public boolean configLoadFailed = false;
+    private final Listeners<Consumer<T>> loadListeners = new Listeners<>(this::getName);
+    private final Listeners<Consumer<T>> saveListeners = new Listeners<>(this::getName);
+    private final Listeners<Consumer<T>> changeListeners = new Listeners<>(this::getName);
+    private final Listeners<Consumer<ConfigLoadFailure>> loadFailedListeners = new Listeners<>(this::getName);
 
     private boolean registered = false;
 
-    /**
-     * Constructs a new LocalConfigManager using reflection to create default instances.
-     * 
-     * @param provider A config provider.
-     * @param configPath The absolute path to the config file.
-     * @param logger The mod's logger used for warnings and error reporting.
-     * @param optionTree The option tree mapping the configuration model.
-     */
-    public LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger, OptionTree optionTree) {
-        this(provider, configPath, logger, optionTree, null);
-    }
-
-    /**
-     * Constructs a new LocalConfigManager.
-     * 
-     * @param provider A config provider.
-     * @param configPath The absolute path to the config file.
-     * @param logger The mod's logger used for warnings and error reporting.
-     * @param optionTree The option tree mapping the config model.
-     * @param defaultFactory An optional supplier providing default instances.
-     */
-    public LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger, OptionTree optionTree, Supplier<T> defaultFactory) {
+    LocalConfigManager(ConfigProvider<T> provider, Path configPath, Logger logger, OptionTree optionTree, Supplier<T> defaultFactory) {
         this.provider = provider;
         this.configPath = configPath;
         this.logger = logger;
@@ -100,8 +81,8 @@ public class LocalConfigManager<T> {
             }
 
             @Override
-            public boolean load() {
-                return true;
+            public Optional<ConfigLoadFailure> load() {
+                return Optional.empty();
             }
 
             @Override
@@ -116,32 +97,43 @@ public class LocalConfigManager<T> {
         return manager;
     }
 
-    /**
-     * Registers a listener to be invoked when the config is successfully loaded or initialized.
-     */
-    public void onConfigLoaded(Consumer<T> listener) {
+    public Subscription onChange(Consumer<T> listener) {
+        return changeListeners.add(listener);
+    }
+
+    void addLoadListener(Consumer<T> listener) {
         loadListeners.add(listener);
     }
 
-    /**
-     * Registers a listener to be invoked when the config is successfully saved to disk.
-     */
-    public void onConfigSaved(Consumer<T> listener) {
+    void addSaveListener(Consumer<T> listener) {
         saveListeners.add(listener);
+    }
+
+    void addLoadFailedListener(Consumer<ConfigLoadFailure> listener) {
+        loadFailedListeners.add(listener);
     }
 
     /**
      * Registers the config.
-     * This handles file verification, loading the config, creating backups if loading fails,
-     * saving defaults if the file is new, and invoking lifecycle listeners.
+     * This claims the config file, loads it (creating it with defaults when it is new),
+     * and invokes the load, load failure, and change listeners.
+     *
+     * @throws IllegalStateException If another registered config already uses the same file or sync channel.
      */
     public final void register() {
+        onRegister();
         registered = true;
-        configLoadFailed = !provider.load();
 
-        for (Consumer<T> listener : loadListeners) {
-            listener.accept(getConfig());
-        }
+        Optional<ConfigLoadFailure> failure = provider.load();
+        failure.ifPresent(f -> loadFailedListeners.fire(listener -> listener.accept(f)));
+
+        T loaded = provider.instance();
+        loadListeners.fire(listener -> listener.accept(loaded));
+        fireChanged();
+    }
+
+    void onRegister() {
+        ConfigRegistry.claimFile(this);
     }
 
     /**
@@ -171,9 +163,7 @@ public class LocalConfigManager<T> {
      * @param mutator The consumer performing strongly typed property updates on the working copy.
      */
     public void modify(Consumer<T> mutator) {
-        requireRegistered();
-        T current = getConfig();
-        if (current == null) return;
+        T current = get();
 
         T workingCopy = cloneConfig(current);
         mutator.accept(workingCopy);
@@ -188,54 +178,58 @@ public class LocalConfigManager<T> {
     }
 
     /**
-     * Saves the current config instance to disk and invokes the save listeners.
+     * Clamps the stored config, writes it to disk, and invokes the save and change listeners.
+     * Fields mutated directly are only clamped here, and synced configs never send them over the network;
+     * use {@link #modify(Consumer)} for both.
      */
     public final void save() {
         requireRegistered();
-        T instance = provider.instance();
-        if (instance != null && optionTree != null) {
-            for (OptionInfo option : optionTree.all()) {
-                option.enforceLimits(instance);
-            }
+        T stored = provider.instance();
+        for (OptionInfo option : optionTree.all()) {
+            option.enforceLimits(stored);
         }
-        
+
         provider.save();
-        for (Consumer<T> listener : saveListeners) {
-            listener.accept(getConfig());
-        }
+        saveListeners.fire(listener -> listener.accept(stored));
+        fireChanged();
     }
 
-    protected final void requireRegistered() {
+    final void fireChanged() {
+        T current = get();
+        changeListeners.fire(listener -> listener.accept(current));
+    }
+
+    final void requireRegistered() {
         if (!registered) {
-            throw new IllegalStateException("Config '" + getName() + "' was changed before register() loaded it; call register() first");
+            throw new IllegalStateException("Config '" + getName() + "' was used before register() loaded it; call register() first");
         }
     }
 
     /**
-     * Retrieves the config provider handling this manager's I/O.
+     * Retrieves the config values in effect. Never null after {@link #register()}.
      *
-     * @return The config provider.
-     */
-    public ConfigProvider<T> getProvider() {
-        return provider;
-    }
-
-    /**
-     * Retrieves the current config instance.
-     * 
      * @return The config object.
+     * @throws IllegalStateException If called before {@link #register()}.
      */
-    public T getConfig() {
+    public T get() {
+        requireRegistered();
         return provider.instance();
     }
 
-    /**
-     * Retrieves the active config instance. For local configs, this is identical to {@link #getConfig()}.
-     *
-     * @return The active config object.
-     */
-    public T getActiveConfig() {
-        return getConfig();
+    public String toJson(Object value) {
+        return serializer().serializeOption(value);
+    }
+
+    public <V> V fromJson(String json, Class<V> type) {
+        return type.cast(serializer().deserializeOption(json, type));
+    }
+
+    ConfigSerializer<T> serializer() {
+        ConfigSerializer<T> serializer = provider.getSerializer();
+        if (serializer == null) {
+            throw new IllegalStateException("Config '" + getName() + "' uses a provider without a serializer, so it cannot convert values to JSON");
+        }
+        return serializer;
     }
 
     /**
@@ -250,7 +244,7 @@ public class LocalConfigManager<T> {
     /**
      * Retrieves the path to the config file.
      *
-     * @return The config path.
+     * @return The config path, or null for managers created with {@code forInstance}.
      */
     public Path getConfigPath() {
         return configPath;
@@ -268,6 +262,6 @@ public class LocalConfigManager<T> {
             int dot = fileName.lastIndexOf('.');
             return dot > 0 ? fileName.substring(0, dot) : fileName;
         }
-        return optionTree != null ? optionTree.getRootClass().getSimpleName() : "Config";
+        return optionTree.getRootClass().getSimpleName();
     }
 }

@@ -138,7 +138,7 @@ public final class ConfigNetworkPayload {
             Object rawValue = serializer.deserializeOption(elem.toString(), option.genericType());
             Object clampedValue = option.clampValue(rawValue);
             option.setValue(targetInstance, clampedValue);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOGGER.warn("Received malformed data for option '{}': {}", key, e.getMessage());
         }
     }

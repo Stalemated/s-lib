@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.session;
 
-import com.stalemated.lib.config.manager.LocalConfigManager;
+import com.stalemated.lib.config.LocalConfigManager;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

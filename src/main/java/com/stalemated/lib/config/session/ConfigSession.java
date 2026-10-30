@@ -1,7 +1,7 @@
 package com.stalemated.lib.config.session;
 
 import com.stalemated.lib.config.io.json5.DeepCopy;
-import com.stalemated.lib.config.manager.LocalConfigManager;
+import com.stalemated.lib.config.LocalConfigManager;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -34,7 +34,7 @@ public class ConfigSession<T> {
     }
 
     private void rebase() {
-        this.base = manager.cloneConfig(manager.getActiveConfig());
+        this.base = manager.cloneConfig(manager.get());
         this.draft = manager.cloneConfig(base);
     }
 
@@ -158,7 +158,7 @@ public class ConfigSession<T> {
     }
 
     private void advanceBaseToAppliedEdits(List<OptionChange> edits) {
-        T active = manager.getActiveConfig();
+        T active = manager.get();
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
             Object applied = option.getValue(active);

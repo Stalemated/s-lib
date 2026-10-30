@@ -1,129 +1,38 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.manager.builder.LocalConfigBuilder;
-import com.stalemated.lib.config.manager.LocalConfigManager;
-import com.stalemated.lib.config.manager.builder.SyncedConfigBuilder;
-import com.stalemated.lib.config.manager.SyncedConfigManager;
-
-import java.util.function.Supplier;
-
 /**
  * Primary entry point for registering configs in S-Lib.
  * <p>
- * Provides one-line config registration methods that handle serialization,
- * networking, and lifecycle hooks automatically.
+ * Call {@code register()} on the builder from your mod initializer, not from a static field initializer,
+ * so the config loads at a known point in the mod lifecycle.
  */
 public final class SLibConfig {
 
     private SLibConfig() {}
 
     /**
-     * Creates a new fluent builder for configuring a synchronized config with custom parameters
-     * (e.g., custom permissions, custom channel, custom path, or sync callbacks).
-     *
-     * @param configClass The runtime class of the config data model.
-     * @param <T> The config data model type.
-     * @return A new builder instance.
-     */
-    public static <T> SyncedConfigBuilder<T> syncedBuilder(Class<T> configClass) {
-        return new SyncedConfigBuilder<>(configClass);
-    }
-
-    /**
-     * Creates a new fluent builder for configuring a local-only config with custom parameters
-     * (e.g., custom path, custom logger, or GSON type adapter).
-     *
-     * @param configClass The runtime class of the config data model.
-     * @param <T> The config data model type.
-     * @return A new builder instance.
-     */
-    public static <T> LocalConfigBuilder<T> localBuilder(Class<T> configClass) {
-        return new LocalConfigBuilder<>(configClass);
-    }
-
-    /**
-     * Registers a synced config manager using the given default factory.
-     * <p>
-     * The manager will automatically load/create the JSON5 file from {@code config/{modId}.json5},
-     * bind to network sync channel {@code {modId}:sync_config}, and register itself with
-     * the centralized lifecycle system so child mods require no platform hook code.
-     *
-     * @param modId The unique identifier of your mod.
-     * @param configClass The runtime class of the config data model.
-     * @param defaultFactory A supplier creating a default config instance (e.g. {@code MyConfig::new}).
-     * @param <T> The config data model type.
-     * @return The fully initialized and registered {@link SyncedConfigManager}.
-     */
-    public static <T> SyncedConfigManager<T> registerSynced(
-            String modId,
-            Class<T> configClass,
-            Supplier<T> defaultFactory) {
-        return syncedBuilder(configClass)
-                .modId(modId)
-                .defaultFactory(defaultFactory)
-                .register();
-    }
-
-    /**
-     * Registers a synced config manager using the class's default constructor.
-     * <p>
-     * The manager will automatically load/create the JSON5 file from {@code config/{modId}.json5},
-     * bind to network sync channel {@code {modId}:sync_config}, and register itself with
-     * the centralized lifecycle system so child mods require no platform hook code.
+     * Creates a builder for a config that syncs between server and clients.
+     * By default, the file is {@code config/<modId>.json5} and the network channel {@code <modId>:sync_config}.
      *
      * @param modId The unique identifier of your mod.
      * @param configClass The runtime class of the config data model.
      * @param <T> The config data model type.
-     * @return The fully initialized and registered {@link SyncedConfigManager}.
+     * @return A new {@link SyncedConfigBuilder} instance.
      */
-    public static <T> SyncedConfigManager<T> registerSynced(
-            String modId,
-            Class<T> configClass) {
-        return syncedBuilder(configClass)
-                .modId(modId)
-                .register();
+    public static <T> SyncedConfigBuilder<T> synced(String modId, Class<T> configClass) {
+        return new SyncedConfigBuilder<>(modId, configClass);
     }
 
     /**
-     * Registers a local-only config manager using the given default factory.
-     * <p>
-     * The manager will automatically load/create the JSON5 file from {@code config/{modId}.json5}.
-     * Unlike synced configs, this manager operates entirely client-side (or server-side only) 
-     * and does not interact with the network registry.
-     *
-     * @param modId The unique identifier of your mod.
-     * @param configClass The runtime class of the config data model.
-     * @param defaultFactory A supplier creating a default config instance (e.g. {@code MyConfig::new}).
-     * @param <T> The config data model type.
-     * @return The fully initialized and registered {@link LocalConfigManager}.
-     */
-    public static <T> LocalConfigManager<T> registerLocal(
-            String modId,
-            Class<T> configClass,
-            Supplier<T> defaultFactory) {
-        return localBuilder(configClass)
-                .modId(modId)
-                .defaultFactory(defaultFactory)
-                .register();
-    }
-
-    /**
-     * Registers a local-only config manager using the class's default constructor.
-     * <p>
-     * The manager will automatically load/create the JSON5 file from {@code config/{modId}.json5}.
-     * Unlike synced configs, this manager operates entirely client-side (or server-side only) 
-     * and does not interact with the network registry.
+     * Creates a builder for a config that only lives locally.
+     * By default, the file is {@code config/<modId>.json5}.
      *
      * @param modId The unique identifier of your mod.
      * @param configClass The runtime class of the config data model.
      * @param <T> The config data model type.
-     * @return The fully initialized and registered {@link LocalConfigManager}.
+     * @return A new {@link LocalConfigBuilder} instance.
      */
-    public static <T> LocalConfigManager<T> registerLocal(
-            String modId,
-            Class<T> configClass) {
-        return localBuilder(configClass)
-                .modId(modId)
-                .register();
+    public static <T> LocalConfigBuilder<T> local(String modId, Class<T> configClass) {
+        return new LocalConfigBuilder<>(modId, configClass);
     }
 }

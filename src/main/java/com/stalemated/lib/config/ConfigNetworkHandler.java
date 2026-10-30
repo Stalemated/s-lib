@@ -1,8 +1,9 @@
-package com.stalemated.lib.config.network;
+package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.io.ConfigSerializer;
-import com.stalemated.lib.config.manager.SyncedConfigManager;
 import com.stalemated.lib.config.model.OptionChange;
+import com.stalemated.lib.config.network.ConfigNetworkPayload;
+import com.stalemated.lib.config.network.ConnectionState;
+import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.network.NetworkHelper;
 import net.minecraft.network.FriendlyByteBuf;
@@ -15,21 +16,21 @@ import java.util.List;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
-public class ConfigNetworkHandler<T> {
+final class ConfigNetworkHandler<T> {
 
     private final SyncedConfigManager<T> manager;
     private final ResourceLocation s2cPacket;
     private final ResourceLocation c2sPacket;
     private final ResourceLocation informC2sPacket;
 
-    public ConfigNetworkHandler(SyncedConfigManager<T> manager, ResourceLocation s2cPacket, ResourceLocation c2sPacket, ResourceLocation informC2sPacket) {
+    ConfigNetworkHandler(SyncedConfigManager<T> manager, ResourceLocation s2cPacket, ResourceLocation c2sPacket, ResourceLocation informC2sPacket) {
         this.manager = manager;
         this.s2cPacket = s2cPacket;
         this.c2sPacket = c2sPacket;
         this.informC2sPacket = informC2sPacket;
     }
 
-    public void registerReceivers() {
+    void registerReceivers() {
         registerClientReceivers();
         registerServerReceivers();
     }
@@ -48,15 +49,15 @@ public class ConfigNetworkHandler<T> {
      *
      * @param buf The buffer containing the payload data.
      */
-    public void handleServerConfigPayload(FriendlyByteBuf buf) {
+    void handleServerConfigPayload(FriendlyByteBuf buf) {
         if (manager.getConnectionState() == ConnectionState.SINGLEPLAYER) {
             return; // Ignore network loopback in singleplayer
         }
-        T target = manager.cloneConfig(manager.getConfig());
-        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, target, serializer());
+        T target = manager.cloneConfig(manager.local());
+        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, target, manager.serializer());
         manager.setServerConfig(target);
         manager.setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
-        manager.notifySyncListeners(target);
+        manager.fireChanged();
     }
 
     /**
@@ -66,14 +67,13 @@ public class ConfigNetworkHandler<T> {
      * @param player The sender player.
      * @param buf The buffer containing the payload data.
      */
-    public void handleClientOverridePayload(ServerPlayer player, FriendlyByteBuf buf) {
+    void handleClientOverridePayload(ServerPlayer player, FriendlyByteBuf buf) {
         if (manager.checkServerPermission(player)) {
             boolean isHost = PlatformHelper.isSingleplayerOwner(player);
 
             if (!isHost) {
-                ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.getConfig(), serializer());
+                ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
                 manager.save();
-                manager.notifySyncListeners(manager.getConfig());
             }
 
             MinecraftServer server = PlatformHelper.getServer(player);
@@ -96,10 +96,10 @@ public class ConfigNetworkHandler<T> {
      * @param player The sender player.
      * @param buf The buffer containing the payload data.
      */
-    public void handleClientInformPayload(ServerPlayer player, FriendlyByteBuf buf) {
+    void handleClientInformPayload(ServerPlayer player, FriendlyByteBuf buf) {
         // Read informed data into a temporary clone of the default config
         T tempConfig = manager.createDefaultOrClone();
-        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.INFORM_SERVER, tempConfig, serializer());
+        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.INFORM_SERVER, tempConfig, manager.serializer());
 
         // Notify listeners about this player's specific choices
         manager.notifyInformListeners(player, tempConfig);
@@ -111,11 +111,11 @@ public class ConfigNetworkHandler<T> {
      *
      * @param player The target player to sync the config to.
      */
-    public void sendConfigToPlayer(ServerPlayer player) {
+    void sendConfigToPlayer(ServerPlayer player) {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
         if (PlatformHelper.isSingleplayerOwner(player)) return;
 
-        String json = ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.getConfig(), SyncMode.OVERRIDE_CLIENT, serializer());
+        String json = ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
         if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, "player " + player.getName().getString())) {
             NetworkHelper.sendToClient(player, s2cPacket, ConfigNetworkPayload.encode(json));
         }
@@ -125,25 +125,25 @@ public class ConfigNetworkHandler<T> {
      * Sends the changed override options to the server.
      *
      * @param overrides The override options that changed and their new values.
-     * @return false if the payload is over the serverbound limit and nothing was sent.
+     * @return false if the payload is over the server-bound limit and nothing was sent.
      */
-    public boolean sendOverridesToServer(List<OptionChange> overrides) {
-        return sendToServer(c2sPacket, ConfigNetworkPayload.changes(overrides, serializer()));
+    boolean sendOverridesToServer(List<OptionChange> overrides) {
+        return sendToServer(c2sPacket, ConfigNetworkPayload.changes(overrides, manager.serializer()));
     }
 
     /**
      * Asks the integrated server to broadcast the host's config to LAN players.
      * The host shares its config instance with the integrated server, so the payload carries no options.
      */
-    public void requestOverrideBroadcast() {
-        sendToServer(c2sPacket, ConfigNetworkPayload.changes(List.of(), serializer()));
+    void requestOverrideBroadcast() {
+        sendToServer(c2sPacket, ConfigNetworkPayload.changes(List.of(), manager.serializer()));
     }
 
     /**
      * Sends a C2S packet to inform the server of local preferences.
      */
-    public void sendInformToServer() {
-        sendToServer(informC2sPacket, ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.getConfig(), SyncMode.INFORM_SERVER, serializer()));
+    void sendInformToServer() {
+        sendToServer(informC2sPacket, ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.INFORM_SERVER, manager.serializer()));
     }
 
     private boolean sendToServer(ResourceLocation packet, String json) {
@@ -158,9 +158,5 @@ public class ConfigNetworkHandler<T> {
 
         LOGGER.error("Sync of config '{}' to {} is {} bytes, limit is {}; nothing was sent", manager.getName(), destination, bytes, maxBytes);
         return false;
-    }
-
-    private ConfigSerializer<T> serializer() {
-        return manager.getProvider().getSerializer();
     }
 }

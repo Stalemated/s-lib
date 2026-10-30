@@ -1,13 +1,11 @@
-package com.stalemated.lib.config.manager;
+package com.stalemated.lib.config;
 
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.config.network.ConfigNetworkHandler;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
-import com.stalemated.lib.config.registry.ConfigRegistry;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -15,7 +13,6 @@ import org.slf4j.Logger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -31,30 +28,20 @@ import java.util.function.Supplier;
  */
 public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
+    private final ResourceLocation syncChannel;
     private final Predicate<ServerPlayer> serverPermissionCheck;
-    private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
-    private final List<BiConsumer<ServerPlayer, T>> informListeners = new CopyOnWriteArrayList<>();
+    private final Listeners<BiConsumer<ServerPlayer, T>> informListeners = new Listeners<>(this::getName);
 
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
 
     private final ConfigNetworkHandler<T> networkHandler;
 
-    /**
-     * Constructs a new SyncedConfigManager.
-     *
-     * @param provider The config provider detailing how to load/save instances.
-     * @param configPath The absolute file path where the config JSON will be stored locally.
-     * @param logger The SLF4J logger instance for your mod.
-     * @param basePacketId The base ResourceLocation used for network channels.
-     * @param serverPermissionCheck A predicate evaluating whether a player is authorized to edit the config.
-     * @param defaultFactory A supplier creating a fresh default instance of your config.
-     */
-    public SyncedConfigManager(
+    SyncedConfigManager(
             ConfigProvider<T> provider,
             Path configPath,
             Logger logger,
-            ResourceLocation basePacketId,
+            ResourceLocation syncChannel,
             Predicate<ServerPlayer> serverPermissionCheck,
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
@@ -62,96 +49,63 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         if (provider.getSerializer() == null) {
             throw new IllegalArgumentException("Synced config '" + getName() + "' needs a provider with a serializer to sync over the network");
         }
+        this.syncChannel = syncChannel;
         this.serverPermissionCheck = serverPermissionCheck;
 
         //? if <1.21 {
-        ResourceLocation s2cPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
-        ResourceLocation c2sPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
-        ResourceLocation informC2sPacket = new ResourceLocation(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        ResourceLocation s2cPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_s2c");
+        ResourceLocation c2sPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_c2s");
+        ResourceLocation informC2sPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_inform_c2s");
         //?} else {
-        /*ResourceLocation s2cPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_s2c");
-        ResourceLocation c2sPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_c2s");
-        ResourceLocation informC2sPacket = ResourceLocation.fromNamespaceAndPath(basePacketId.getNamespace(), basePacketId.getPath() + "_inform_c2s");
+        /*ResourceLocation s2cPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_s2c");
+        ResourceLocation c2sPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_c2s");
+        ResourceLocation informC2sPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_inform_c2s");
         *///?}
 
         this.networkHandler = new ConfigNetworkHandler<>(this, s2cPacket, c2sPacket, informC2sPacket);
-
-        this.onConfigLoaded(config -> {
-            ConfigRegistry.register(this);
-            this.networkHandler.registerReceivers();
-            notifySyncListeners(config);
-        });
     }
 
-    public ConfigNetworkHandler<T> getNetworkHandler() {
+    @Override
+    void onRegister() {
+        super.onRegister();
+        ConfigRegistry.claimChannel(this);
+        networkHandler.registerReceivers();
+    }
+
+    void addInformListener(BiConsumer<ServerPlayer, T> listener) {
+        informListeners.add(listener);
+    }
+
+    ConfigNetworkHandler<T> networkHandler() {
         return networkHandler;
+    }
+
+    ResourceLocation getSyncChannel() {
+        return syncChannel;
     }
 
     public ConnectionState getConnectionState() {
         return state;
     }
 
-    public T getServerConfig() {
+    T getServerConfig() {
         return serverConfig;
     }
 
-    public void setServerConfig(T serverConfig) {
+    void setServerConfig(T serverConfig) {
         this.serverConfig = serverConfig;
     }
 
-    public boolean checkServerPermission(ServerPlayer player) {
+    boolean checkServerPermission(ServerPlayer player) {
         return serverPermissionCheck.test(player);
     }
 
-    public T createDefaultOrClone() {
-        return defaultFactory != null ? defaultFactory.get() : cloneConfig(getConfig());
+    T createDefaultOrClone() {
+        return defaultFactory != null ? defaultFactory.get() : cloneConfig(local());
     }
 
-    public void notifyInformListeners(ServerPlayer player, T config) {
-        for (BiConsumer<ServerPlayer, T> listener : informListeners) {
-            try {
-                listener.accept(player, config);
-            } catch (Exception e) {
-                logger.error("Error notifying inform listener: {}", e.getMessage(), e);
-            }
-        }
-    }
-
-    /**
-     * Registers a listener callback triggered when a client informs the server of its local config.
-     *
-     * @param listener Consumer receiving the player and their informed config data.
-     */
-    public void onConfigInformed(BiConsumer<ServerPlayer, T> listener) {
-        if (listener != null) {
-            this.informListeners.add(listener);
-        }
-    }
-
-    /**
-     * Registers a listener callback triggered whenever the active config is synchronized or updated.
-     *
-     * @param listener Consumer receiving the newly active config.
-     */
-    public void onConfigSynced(Consumer<T> listener) {
-        if (listener != null) {
-            this.syncListeners.add(listener);
-        }
-    }
-
-    /**
-     * Notifies all registered listeners with the updated config instance.
-     *
-     * @param config The updated config instance.
-     */
-    public void notifySyncListeners(T config) {
-        for (Consumer<T> listener : syncListeners) {
-            try {
-                listener.accept(config);
-            } catch (Exception e) {
-                logger.error("Error notifying config sync listener: {}", e.getMessage(), e);
-            }
-        }
+    void notifyInformListeners(ServerPlayer player, T config) {
+        informListeners.fire(listener -> listener.accept(player, config));
     }
 
     /**
@@ -159,13 +113,13 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      *
      * @param newState The new state.
      */
-    public void setConnectionState(ConnectionState newState) {
+    void setConnectionState(ConnectionState newState) {
         this.state = newState;
 
         if (newState == ConnectionState.MULTIPLAYER_UNMODDED) {
-            T unmoddedConfig = cloneConfig(getConfig());
+            T unmoddedConfig = cloneConfig(local());
             T defaultValues = createDefaultOrClone();
-            
+
             for (OptionInfo option : optionTree.all()) {
                 if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                     option.setValue(unmoddedConfig, option.getValue(defaultValues));
@@ -175,53 +129,49 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         }
     }
 
-    /**
-     * Call this from the ClientPlayConnectionEvents.JOIN event if the client joins a Multiplayer server.
-     */
-    public void onClientJoinMultiplayer() {
+    void onClientJoinMultiplayer() {
         if (this.state != ConnectionState.MULTIPLAYER_MODDED) {
             setConnectionState(ConnectionState.MULTIPLAYER_UNMODDED);
         }
     }
 
-    /**
-     * Call this from the ClientPlayConnectionEvents.JOIN event if the client joins a Singleplayer server.
-     */
-    public void onClientJoinSingleplayer() {
+    void onClientJoinSingleplayer() {
         setConnectionState(ConnectionState.SINGLEPLAYER);
     }
 
     /**
-     * Retrieves the active config instance.
+     * Retrieves the config values in effect. Never null after {@link #register()}.
      * If playing on a multiplayer server with this mod installed, this returns the synced server config.
-     * If playing on a vanilla multiplayer server, it returns the default config (if factory was provided).
+     * If playing on a vanilla multiplayer server, synced options fall back to their defaults.
      * Otherwise, it returns the local config.
      *
      * @return The active config data model.
      */
-    public T getActiveConfig() {
+    @Override
+    public T get() {
+        T local = super.get();
         ConnectionState currentState = this.state;
         T currentServer = this.serverConfig;
 
         if ((currentState == ConnectionState.MULTIPLAYER_MODDED || currentState == ConnectionState.MULTIPLAYER_UNMODDED) && currentServer != null) {
             return currentServer;
         }
-        return getConfig();
+        return local;
     }
 
-    /**
-     * Clears the cached server config and resets the state.
-     * This must be called during client disconnect events to revert the client to its local config.
-     */
-    public void clearServerConfig() {
+    public T local() {
+        return super.get();
+    }
+
+    void clearServerConfig() {
         this.serverConfig = null;
         setConnectionState(ConnectionState.DISCONNECTED);
-        notifySyncListeners(getConfig());
+        fireChanged();
     }
 
     /**
      * Serializes the current server config and pushes it to a specific player.
-     * Typically called during player join events on the server side.
+     * S-Lib already does this when a player joins; call it to resend after changing the config outside {@link #modify(Consumer)}.
      *
      * @param player The target player to sync the config to.
      */
@@ -248,9 +198,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     @Override
     public void modify(Consumer<T> mutator) {
-        requireRegistered();
-        T active = getActiveConfig();
-        if (active == null) return;
+        T active = get();
 
         T workingCopy = cloneConfig(active);
         mutator.accept(workingCopy);
@@ -274,7 +222,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     }
 
     private void applyLocalChange(OptionInfo option, Object value, SyncBatch batch) {
-        option.setValue(getConfig(), value);
+        option.setValue(local(), value);
         if (this.serverConfig != null) {
             option.setValue(this.serverConfig, value);
         }
@@ -308,10 +256,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         }
 
         if (batch.localChanged) {
-            super.save();
-            notifySyncListeners(getActiveConfig());
+            save();
         } else if (batch.rejected) {
-            notifySyncListeners(getActiveConfig());
+            fireChanged();
         }
 
         if (batch.sendInform) {
