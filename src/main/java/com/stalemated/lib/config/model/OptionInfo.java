@@ -284,6 +284,7 @@ public class OptionInfo implements ConfigNode {
 
     /**
      * Clamps a numeric value according to any {@link RangeInt}, {@link RangeLong}, {@link RangeFloat} or {@link RangeDouble} annotations.
+     * Ranged floats and doubles are also rounded to their significant digits to drop slider step noise.
      *
      * @param value The candidate value.
      * @return The clamped value if applicable, or the original value.
@@ -302,19 +303,13 @@ public class OptionInfo implements ConfigNode {
         }
 
         if ((type == float.class || type == Float.class) && value instanceof Number num) {
-            float current = num.floatValue();
-            if (rangeFloat != null) {
-                current = MathUtils.clamp(current, rangeFloat.min(), rangeFloat.max());
-            }
-            return MathUtils.roundFloat(current);
+            if (rangeFloat == null) return num.floatValue();
+            return MathUtils.roundToSignificantDigits(MathUtils.clamp(num.floatValue(), rangeFloat.min(), rangeFloat.max()));
         }
 
         if ((type == double.class || type == Double.class) && value instanceof Number num) {
-            double current = num.doubleValue();
-            if (rangeDouble != null) {
-                current = MathUtils.clamp(current, rangeDouble.min(), rangeDouble.max());
-            }
-            return MathUtils.roundDouble(current);
+            if (rangeDouble == null) return num.doubleValue();
+            return MathUtils.roundToSignificantDigits(MathUtils.clamp(num.doubleValue(), rangeDouble.min(), rangeDouble.max()));
         }
 
         return value;

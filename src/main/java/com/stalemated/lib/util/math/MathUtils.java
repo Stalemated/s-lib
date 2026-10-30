@@ -1,9 +1,13 @@
 package com.stalemated.lib.util.math;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.math.MathContext;
 
 public class MathUtils {
+
+    private static final MathContext FLOAT_SIGNIFICANT_DIGITS = new MathContext(7);
+    private static final MathContext DOUBLE_SIGNIFICANT_DIGITS = new MathContext(15);
+
     public static int clamp(int value, int min, int max) {
         if (min > max) throw new IllegalArgumentException();
 
@@ -32,28 +36,14 @@ public class MathUtils {
         return Math.min(value, max);
     }
 
-    public static float roundFloat(float value, int decimalPlaces) {
-        if (Float.isNaN(value) || Float.isInfinite(value)) return value;
-
-        return new BigDecimal(Float.toString(value))
-                .setScale(decimalPlaces, RoundingMode.HALF_UP)
-                .floatValue();
+    public static float roundToSignificantDigits(float value) {
+        if (!Float.isFinite(value)) return value;
+        return new BigDecimal(Float.toString(value)).round(FLOAT_SIGNIFICANT_DIGITS).floatValue();
     }
 
-    public static float roundFloat(float value) {
-        return roundFloat(value, 6);
-    }
-
-    public static double roundDouble(double value, int decimalPlaces) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) return value;
-
-        return new BigDecimal(Double.toString(value))
-                .setScale(decimalPlaces, RoundingMode.HALF_UP)
-                .doubleValue();
-    }
-
-    public static double roundDouble(double value) {
-        return roundDouble(value, 14);
+    public static double roundToSignificantDigits(double value) {
+        if (!Double.isFinite(value)) return value;
+        return new BigDecimal(Double.toString(value)).round(DOUBLE_SIGNIFICANT_DIGITS).doubleValue();
     }
 
     public static double lerp(double start, double end, double t) {

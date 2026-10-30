@@ -23,26 +23,14 @@ public final class SLibGsonDefaults {
      * @param builder The GsonBuilder to configure.
      */
     public static void apply(GsonBuilder builder) {
-        registerPrimitives(builder);
         registerJavaDefaults(builder);
         registerMinecraftDefaults(builder);
     }
 
     // Registration
 
-    private static void registerPrimitives(GsonBuilder builder) {
-        builder.registerTypeAdapter(String.class, stringDeserializer());
-        builder.registerTypeAdapter(int.class, (JsonDeserializer<Integer>) (json, type, ctx) -> (int) json.getAsDouble());
-        builder.registerTypeAdapter(Integer.class, (JsonDeserializer<Integer>) (json, type, ctx) -> (int) json.getAsDouble());
-        builder.registerTypeAdapter(long.class, (JsonDeserializer<Long>) (json, type, ctx) -> (long) json.getAsDouble());
-        builder.registerTypeAdapter(Long.class, (JsonDeserializer<Long>) (json, type, ctx) -> (long) json.getAsDouble());
-        builder.registerTypeAdapter(float.class, (JsonDeserializer<Float>) (json, type, ctx) -> (float) json.getAsDouble());
-        builder.registerTypeAdapter(Float.class, (JsonDeserializer<Float>) (json, type, ctx) -> (float) json.getAsDouble());
-        builder.registerTypeAdapter(double.class, (JsonDeserializer<Double>) (json, type, ctx) -> json.getAsDouble());
-        builder.registerTypeAdapter(Double.class, (JsonDeserializer<Double>) (json, type, ctx) -> json.getAsDouble());
-    }
-
     private static void registerJavaDefaults(GsonBuilder builder) {
+        builder.registerTypeAdapter(String.class, stringDeserializer());
         builder.registerTypeAdapter(Color.class, colorAdapter());
         builder.registerTypeAdapter(UUID.class, uuidAdapter());
         builder.registerTypeAdapter(Pattern.class, patternAdapter());
