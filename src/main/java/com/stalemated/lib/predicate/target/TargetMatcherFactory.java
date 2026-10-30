@@ -2,33 +2,33 @@ package com.stalemated.lib.predicate.target;
 
 import com.stalemated.lib.predicate.target.strategies.*;
 
-public class TargetMatcherFactory {
+public final class TargetMatcherFactory {
+
+    private TargetMatcherFactory() {}
 
     public static TargetMatcher create(String target) {
         if (target == null || target.isEmpty()) return new NoneStrategy();
-
         if (target.equals("*")) return new AllItemsStrategy();
 
         if (target.startsWith("!")) {
-            return new NotStrategy(TargetMatcherFactory.create(target.substring(1)));
+            String negated = target.substring(1);
+            if (negated.isEmpty()) {
+                throw invalid(target, "'!' needs a target to negate");
+            }
+            return new NotStrategy(create(negated));
         }
 
-        if (target.startsWith("regex:")) {
-            try { return new RegexStrategy(target.substring(6)); }
-            catch (Exception e) { return new NoneStrategy(); }
+        try {
+            if (target.startsWith("regex:")) return new RegexStrategy(target.substring(6));
+            if (target.endsWith(":*")) return new NamespaceStrategy(target.substring(0, target.length() - 2));
+            if (target.startsWith("#")) return new TagStrategy(target.substring(1));
+            return new ItemStrategy(target);
+        } catch (RuntimeException e) {
+            throw invalid(target, e.getMessage());
         }
+    }
 
-        if (target.endsWith(":*")) {
-            try { return new NamespaceStrategy(target.substring(0, target.length() - 2)); }
-            catch (Exception e) { return new NoneStrategy(); }
-        }
-
-        if (target.startsWith("#")) {
-            try { return new TagStrategy(target.substring(1)); }
-            catch (Exception e) { return new NoneStrategy(); }
-        }
-
-        try { return new ItemStrategy(target); }
-        catch (Exception e) { return new NoneStrategy(); }
+    private static IllegalArgumentException invalid(String target, String reason) {
+        return new IllegalArgumentException("Invalid item target '" + target + "': " + reason);
     }
 }
