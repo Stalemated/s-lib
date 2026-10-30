@@ -36,7 +36,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     private final List<Consumer<T>> syncListeners = new CopyOnWriteArrayList<>();
     private final List<BiConsumer<ServerPlayer, T>> informListeners = new CopyOnWriteArrayList<>();
 
-    private volatile ConnectionState state = PlatformHelper.isDedicatedServer() ? ConnectionState.DEDICATED_SERVER : ConnectionState.DISCONNECTED;
+    private volatile ConnectionState state = ConnectionState.DISCONNECTED;
     private volatile T serverConfig = null;
 
     private final ConfigNetworkHandler<T> networkHandler;

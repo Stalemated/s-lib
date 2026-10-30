@@ -46,29 +46,19 @@ public class PlatformHelper {
     //public static final List<KeyMapping> KEYBINDINGS = new ArrayList<>();
 
     /**
-     * Resolves a directory path using the following fallback strategy:
-     * <ol>
-     *     <li>System property override (e.g., for testing environments).</li>
-     *     <li>Platform-specific loader query (e.g., FabricLoader or FMLPaths) wrapped in safe error handling.</li>
-     *     <li>Static default fallback path.</li>
-     * </ol>
+     * Resolves a directory path from a system property override (e.g., for testing environments),
+     * or from the platform loader (FabricLoader or FMLPaths) when no override is set.
      *
      * @param systemProperty The system property key to check for an override.
      * @param platformSupplier Supplier providing the path from the platform loader.
-     * @param defaultPath The fallback path if no override or loader path is available.
      * @return The resolved directory {@link Path}.
      */
-    private static Path resolveDirectory(String systemProperty, Supplier<Path> platformSupplier, String defaultPath) {
+    private static Path resolveDirectory(String systemProperty, Supplier<Path> platformSupplier) {
         String override = System.getProperty(systemProperty);
         if (override != null && !override.isEmpty()) {
             return Path.of(override);
         }
-        try {
-            Path dir = platformSupplier.get();
-            if (dir != null) return dir;
-        } catch (Throwable ignored) {}
-
-        return Path.of(defaultPath);
+        return platformSupplier.get();
     }
 
     /**
@@ -78,12 +68,11 @@ public class PlatformHelper {
     public static Path getConfigDir() {
         return resolveDirectory("slib.config_dir", () -> {
             //? if fabric {
-            FabricLoader loader = FabricLoader.getInstance();
-            return loader != null ? loader.getConfigDir() : null;
+            return FabricLoader.getInstance().getConfigDir();
             //?} elif forge || neoforge {
             /*return FMLPaths.CONFIGDIR.get();
             *///?}
-        }, "config");
+        });
     }
 
     /**
@@ -93,12 +82,11 @@ public class PlatformHelper {
     public static Path getGameDir() {
         return resolveDirectory("slib.game_dir", () -> {
             //? if fabric {
-            FabricLoader loader = FabricLoader.getInstance();
-            return loader != null ? loader.getGameDir() : null;
+            return FabricLoader.getInstance().getGameDir();
             //?} elif forge || neoforge {
             /*return FMLPaths.GAMEDIR.get();
             *///?}
-        }, ".");
+        });
     }
 
     /**
@@ -108,16 +96,14 @@ public class PlatformHelper {
      */
     public static boolean isModLoaded(String modId) {
         //? if fabric {
-        try {
-            FabricLoader loader = FabricLoader.getInstance();
-            return loader != null && loader.isModLoaded(modId);
+        return FabricLoader.getInstance().isModLoaded(modId);
         //?} elif forge || neoforge {
-        /*try {
-            return ModList.get().isLoaded(modId);
-        *///?}
-        } catch (Throwable ignored) {
-            return false;
+        /*ModList mods = ModList.get();
+        if (mods == null) {
+            throw new IllegalStateException("isModLoaded(\"" + modId + "\") was called before the mod list was built; use isModLoadedAtLaunch");
         }
+        return mods.isLoaded(modId);
+        *///?}
     }
 
     /**
@@ -127,16 +113,10 @@ public class PlatformHelper {
      */
     public static boolean isModLoadedAtLaunch(String modId) {
         //? if fabric {
-        try {
-            FabricLoader loader = FabricLoader.getInstance();
-            return loader != null && loader.isModLoaded(modId);
+        return FabricLoader.getInstance().isModLoaded(modId);
         //?} elif forge || neoforge {
-        /*try {
-            return LoadingModList.get().getModFileById(modId) != null;
+        /*return LoadingModList.get().getModFileById(modId) != null;
         *///?}
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     /**
@@ -159,19 +139,12 @@ public class PlatformHelper {
      */
     public static boolean isDedicatedServer() {
         //? if fabric {
-        try {
-            FabricLoader loader = FabricLoader.getInstance();
-            return loader != null && EnvType.SERVER == loader.getEnvironmentType();
+        return FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER;
         //?} elif neoforge && <1.21.11 || forge {
-        /*try {
-            return Dist.DEDICATED_SERVER == FMLEnvironment.dist;
+        /*return FMLEnvironment.dist == Dist.DEDICATED_SERVER;
         *///?} else {
-        /*try {
-            return Dist.DEDICATED_SERVER == FMLEnvironment.getDist();
+        /*return FMLEnvironment.getDist() == Dist.DEDICATED_SERVER;
         *///?}
-        } catch (Throwable ignored) {
-            return false;
-        }
     }
 
     /**

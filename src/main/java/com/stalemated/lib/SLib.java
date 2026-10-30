@@ -7,10 +7,10 @@ import org.slf4j.LoggerFactory;
 //? if fabric {
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-//? if >=1.20.5
-//import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.network.NetworkHelper;
 //?} elif forge {
 /*import com.stalemated.lib.client.SLibClient;
+import com.stalemated.lib.network.NetworkHelper;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -53,6 +53,7 @@ implements ModInitializer
     /*public SLib() {
         init();
 
+        NetworkHelper.registerChannel();
         MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedIn);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             SLibClient.init();
@@ -73,8 +74,7 @@ implements ModInitializer
     @Override
     public void onInitialize() {
         init();
-        //? if >=1.20.5
-        //NetworkHelper.registerPayloads();
+        NetworkHelper.registerPayloads();
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> ConfigRegistry.onPlayerJoinServer(handler.player)));
