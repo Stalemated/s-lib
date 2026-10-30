@@ -87,17 +87,16 @@ public final class ConfigNetworkPayload {
      * @param serializer The config serializer to parse custom types.
      */
     public static void applyFromJson(String json, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
-        if (json == null || json.trim().isEmpty() || targetInstance == null || serializer == null) {
+        JsonObject jsonObject;
+        try {
+            jsonObject = JsonParser.parseString(json).getAsJsonObject();
+        } catch (RuntimeException e) {
+            LOGGER.error("Ignoring config sync payload of {} chars that is not a JSON object: {}", json.length(), e.getMessage());
             return;
         }
 
-        try {
-            JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
-            for (String key : jsonObject.keySet()) {
-                applySingleOption(key, jsonObject.get(key), tree, acceptedMode, targetInstance, serializer);
-            }
-        } catch (Exception e) {
-            LOGGER.error("Failed to parse config sync payload: {}", e.getMessage(), e);
+        for (String key : jsonObject.keySet()) {
+            applySingleOption(key, jsonObject.get(key), tree, acceptedMode, targetInstance, serializer);
         }
     }
 

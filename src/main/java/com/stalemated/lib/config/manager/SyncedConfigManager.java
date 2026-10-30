@@ -8,7 +8,6 @@ import com.stalemated.lib.config.network.ConfigNetworkHandler;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.config.registry.ConfigRegistry;
-import com.stalemated.lib.helper.PlatformHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -60,6 +59,9 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             Supplier<T> defaultFactory,
             OptionTree optionTree) {
         super(provider, configPath, logger, optionTree, defaultFactory);
+        if (provider.getSerializer() == null) {
+            throw new IllegalArgumentException("Synced config '" + getName() + "' needs a provider with a serializer to sync over the network");
+        }
         this.serverPermissionCheck = serverPermissionCheck;
 
         //? if <1.21 {
@@ -246,6 +248,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     @Override
     public void modify(Consumer<T> mutator) {
+        requireRegistered();
         T active = getActiveConfig();
         if (active == null) return;
 

@@ -89,6 +89,9 @@ public class SyncedConfigBuilder<T> {
      * @return The configured manager.
      */
     public SyncedConfigManager<T> build() {
+        if (modId == null && syncChannel == null) {
+            throw new IllegalStateException("SyncedConfigBuilder for " + configClass.getSimpleName() + " needs modId or syncChannel to name its network channel");
+        }
         ResolvedConfig<T> resolved = ConfigBuilderHelper.resolveDefaults(
                 configClass,
                 modId,

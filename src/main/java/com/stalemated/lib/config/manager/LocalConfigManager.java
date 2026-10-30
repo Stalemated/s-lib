@@ -33,6 +33,8 @@ public class LocalConfigManager<T> {
 
     public boolean configLoadFailed = false;
 
+    private boolean registered = false;
+
     /**
      * Constructs a new LocalConfigManager using reflection to create default instances.
      * 
@@ -109,7 +111,9 @@ public class LocalConfigManager<T> {
                 }
             }
         };
-        return new LocalConfigManager<>(provider, null, null, tree, defaultFactory);
+        LocalConfigManager<T> manager = new LocalConfigManager<>(provider, null, null, tree, defaultFactory);
+        manager.registered = true;
+        return manager;
     }
 
     /**
@@ -132,6 +136,7 @@ public class LocalConfigManager<T> {
      * saving defaults if the file is new, and invoking lifecycle listeners.
      */
     public final void register() {
+        registered = true;
         configLoadFailed = !provider.load();
 
         for (Consumer<T> listener : loadListeners) {
@@ -166,6 +171,7 @@ public class LocalConfigManager<T> {
      * @param mutator The consumer performing strongly typed property updates on the working copy.
      */
     public void modify(Consumer<T> mutator) {
+        requireRegistered();
         T current = getConfig();
         if (current == null) return;
 
@@ -185,6 +191,7 @@ public class LocalConfigManager<T> {
      * Saves the current config instance to disk and invokes the save listeners.
      */
     public final void save() {
+        requireRegistered();
         T instance = provider.instance();
         if (instance != null && optionTree != null) {
             for (OptionInfo option : optionTree.all()) {
@@ -195,6 +202,12 @@ public class LocalConfigManager<T> {
         provider.save();
         for (Consumer<T> listener : saveListeners) {
             listener.accept(getConfig());
+        }
+    }
+
+    protected final void requireRegistered() {
+        if (!registered) {
+            throw new IllegalStateException("Config '" + getName() + "' was changed before register() loaded it; call register() first");
         }
     }
 
