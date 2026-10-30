@@ -1,6 +1,6 @@
 package com.stalemated.lib;
 
-import com.stalemated.lib.config.registry.ConfigRegistry;
+import com.stalemated.lib.config.ConfigRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
