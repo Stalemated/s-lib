@@ -85,7 +85,7 @@ public class YaclGroupBuilder<T> {
      * @return This group builder.
      */
     public YaclGroupBuilder<T> label(String titleKey) {
-        Component resolved = context.namingStrategy().resolveTitle(context.modId(), titleKey);
+        Component resolved = context.namingStrategy().resolveTitle(context.translationPrefix(), titleKey);
         return label(resolved);
     }
 
@@ -185,8 +185,8 @@ public class YaclGroupBuilder<T> {
 
         Class<?> elemClass = defaultElement != null ? defaultElement.getClass() : listInfo.getCollectionElementType();
         boolean available = context.availabilityRule().isAvailable(listInfo, context.session());
-        Component optName = context.namingStrategy().resolveName(context.modId(), optionKey);
-        OptionDescription optDesc = context.namingStrategy().resolveDescription(context.modId(), optionKey, available);
+        Component optName = context.namingStrategy().resolveName(context.translationPrefix(), optionKey);
+        OptionDescription optDesc = context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey, available);
 
         OptionInfo syntheticElementInfo = new OptionInfo(
                 listKey + "[" + index + "]",
@@ -301,7 +301,7 @@ public class YaclGroupBuilder<T> {
 
     private void appendOptionWithTitle(List<Option<?>> list, OptionInfo info) {
         if (info.hasTitle()) {
-            Component titleComp = context.namingStrategy().resolveTitle(context.modId(), info.getTitle());
+            Component titleComp = context.namingStrategy().resolveTitle(context.translationPrefix(), info.getTitle());
             if (list.isEmpty()) {
                 if (!hasGroupTitle()) {
                     this.name = titleComp;

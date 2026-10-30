@@ -44,7 +44,7 @@ public record YaclOptionMetadata(
      *
      * @param session The configuration session.
      * @param info The option metadata.
-     * @param modId The mod identifier.
+     * @param translationPrefix The prefix of every translation key on the screen.
      * @param namingStrategy The naming strategy.
      * @param availabilityRule The availability rule.
      * @return A new {@link YaclOptionMetadata} instance.
@@ -52,14 +52,14 @@ public record YaclOptionMetadata(
     public static YaclOptionMetadata resolve(
             ConfigSession<?> session,
             OptionInfo info,
-            String modId,
+            String translationPrefix,
             YaclNamingStrategy namingStrategy,
             OptionAvailabilityRule availabilityRule
     ) {
         boolean available = availabilityRule.isAvailable(info, session);
-        Component name = namingStrategy.resolveName(modId, info);
-        OptionDescription description = namingStrategy.resolveDescription(modId, info, available);
-        Function<Enum<?>, Component> enumFormatter = e -> namingStrategy.resolveEnumValue(modId, info, e);
+        Component name = namingStrategy.resolveName(translationPrefix, info);
+        OptionDescription description = namingStrategy.resolveDescription(translationPrefix, info, available);
+        Function<Enum<?>, Component> enumFormatter = e -> namingStrategy.resolveEnumValue(translationPrefix, info, e);
         return new YaclOptionMetadata(name, description, available, enumFormatter);
     }
 }

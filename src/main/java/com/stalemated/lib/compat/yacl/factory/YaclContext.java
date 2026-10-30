@@ -17,7 +17,7 @@ import java.util.Objects;
  * @param <T> The config model type.
  * @param session The active configuration session holding the draft buffer.
  * @param synchronizer The screen-scoped registry that keeps widgets of the same option in sync.
- * @param modId The mod identifier.
+ * @param translationPrefix The prefix of every translation key on the screen.
  * @param namingStrategy The strategy for resolving localized text and keys.
  * @param controllerRegistry The registry for controller builders and type lenses.
  * @param availabilityRule The strategy for evaluating option interactability.
@@ -25,7 +25,7 @@ import java.util.Objects;
 public record YaclContext<T>(
         ConfigSession<T> session,
         YaclBindingSynchronizer synchronizer,
-        String modId,
+        String translationPrefix,
         YaclNamingStrategy namingStrategy,
         YaclControllerRegistry controllerRegistry,
         OptionAvailabilityRule availabilityRule
@@ -33,7 +33,7 @@ public record YaclContext<T>(
     public YaclContext {
         Objects.requireNonNull(session, "session cannot be null");
         Objects.requireNonNull(synchronizer, "synchronizer cannot be null");
-        Objects.requireNonNull(modId, "modId cannot be null");
+        Objects.requireNonNull(translationPrefix, "translationPrefix cannot be null");
         Objects.requireNonNull(namingStrategy, "namingStrategy cannot be null");
         Objects.requireNonNull(controllerRegistry, "controllerRegistry cannot be null");
         Objects.requireNonNull(availabilityRule, "availabilityRule cannot be null");
@@ -41,12 +41,12 @@ public record YaclContext<T>(
 
     public YaclContext(
             ConfigSession<T> session,
-            String modId,
+            String translationPrefix,
             YaclNamingStrategy namingStrategy,
             YaclControllerRegistry controllerRegistry,
             OptionAvailabilityRule availabilityRule
     ) {
-        this(session, new YaclBindingSynchronizer(session), modId, namingStrategy, controllerRegistry, availabilityRule);
+        this(session, new YaclBindingSynchronizer(session), translationPrefix, namingStrategy, controllerRegistry, availabilityRule);
     }
 
     /**
@@ -56,6 +56,6 @@ public record YaclContext<T>(
      * @return The resolved {@link YaclOptionMetadata}.
      */
     public YaclOptionMetadata resolveMetadata(OptionInfo info) {
-        return YaclOptionMetadata.resolve(session, info, modId, namingStrategy, availabilityRule);
+        return YaclOptionMetadata.resolve(session, info, translationPrefix, namingStrategy, availabilityRule);
     }
 }

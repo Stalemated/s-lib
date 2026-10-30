@@ -92,7 +92,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         }
 
         List<ListOption<String>> options = new ArrayList<>(currentMap.size());
-        OptionDescription desc = context.namingStrategy().resolveDescription(context.modId(), mapInfo, available);
+        OptionDescription desc = context.namingStrategy().resolveDescription(context.translationPrefix(), mapInfo, available);
 
         for (String entryKey : currentMap.keySet()) {
             Component name = Component.literal(entryKey);

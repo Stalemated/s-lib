@@ -5,7 +5,7 @@ import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
-import com.stalemated.lib.config.manager.LocalConfigManager;
+import com.stalemated.lib.config.LocalConfigManager;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.config.session.ConfigSessionCoordinator;
 import dev.isxander.yacl3.api.ConfigCategory;
@@ -31,28 +31,19 @@ public class YaclScreenBuilder {
     private final ConfigSessionCoordinator coordinator = new ConfigSessionCoordinator();
     private final Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
     private final List<ConfigCategory> categories = new ArrayList<>();
-    private String modId;
+    private final String translationPrefix;
     private YaclNamingStrategy namingStrategy = YaclNamingStrategy.DEFAULT;
     private YaclControllerRegistry controllerRegistry = YaclControllerRegistry.createDefault();
     private OptionAvailabilityRule availabilityRule = OptionAvailabilityRule.DEFAULT;
 
-    private YaclScreenBuilder(Screen parent, Component title, String modId) {
+    private YaclScreenBuilder(Screen parent, Component title, String translationPrefix) {
         this.parent = parent;
         this.title = Objects.requireNonNull(title, "title cannot be null");
-        this.modId = modId;
+        this.translationPrefix = Objects.requireNonNull(translationPrefix, "translationPrefix cannot be null");
     }
 
-    public static YaclScreenBuilder create(Screen parent, Component title) {
-        return new YaclScreenBuilder(parent, title, "");
-    }
-
-    public static YaclScreenBuilder create(Screen parent, Component title, String modId) {
-        return new YaclScreenBuilder(parent, title, modId);
-    }
-
-    public YaclScreenBuilder modId(String modId) {
-        this.modId = Objects.requireNonNull(modId, "modId cannot be null");
-        return this;
+    public static YaclScreenBuilder create(Screen parent, Component title, String translationPrefix) {
+        return new YaclScreenBuilder(parent, title, translationPrefix);
     }
 
     public YaclScreenBuilder namingStrategy(YaclNamingStrategy namingStrategy) {
@@ -94,96 +85,16 @@ public class YaclScreenBuilder {
     private <T> YaclCategoryBuilder<T> createCategoryBuilder(LocalConfigManager<T> manager) {
         ConfigSession<T> session = coordinator.getOrCreate(manager);
         YaclBindingSynchronizer synchronizer = synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new);
-        return new YaclCategoryBuilder<>(new YaclContext<>(session, synchronizer, modId, namingStrategy, controllerRegistry, availabilityRule));
+        return new YaclCategoryBuilder<>(new YaclContext<>(session, synchronizer, translationPrefix, namingStrategy, controllerRegistry, availabilityRule));
     }
 
-    public <T> YaclScreenBuilder category(LocalConfigManager<T> manager, Consumer<YaclCategoryBuilder<T>> consumer) {
-        YaclCategoryBuilder<T> builder = createCategoryBuilder(manager);
-        consumer.accept(builder);
+    public <T> YaclScreenBuilder category(LocalConfigManager<T> manager, String tabKey, Consumer<YaclCategoryBuilder<T>> contents) {
+        YaclCategoryBuilder<T> builder = createCategoryBuilder(manager)
+                .name(namingStrategy.resolveCategoryName(translationPrefix, tabKey))
+                .description(namingStrategy.resolveCategoryDescription(translationPrefix, tabKey));
+        contents.accept(builder);
         categories.add(builder.build());
         return this;
-    }
-
-    public <T> YaclScreenBuilder categoryFromNest(String tabKey, String nestPrefix, LocalConfigManager<T> manager) {
-        return categoryFromNest(tabKey, nestPrefix, manager, null);
-    }
-
-    public <T> YaclScreenBuilder categoryFromNest(
-            String tabKey,
-            String nestPrefix,
-            LocalConfigManager<T> manager,
-            Consumer<YaclCategoryBuilder<T>> categoryConsumer
-    ) {
-        return category(manager, builder -> {
-            builder.name(namingStrategy.resolveCategoryName(modId, tabKey));
-            builder.nestedGroup(nestPrefix);
-            if (categoryConsumer != null) {
-                categoryConsumer.accept(builder);
-            }
-        });
-    }
-
-    public <T> YaclScreenBuilder categoryFromNestMap(String tabKey, String mapKey, LocalConfigManager<T> manager) {
-        return categoryFromNestMap(tabKey, mapKey, manager, null);
-    }
-
-    public <T> YaclScreenBuilder categoryFromNestMap(
-            String tabKey,
-            String mapKey,
-            LocalConfigManager<T> manager,
-            Consumer<YaclCategoryBuilder<T>> categoryConsumer
-    ) {
-        return category(manager, builder -> {
-            builder.name(namingStrategy.resolveCategoryName(modId, tabKey));
-            builder.mapNestGroups(mapKey);
-            if (categoryConsumer != null) {
-                categoryConsumer.accept(builder);
-            }
-        });
-    }
-
-    public <T> YaclScreenBuilder categoryFromNestList(String tabKey, String listKey, LocalConfigManager<T> manager) {
-        return categoryFromNestList(tabKey, listKey, manager, null);
-    }
-
-    public <T> YaclScreenBuilder categoryFromNestList(
-            String tabKey,
-            String listKey,
-            LocalConfigManager<T> manager,
-            Consumer<YaclCategoryBuilder<T>> categoryConsumer
-    ) {
-        return category(manager, builder -> {
-            builder.name(namingStrategy.resolveCategoryName(modId, tabKey));
-            builder.listNestGroups(listKey);
-            if (categoryConsumer != null) {
-                categoryConsumer.accept(builder);
-            }
-        });
-    }
-
-    public <T, N> YaclScreenBuilder categoryFromNestMapList(
-            String tabKey,
-            String mapKey,
-            LocalConfigManager<T> manager,
-            NestListBinding<N> binding
-    ) {
-        return categoryFromNestMapList(tabKey, mapKey, manager, binding, null);
-    }
-
-    public <T, N> YaclScreenBuilder categoryFromNestMapList(
-            String tabKey,
-            String mapKey,
-            LocalConfigManager<T> manager,
-            NestListBinding<N> binding,
-            Consumer<YaclCategoryBuilder<T>> categoryConsumer
-    ) {
-        return category(manager, builder -> {
-            builder.name(namingStrategy.resolveCategoryName(modId, tabKey));
-            builder.mapNestListGroups(mapKey, binding);
-            if (categoryConsumer != null) {
-                categoryConsumer.accept(builder);
-            }
-        });
     }
 
     public YaclScreenBuilder category(ConfigCategory customCategory) {

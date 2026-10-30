@@ -36,7 +36,7 @@ public class YaclCategoryBuilder<T> {
     private final YaclMapOptionFactory<T> mapOptionFactory;
 
     private Component name;
-    private Component tooltip;
+    private Component description;
     private final List<OptionGroup> groups = new ArrayList<>();
 
     public YaclCategoryBuilder(YaclContext<T> context) {
@@ -56,8 +56,8 @@ public class YaclCategoryBuilder<T> {
         return this;
     }
 
-    public YaclCategoryBuilder<T> tooltip(Component tooltip) {
-        this.tooltip = tooltip;
+    public YaclCategoryBuilder<T> description(Component description) {
+        this.description = description;
         return this;
     }
 
@@ -67,9 +67,9 @@ public class YaclCategoryBuilder<T> {
     }
 
     public YaclCategoryBuilder<T> group(String groupKey, Consumer<YaclGroupBuilder<T>> consumer) {
-        Component groupName = context.namingStrategy().resolveGroupName(context.modId(), groupKey);
+        Component groupName = context.namingStrategy().resolveGroupName(context.translationPrefix(), groupKey);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
-        builder.description(context.namingStrategy().resolveGroupDescription(context.modId(), groupKey));
+        builder.description(context.namingStrategy().resolveGroupDescription(context.translationPrefix(), groupKey));
         consumer.accept(builder);
         groups.add(builder.build());
         return this;
@@ -94,7 +94,7 @@ public class YaclCategoryBuilder<T> {
      * @return This category builder.
      */
     public YaclCategoryBuilder<T> label(String titleKey) {
-        return label(context.namingStrategy().resolveTitle(context.modId(), titleKey));
+        return label(context.namingStrategy().resolveTitle(context.translationPrefix(), titleKey));
     }
 
     public YaclCategoryBuilder<T> listOption(String key) {
@@ -126,21 +126,21 @@ public class YaclCategoryBuilder<T> {
         return this;
     }
 
-    public YaclCategoryBuilder<T> nestedGroup(String nestPrefix) {
-        return nestedGroup(nestPrefix, null);
+    public YaclCategoryBuilder<T> nested(String nestPrefix) {
+        return nested(nestPrefix, null);
     }
 
-    public YaclCategoryBuilder<T> nestedGroup(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
+    public YaclCategoryBuilder<T> nested(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
         CategoryNode catNode = resolveCategoryNode(nestPrefix);
         Component groupName = (catNode != null && catNode.hasTitle())
-                ? context.namingStrategy().resolveTitle(context.modId(), catNode.title())
-                : context.namingStrategy().resolveGroupName(context.modId(), nestPrefix);
+                ? context.namingStrategy().resolveTitle(context.translationPrefix(), catNode.title())
+                : context.namingStrategy().resolveGroupName(context.translationPrefix(), nestPrefix);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
         builder.collapsed(false);
         if (catNode != null && catNode.hasTitle()) {
-            builder.description(context.namingStrategy().resolveTitleDescription(context.modId(), catNode.title()));
+            builder.description(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), catNode.title()));
         } else {
-            builder.description(context.namingStrategy().resolveGroupDescription(context.modId(), nestPrefix));
+            builder.description(context.namingStrategy().resolveGroupDescription(context.translationPrefix(), nestPrefix));
         }
         builder.includePrefix(nestPrefix);
         if (customizer != null) {
@@ -168,7 +168,7 @@ public class YaclCategoryBuilder<T> {
      * @return This category builder.
      */
     @SuppressWarnings({"unchecked"})
-    public YaclCategoryBuilder<T> mapNestGroups(String mapKey) {
+    public YaclCategoryBuilder<T> nestedMap(String mapKey) {
         OptionInfo info = requireOptionInfo(mapKey);
         if (info.hasTitle()) {
             label(info.getTitle());
@@ -195,7 +195,7 @@ public class YaclCategoryBuilder<T> {
      * @param listKey The key of the list option.
      * @return This category builder.
      */
-    public YaclCategoryBuilder<T> listNestGroups(String listKey) {
+    public YaclCategoryBuilder<T> nestedList(String listKey) {
         OptionInfo info = requireOptionInfo(listKey);
         if (info.hasTitle()) {
             label(info.getTitle());
@@ -224,9 +224,8 @@ public class YaclCategoryBuilder<T> {
      * @param <N> The type of the nested POJO item.
      * @return This category builder.
      */
-    public <N> YaclCategoryBuilder<T> mapNestListGroups(String mapKey, NestListBinding<N> binding) {
-        OptionInfo mapInfo = context.session().getOptionTree().get(mapKey);
-        if (mapInfo == null) return this;
+    public <N> YaclCategoryBuilder<T> nestedMapLists(String mapKey, NestListBinding<N> binding) {
+        OptionInfo mapInfo = requireOptionInfo(mapKey);
 
         List<ListOption<String>> projectedLists = mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding);
         if (projectedLists.isEmpty()) return emptyEntriesLabel(mapInfo);
@@ -236,7 +235,7 @@ public class YaclCategoryBuilder<T> {
     }
 
     private YaclCategoryBuilder<T> emptyEntriesLabel(OptionInfo info) {
-        return label(context.namingStrategy().resolveEmptyEntries(context.modId(), info));
+        return label(context.namingStrategy().resolveEmptyEntries(context.translationPrefix(), info));
     }
 
     /**
@@ -271,7 +270,7 @@ public class YaclCategoryBuilder<T> {
                 } else if (childNode instanceof CategoryNode) {
                     flushPendingLeaves(pendingLeaves, currentSectionTitle);
                     currentSectionTitle = null;
-                    nestedGroup(childKey);
+                    nested(childKey);
                 }
             }
 
@@ -296,12 +295,12 @@ public class YaclCategoryBuilder<T> {
         if (pendingLeaves.isEmpty()) return;
         boolean hasSectionTitle = sectionTitleKey != null && !sectionTitleKey.isBlank();
         Component groupName = hasSectionTitle
-                ? context.namingStrategy().resolveTitle(context.modId(), sectionTitleKey)
+                ? context.namingStrategy().resolveTitle(context.translationPrefix(), sectionTitleKey)
                 : Component.empty();
 
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
         if (hasSectionTitle) {
-            builder.description(context.namingStrategy().resolveTitleDescription(context.modId(), sectionTitleKey));
+            builder.description(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), sectionTitleKey));
         }
 
         builder.include(pendingLeaves.toArray(String[]::new));
@@ -313,13 +312,13 @@ public class YaclCategoryBuilder<T> {
         String key = info.getKey();
         if (info.isCollection()) {
             if (info.getElementTemplate() instanceof CategoryNode) {
-                listNestGroups(key);
+                nestedList(key);
             } else {
                 listOption(key);
             }
         } else if (info.isMap()) {
             if (info.getElementTemplate() instanceof CategoryNode) {
-                mapNestGroups(key);
+                nestedMap(key);
             } else {
                 mapPairsOption(key);
             }
@@ -343,7 +342,7 @@ public class YaclCategoryBuilder<T> {
                 if (field.isAnnotationPresent(Title.class)) {
                     String titleVal = field.getAnnotation(Title.class).value();
                     if (titleVal != null && !titleVal.isBlank()) {
-                        groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.modId(), titleVal)));
+                        groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.translationPrefix(), titleVal)));
                     }
                 }
                 Option<?> opt = this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem, available);
@@ -399,7 +398,7 @@ public class YaclCategoryBuilder<T> {
                 .name(name)
                 .groups(groups);
 
-        if (tooltip != null) builder.tooltip(tooltip);
+        if (description != null) builder.tooltip(description);
         return builder.build();
     }
 }
