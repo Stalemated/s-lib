@@ -1,6 +1,6 @@
 package com.stalemated.lib.compat.yacl.registry;
 
-import com.stalemated.lib.config.manager.SyncedConfigManager;
+import com.stalemated.lib.config.SyncedConfigManager;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
