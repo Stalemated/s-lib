@@ -86,6 +86,26 @@ public class OptionInfo implements ConfigNode {
             this.title = null;
             this.itemDropdown = null;
         }
+        validateRanges();
+    }
+
+    private void validateRanges() {
+        if (rangeInt != null && rangeInt.min() > rangeInt.max()) {
+            throw invertedRange("@RangeInt", rangeInt.min(), rangeInt.max());
+        }
+        if (rangeLong != null && rangeLong.min() > rangeLong.max()) {
+            throw invertedRange("@RangeLong", rangeLong.min(), rangeLong.max());
+        }
+        if (rangeFloat != null && rangeFloat.min() > rangeFloat.max()) {
+            throw invertedRange("@RangeFloat", rangeFloat.min(), rangeFloat.max());
+        }
+        if (rangeDouble != null && rangeDouble.min() > rangeDouble.max()) {
+            throw invertedRange("@RangeDouble", rangeDouble.min(), rangeDouble.max());
+        }
+    }
+
+    private IllegalArgumentException invertedRange(String annotation, Object min, Object max) {
+        return new IllegalArgumentException(annotation + " on '" + key + "': min (" + min + ") > max (" + max + ")");
     }
 
     public String getKey() { return key; }

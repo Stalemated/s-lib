@@ -9,28 +9,28 @@ public class MathUtils {
     private static final MathContext DOUBLE_SIGNIFICANT_DIGITS = new MathContext(15);
 
     public static int clamp(int value, int min, int max) {
-        if (min > max) throw new IllegalArgumentException();
+        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
     }
 
     public static long clamp(long value, long min, long max) {
-        if (min > max) throw new IllegalArgumentException();
+        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
     }
 
     public static float clamp(float value, float min, float max) {
-        if (min > max) throw new IllegalArgumentException();
+        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
     }
 
     public static double clamp(double value, double min, double max) {
-        if (min > max) throw new IllegalArgumentException();
+        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
