@@ -1,46 +1,37 @@
 package com.stalemated.lib.util.color;
 
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.awt.Color;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 
-public class ColorUtils {
+public final class ColorUtils {
 
-    public static final int DEFAULT_COLOR = 0xFFFFFF;
-    public static final int DEFAULT_OPACITY = 240;
-    public static final List<Integer> DEFAULT_BORDER_COLORS = new ArrayList<>(List.of(0x505000FF, 0x5028007F));
-    public static final List<Integer> DEFAULT_BACKGROUND_COLORS = new ArrayList<>(List.of(0xF0100010, 0xF0100010));
-    public static final String DEFAULT_COLOR_STRING = "#" + Integer.toHexString(DEFAULT_COLOR).toUpperCase();
-    public static final List<String> DEFAULT_BORDER_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BORDER_COLORS.get(1)).toUpperCase()));
-    public static final List<String> DEFAULT_BACKGROUND_COLORS_STRING = new ArrayList<>(List.of("#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(0)).toUpperCase(), "#" + Integer.toHexString(DEFAULT_BACKGROUND_COLORS.get(1)).toUpperCase()));
+    private static final Pattern HEX_RGB = Pattern.compile("[0-9a-fA-F]{6}");
+    private static final Pattern HEX_ARGB = Pattern.compile("[0-9a-fA-F]{8}");
 
-    public static String toHexString(Color color) {
-        if (color == null) return DEFAULT_COLOR_STRING;
+    private ColorUtils() {}
 
+    public static String toArgbHex(Color color) {
         if (color.getAlpha() == 255) {
             return String.format("#%06X", color.getRGB() & 0xFFFFFF);
         }
         return String.format("#%08X", color.getRGB());
     }
 
-    public static String toRGBAHexString(Color color) {
-        if (color == null) return DEFAULT_COLOR_STRING;
-
+    public static String toRgbaHex(Color color) {
         if (color.getAlpha() == 255) {
             return String.format("#%06X", color.getRGB() & 0xFFFFFF);
         }
         return String.format("#%02X%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
     }
 
-    public static String toHexString(TextColor color) {
-        if (color == null) return DEFAULT_COLOR_STRING;
+    public static String toHex(TextColor color) {
         return color.serialize();
     }
 
-    public static TextColor resolveTextColor(String colorStr) {
+    public static TextColor parseTextColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) return null;
 
         String lowerColor = colorStr.toLowerCase(Locale.ROOT);
@@ -73,13 +64,8 @@ public class ColorUtils {
         }
         *///?}
 
-        // Hex code
-        String hex = colorStr;
-        if (hex.startsWith("#")) hex = hex.substring(1);
-        else if (hex.startsWith("0x") || hex.startsWith("0X")) hex = hex.substring(2);
-        else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
-
-        if (hex.matches("^[0-9a-fA-F]{6}$")) {
+        String hex = stripHexPrefix(colorStr);
+        if (HEX_RGB.matcher(hex).matches()) {
             //? if <1.20.2 {
             return TextColor.parseColor("#" + hex);
             //?} else {
@@ -90,58 +76,26 @@ public class ColorUtils {
         return null;
     }
 
-    public static boolean isInvalidColorCode(String color) {
-        return resolveTextColor(color) == null;
+    public static Integer parseArgb(String colorStr) {
+        return parseHex(colorStr, true);
     }
 
-    public static Color parseToAWT(String colorStr) {
-        Integer argb = resolveARGBColor(colorStr);
-        return argb != null ? new Color(argb, true) : Color.WHITE;
+    public static Integer parseRgba(String colorStr) {
+        return parseHex(colorStr, false);
     }
 
-    public static Color parseToAWT(String colorStr, Color fallback) {
-        Integer argb = resolveARGBColor(colorStr);
-        return argb != null ? new Color(argb, true) : fallback;
+    public static Color parseArgbColor(String colorStr) {
+        Integer argb = parseArgb(colorStr);
+        return argb != null ? new Color(argb, true) : null;
     }
 
-    public static int parseColor(String colorStr) {
-        TextColor color = resolveTextColor(colorStr);
-        return color != null ? color.getValue() : DEFAULT_COLOR;
-    }
-
-    public static boolean isInvalidARGBColor(String color, int index) {
-        return parseARGBColor(color, index) == null;
-    }
-
-    public static Integer parseARGBColor(String colorStr, int index) {
-        Integer color = resolveARGBColor(colorStr);
-        return color != null ? color : DEFAULT_BORDER_COLORS.get(index);
-    }
-
-    public static Integer resolveARGBColor(String colorStr) {
-        return resolveColor(colorStr, true);
-    }
-
-    public static Color parseRGBAToAWT(String colorStr) {
-        Integer argb = resolveRGBAColor(colorStr);
-        return argb != null ? new Color(argb, true) : Color.WHITE;
-    }
-
-    public static Integer resolveRGBAColor(String colorStr) {
-        return resolveColor(colorStr, false);
-    }
-
-    private static Integer resolveColor(String colorStr, boolean isARGB) {
+    private static Integer parseHex(String colorStr, boolean isARGB) {
         if (colorStr == null || colorStr.trim().isEmpty()) return null;
 
         String lowerColor = colorStr.trim().toLowerCase(Locale.ROOT);
+        String hex = stripHexPrefix(colorStr.trim());
 
-        String hex = colorStr.trim();
-        if (hex.startsWith("#")) hex = hex.substring(1);
-        else if (hex.startsWith("0x") || hex.startsWith("0X")) hex = hex.substring(2);
-        else if (hex.startsWith("x") || hex.startsWith("X")) hex = hex.substring(1);
-
-        if (hex.matches("^[0-9a-fA-F]{8}$")) {
+        if (HEX_ARGB.matcher(hex).matches()) {
             if (isARGB) return (int) Long.parseLong(hex, 16);
             long val = Long.parseLong(hex, 16);
             int r = (int) ((val >> 24) & 0xFF);
@@ -151,15 +105,22 @@ public class ColorUtils {
             return (a << 24) | (r << 16) | (g << 8) | b;
         }
 
-        if (hex.matches("^[0-9a-fA-F]{6}$")) {
+        if (HEX_RGB.matcher(hex).matches()) {
             return (0xFF << 24) | Integer.parseInt(hex, 16);
         }
 
-        TextColor textColor = resolveTextColor(lowerColor);
+        TextColor textColor = parseTextColor(lowerColor);
         if (textColor != null) {
             return (0xFF << 24) | textColor.getValue();
         }
 
         return null;
+    }
+
+    private static String stripHexPrefix(String text) {
+        if (text.startsWith("#")) return text.substring(1);
+        if (text.startsWith("0x") || text.startsWith("0X")) return text.substring(2);
+        if (text.startsWith("x") || text.startsWith("X")) return text.substring(1);
+        return text;
     }
 }

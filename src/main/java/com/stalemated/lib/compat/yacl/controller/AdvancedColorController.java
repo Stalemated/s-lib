@@ -36,8 +36,8 @@ public class AdvancedColorController extends ColorController {
         super(Option.<Color>createBuilder()
                 .name(stringOption.name())
                 .binding(
-                        ColorUtils.parseToAWT(stringOption.pendingValue()),
-                        () -> ColorUtils.parseToAWT(stringOption.pendingValue()),
+                        previewColor(stringOption.pendingValue()),
+                        () -> previewColor(stringOption.pendingValue()),
                         val -> {}
                 )
                 .controller(ColorControllerBuilder::create)
@@ -52,8 +52,8 @@ public class AdvancedColorController extends ColorController {
         this.delegate = new ColorController(Option.<Color>createBuilder()
                 .name(stringOption.name())
                 .binding(
-                        ColorUtils.parseToAWT(stringOption.pendingValue()),
-                        () -> ColorUtils.parseToAWT(stringOption.pendingValue()),
+                        previewColor(stringOption.pendingValue()),
+                        () -> previewColor(stringOption.pendingValue()),
                         val -> {}
                 )
                 .controller(ColorControllerBuilder::create)
@@ -63,7 +63,7 @@ public class AdvancedColorController extends ColorController {
 
         this.option().addEventListener((opt, event) -> {
             Color pickerColor = opt.pendingValue();
-            Color currentColor = ColorUtils.parseToAWT(this.stringOption.pendingValue());
+            Color currentColor = ColorUtils.parseArgbColor(this.stringOption.pendingValue());
             if (!pickerColor.equals(currentColor)) {
                 String hex;
                 if (this.alpha) {
@@ -79,8 +79,8 @@ public class AdvancedColorController extends ColorController {
             if (this.option().available() != opt.available()) {
                 this.option().setAvailable(opt.available());
             }
-            Color parsed = ColorUtils.parseToAWT(opt.pendingValue());
-            if (!parsed.equals(this.option().pendingValue())) {
+            Color parsed = ColorUtils.parseArgbColor(opt.pendingValue());
+            if (parsed != null && !parsed.equals(this.option().pendingValue())) {
                 this.option().requestSet(parsed);
             }
         });
@@ -95,8 +95,8 @@ public class AdvancedColorController extends ColorController {
     public void setFromString(String value) {
         this.stringOption.requestSet(value);
 
-        Color parsed = ColorUtils.parseToAWT(value);
-        if (!parsed.equals(this.option().pendingValue())) {
+        Color parsed = ColorUtils.parseArgbColor(value);
+        if (parsed != null && !parsed.equals(this.option().pendingValue())) {
             this.option().requestSet(parsed);
         }
     }
@@ -334,5 +334,10 @@ public class AdvancedColorController extends ColorController {
             return handled;
         }
         *///?}
+    }
+
+    private static Color previewColor(String text) {
+        Color parsed = ColorUtils.parseArgbColor(text);
+        return parsed != null ? parsed : Color.WHITE;
     }
 }

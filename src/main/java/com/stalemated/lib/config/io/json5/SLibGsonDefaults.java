@@ -77,7 +77,7 @@ public final class SLibGsonDefaults {
     private static final class ColorAdapter implements JsonSerializer<Color>, JsonDeserializer<Color> {
         @Override
         public JsonElement serialize(Color src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(ColorUtils.toHexString(src));
+            return new JsonPrimitive(ColorUtils.toArgbHex(src));
         }
 
         @Override
@@ -89,7 +89,7 @@ public final class SLibGsonDefaults {
             if (prim.isNumber()) {
                 return new Color(prim.getAsInt(), true);
             }
-            Color color = ColorUtils.parseToAWT(prim.getAsString(), null);
+            Color color = ColorUtils.parseArgbColor(prim.getAsString());
             if (color == null) {
                 throw new JsonParseException(json + " is not a color");
             }
@@ -100,12 +100,12 @@ public final class SLibGsonDefaults {
     private static final class TextColorAdapter implements JsonSerializer<TextColor>, JsonDeserializer<TextColor> {
         @Override
         public JsonElement serialize(TextColor src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(ColorUtils.toHexString(src));
+            return new JsonPrimitive(ColorUtils.toHex(src));
         }
 
         @Override
         public TextColor deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            TextColor color = json.isJsonPrimitive() ? ColorUtils.resolveTextColor(json.getAsString()) : null;
+            TextColor color = json.isJsonPrimitive() ? ColorUtils.parseTextColor(json.getAsString()) : null;
             if (color == null) {
                 throw new JsonParseException(json + " is not a text color");
             }

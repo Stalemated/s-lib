@@ -126,8 +126,8 @@ public class YaclControllerRegistry {
     private void registerDefaultAdaptedTypes() {
         registerAdapted(
                 Color.class,
-                c -> c != null ? ColorUtils.toHexString(c) : "#FFFFFF",
-                str -> parseOrWarn("color", str, input -> ColorUtils.parseToAWT(input, null)),
+                c -> c != null ? ColorUtils.toArgbHex(c) : "#FFFFFF",
+                str -> parseOrWarn("color", str, ColorUtils::parseArgbColor),
                 "#FFFFFF",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(true)
         );
@@ -135,7 +135,7 @@ public class YaclControllerRegistry {
         registerAdapted(
                 TextColor.class,
                 c -> c != null ? c.serialize() : "white",
-                str -> parseOrWarn("text color", str, ColorUtils::resolveTextColor),
+                str -> parseOrWarn("text color", str, ColorUtils::parseTextColor),
                 "white",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(false)
         );
@@ -197,7 +197,7 @@ public class YaclControllerRegistry {
         registerInitialSupplier(Double.class, () -> 0.0);
         registerInitialSupplier(String.class, () -> "");
         registerInitialSupplier(Color.class, () -> Color.WHITE);
-        registerInitialSupplier(TextColor.class, () -> ColorUtils.resolveTextColor("white"));
+        registerInitialSupplier(TextColor.class, () -> ColorUtils.parseTextColor("white"));
         registerInitialSupplier(ResourceLocation.class, () -> ResourceLocation.tryParse("minecraft:air"));
         registerInitialSupplier(UUID.class, () -> UUID.fromString("00000000-0000-0000-0000-000000000000"));
         registerInitialSupplier(Pattern.class, () -> Pattern.compile(".*"));
