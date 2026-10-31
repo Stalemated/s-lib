@@ -8,6 +8,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public final class ReflectionUtils {
 
@@ -202,6 +203,10 @@ public final class ReflectionUtils {
     public static boolean deepEquals(Object a, Object b) {
         if (Objects.deepEquals(a, b)) return true;
         if (a == null || b == null) return false;
+
+        if (a instanceof Pattern patternA && b instanceof Pattern patternB) {
+            return patternA.pattern().equals(patternB.pattern()) && patternA.flags() == patternB.flags();
+        }
 
         if (a.getClass().isArray() && b.getClass().isArray()) {
             if (a instanceof Object[] arrA && b instanceof Object[] arrB) {
