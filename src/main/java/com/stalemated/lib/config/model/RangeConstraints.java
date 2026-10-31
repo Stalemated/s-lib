@@ -37,14 +37,18 @@ final class RangeConstraints {
 
     private RangeConstraints() {}
 
-    static Constraint of(String key, Field field, Class<?> type) {
+    static Constraint of(String key, Field field, Class<?> type, ConfigNode elementTemplate) {
         List<Class<? extends Annotation>> present = rangesOn(field);
-        if (present.isEmpty() || isContainer(type)) return Constraint.NONE;
+        if (present.isEmpty()) return Constraint.NONE;
 
         if (present.size() > 1) {
             throw new IllegalArgumentException("'" + key + "' has more than one range annotation: " + names(present));
         }
         Class<? extends Annotation> range = present.get(0);
+        if (isContainer(type)) {
+            requireRangedContents(key, range, type, elementTemplate);
+            return Constraint.NONE;
+        }
         if (range != RANGE_BY_TYPE.get(type)) {
             throw new IllegalArgumentException("@" + range.getSimpleName() + " on '" + key + "' does not apply to a " + type.getSimpleName() + " option");
         }
@@ -58,6 +62,16 @@ final class RangeConstraints {
 
     private static boolean isContainer(Class<?> type) {
         return Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type);
+    }
+
+    private static void requireRangedContents(String key, Class<? extends Annotation> range, Class<?> type, ConfigNode elementTemplate) {
+        String annotation = "@" + range.getSimpleName() + " on '" + key + "'";
+        if (elementTemplate == null) {
+            throw new IllegalArgumentException(annotation + " needs @Nest to apply to the contents of a " + type.getSimpleName());
+        }
+        if (!(elementTemplate instanceof OptionInfo)) {
+            throw new IllegalArgumentException(annotation + " does not apply to a " + type.getSimpleName() + " of " + elementTemplate.type().getSimpleName());
+        }
     }
 
     private static String names(List<Class<? extends Annotation>> ranges) {

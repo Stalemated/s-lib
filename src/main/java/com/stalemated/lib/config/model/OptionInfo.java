@@ -61,7 +61,7 @@ public class OptionInfo implements ConfigNode {
             f.setAccessible(true);
         }
 
-        this.constraint = RangeConstraints.of(key, field, type);
+        this.constraint = RangeConstraints.of(key, field, type, template);
         this.comment = annotation(Comment.class).map(Comment::value).orElse(null);
         this.title = annotation(Title.class).map(Title::value).orElse(null);
     }
