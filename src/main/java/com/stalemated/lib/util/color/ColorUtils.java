@@ -58,9 +58,11 @@ public final class ColorUtils {
             return TextColor.fromLegacyFormat(format);
         }
         //?} else {
-        /*TextColor namedColor = TextColor.parseColor(lowerColor).result().orElse(null);
-        if (namedColor != null) {
-            return namedColor;
+        /*if (!lowerColor.startsWith("#")) {
+            TextColor namedColor = TextColor.parseColor(lowerColor).result().orElse(null);
+            if (namedColor != null) {
+                return namedColor;
+            }
         }
         *///?}
 
