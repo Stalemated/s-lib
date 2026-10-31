@@ -98,8 +98,8 @@ public final class YaclPojoFieldBuilder {
             Object sampleItem,
             boolean available
     ) {
-        Component name = context.namingStrategy().resolvePojoFieldName(context.modId(), containerInfo, field);
-        OptionDescription desc = context.namingStrategy().resolvePojoFieldDescription(context.modId(), containerInfo, field, available);
+        Component name = context.namingStrategy().resolvePojoFieldName(context.translationPrefix(), containerInfo, field);
+        OptionDescription desc = context.namingStrategy().resolvePojoFieldDescription(context.translationPrefix(), containerInfo, field, available);
         return buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, name, desc, available);
     }
 

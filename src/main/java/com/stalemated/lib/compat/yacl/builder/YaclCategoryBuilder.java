@@ -179,7 +179,7 @@ public class YaclCategoryBuilder<T> {
         if (currentMap == null && info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
             currentMap = (Map<String, ?>) defaultMap;
         }
-        if (currentMap == null || currentMap.isEmpty()) return emptyEntriesLabel(info);
+        if (currentMap == null || currentMap.isEmpty()) return emptyEntriesLabel();
 
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
@@ -206,7 +206,7 @@ public class YaclCategoryBuilder<T> {
         if (currentList == null && info.getDefaultValue() instanceof List<?> defaultList) {
             currentList = defaultList;
         }
-        if (currentList == null || currentList.isEmpty()) return emptyEntriesLabel(info);
+        if (currentList == null || currentList.isEmpty()) return emptyEntriesLabel();
 
         for (int i = 0; i < currentList.size(); i++) {
             Object sampleItem = currentList.get(i);
@@ -228,14 +228,14 @@ public class YaclCategoryBuilder<T> {
         OptionInfo mapInfo = requireOptionInfo(mapKey);
 
         List<ListOption<String>> projectedLists = mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding);
-        if (projectedLists.isEmpty()) return emptyEntriesLabel(mapInfo);
+        if (projectedLists.isEmpty()) return emptyEntriesLabel();
 
         this.groups.addAll(projectedLists);
         return this;
     }
 
-    private YaclCategoryBuilder<T> emptyEntriesLabel(OptionInfo info) {
-        return label(context.namingStrategy().resolveEmptyEntries(context.translationPrefix(), info));
+    private YaclCategoryBuilder<T> emptyEntriesLabel() {
+        return label(context.namingStrategy().resolveEmptyEntries());
     }
 
     /**
