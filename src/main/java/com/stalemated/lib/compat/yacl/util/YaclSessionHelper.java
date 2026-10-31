@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Consumer;
 
@@ -18,6 +17,14 @@ import java.util.function.Consumer;
 public final class YaclSessionHelper {
 
     private YaclSessionHelper() {}
+
+    public static Map<?, ?> defaultMapOf(OptionInfo mapInfo) {
+        return mapInfo.defaultCopy() instanceof Map<?, ?> defaults ? defaults : Map.of();
+    }
+
+    public static List<?> defaultListOf(OptionInfo listInfo) {
+        return listInfo.defaultCopy() instanceof List<?> defaults ? defaults : List.of();
+    }
 
     /**
      * Atomically mutates a nested item within a map stored in a {@link ConfigSession}, cloning it deeply
@@ -37,19 +44,14 @@ public final class YaclSessionHelper {
             Consumer<N> updater
     ) {
         Map<String, N> currentMap = session.get(mapInfo);
-        if (currentMap == null && mapInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
-            currentMap = (Map<String, N>) defMap;
-        }
-
-        Map<String, N> newMap = currentMap != null ? new LinkedHashMap<>(currentMap) : new LinkedHashMap<>();
+        Map<String, N> newMap = new LinkedHashMap<>(currentMap != null ? currentMap : (Map<String, N>) defaultMapOf(mapInfo));
         N item = newMap.get(entryKey);
 
         if (item != null) {
             N clonedItem = DeepCopy.of(item, item.getClass());
             updater.accept(clonedItem);
             newMap.put(entryKey, clonedItem);
-            if ((mapInfo.type() != null && SortedMap.class.isAssignableFrom(mapInfo.type()))
-                    || (mapInfo.getDefaultValue() instanceof SortedMap)) {
+            if (mapInfo.isSortedMap()) {
                 session.set(mapInfo, new TreeMap<>(newMap));
             } else {
                 session.set(mapInfo, newMap);
@@ -75,11 +77,7 @@ public final class YaclSessionHelper {
             Consumer<N> updater
     ) {
         List<N> currentList = session.get(listInfo);
-        if (currentList == null && listInfo.getDefaultValue() instanceof List<?> defList) {
-            currentList = (List<N>) defList;
-        }
-
-        List<N> newList = currentList != null ? new ArrayList<>(currentList) : new ArrayList<>();
+        List<N> newList = new ArrayList<>(currentList != null ? currentList : (List<N>) defaultListOf(listInfo));
         if (index >= 0 && index < newList.size()) {
             N item = newList.get(index);
             if (item != null) {

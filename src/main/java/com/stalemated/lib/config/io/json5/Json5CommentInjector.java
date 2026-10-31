@@ -25,8 +25,8 @@ public class Json5CommentInjector {
         if (json == null || schema == null) return;
 
         if (schema instanceof OptionInfo optionInfo) {
-            if (optionInfo.getTemplate() != null) {
-                injectInCollection(json, optionInfo.getTemplate(), jsonName);
+            if (optionInfo.getElementTemplate() != null) {
+                injectInCollection(json, optionInfo.getElementTemplate(), jsonName);
             }
             return;
         }

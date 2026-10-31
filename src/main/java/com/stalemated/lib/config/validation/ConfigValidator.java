@@ -30,8 +30,8 @@ public class ConfigValidator {
         if (obj == null || schema == null || !visited.add(obj)) return false;
 
         if (schema instanceof OptionInfo optionInfo) {
-            if (optionInfo.getTemplate() != null) {
-                return validateCollectionNode(obj, optionInfo.getTemplate(), visited);
+            if (optionInfo.getElementTemplate() != null) {
+                return validateCollectionNode(obj, optionInfo.getElementTemplate(), visited);
             }
             return false;
         }
@@ -69,7 +69,7 @@ public class ConfigValidator {
 
             Object fieldValue = ReflectionUtils.getFieldValue(field, obj);
 
-            if (childSchema instanceof OptionInfo optionInfo && optionInfo.getTemplate() == null) {
+            if (childSchema instanceof OptionInfo optionInfo && optionInfo.getElementTemplate() == null) {
                 Object clamped = optionInfo.clampValue(fieldValue);
                 if (clamped != null && !clamped.equals(fieldValue)) {
                     ReflectionUtils.setFieldValue(field, obj, clamped);

@@ -2,6 +2,7 @@ package com.stalemated.lib.compat.yacl.factory;
 
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
+import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -51,7 +52,7 @@ public final class YaclPojoFieldBuilder {
             Object sampleItem,
             boolean available
     ) {
-        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey), field, sampleItem, available);
+        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey, YaclSessionHelper.defaultMapOf(mapInfo)), field, sampleItem, available);
     }
 
     /**
@@ -74,7 +75,7 @@ public final class YaclPojoFieldBuilder {
             Object sampleItem,
             boolean available
     ) {
-        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index), field, sampleItem, available);
+        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index, YaclSessionHelper.defaultListOf(listInfo)), field, sampleItem, available);
     }
 
     /**
@@ -128,7 +129,7 @@ public final class YaclPojoFieldBuilder {
             boolean available
     ) {
         Class<?> fieldType = field.getType();
-        Object defaultFieldVal = resolveDefaultFieldValue(containerInfo, accessor, field, sampleItem);
+        Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
         OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
 
         // Direct controllers registered in YaclControllerRegistry (primitives, String, Color, Enum, custom)
@@ -151,9 +152,9 @@ public final class YaclPojoFieldBuilder {
         return null;
     }
 
-    private static Object resolveDefaultFieldValue(OptionInfo containerInfo, NestedAccessor accessor, Field field, Object sampleItem) {
+    private static Object resolveDefaultFieldValue(NestedAccessor accessor, Field field, Object sampleItem) {
         Object initialFieldVal = ReflectionUtils.getFieldValue(field, sampleItem);
-        Object defItem = accessor.getDefaultItem(containerInfo);
+        Object defItem = accessor.getDefaultItem();
         if (defItem != null) {
             Object defVal = ReflectionUtils.getFieldValue(field, defItem);
             if (defVal != null) return defVal;

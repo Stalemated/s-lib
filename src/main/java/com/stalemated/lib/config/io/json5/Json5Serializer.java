@@ -75,7 +75,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     public String serialize(T instance) {
         com.google.gson.JsonObject tree = new com.google.gson.JsonObject();
         for (OptionInfo option : optionTree.all()) {
-            layout.put(tree, option, gson.toJsonTree(option.getValue(instance), option.getGenericType()));
+            layout.put(tree, option, gson.toJsonTree(option.getValue(instance), option.genericType()));
         }
 
         JsonObject rootObject;

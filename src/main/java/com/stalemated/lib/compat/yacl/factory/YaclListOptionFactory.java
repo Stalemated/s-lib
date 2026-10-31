@@ -52,7 +52,7 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                 .description(meta.description())
                 .available(meta.available());
 
-        List<E> defaultVal = (List<E>) info.getDefaultValue();
+        List<E> defaultVal = (List<E>) info.defaultCopy();
         List<E> defaultCopy = defaultVal != null ? new ArrayList<>(defaultVal) : new ArrayList<>();
 
         Supplier<E> initialSupplier = () -> context.controllerRegistry().resolveInitialValue(elemClass);
@@ -95,7 +95,7 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                 .description(meta.description())
                 .available(meta.available());
 
-        List<M> modelDefault = (List<M>) info.getDefaultValue();
+        List<M> modelDefault = (List<M>) info.defaultCopy();
         List<G> guiDefault = new ArrayList<>();
         if (modelDefault != null) {
             for (M item : modelDefault) {

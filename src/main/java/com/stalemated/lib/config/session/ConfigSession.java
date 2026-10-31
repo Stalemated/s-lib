@@ -153,7 +153,7 @@ public class ConfigSession<T> {
     private static void applyEdits(List<OptionChange> edits, Object workingCopy) {
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
-            option.setValue(workingCopy, DeepCopy.of(edit.clampedValue(), option.getGenericType()));
+            option.setValue(workingCopy, DeepCopy.of(edit.clampedValue(), option.genericType()));
         }
     }
 
@@ -164,7 +164,7 @@ public class ConfigSession<T> {
             Object applied = option.getValue(active);
 
             if (ReflectionUtils.deepEquals(applied, edit.clampedValue())) {
-                option.setValue(base, DeepCopy.of(applied, option.getGenericType()));
+                option.setValue(base, DeepCopy.of(applied, option.genericType()));
             }
         }
     }

@@ -236,7 +236,7 @@ public class OptionTree {
         for (OptionInfo option : syncedOptions) {
             if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                 Object val = option.getValue(source);
-                option.setValue(target, DeepCopy.of(val, option.getGenericType()));
+                option.setValue(target, DeepCopy.of(val, option.genericType()));
             }
         }
     }
@@ -252,7 +252,7 @@ public class OptionTree {
 
         for (OptionInfo option : options.values()) {
             Object val = option.getValue(source);
-            option.setValue(target, DeepCopy.of(val, option.getGenericType()));
+            option.setValue(target, DeepCopy.of(val, option.genericType()));
         }
     }
 

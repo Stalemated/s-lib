@@ -33,14 +33,14 @@ final class OptionValueReader {
     }
 
     Object read(OptionInfo option, String path, JsonElement raw, LoadReport report) {
-        Type type = option.getGenericType();
+        Type type = option.genericType();
         if (type instanceof ParameterizedType parameterized) {
             Type[] typeArguments = parameterized.getActualTypeArguments();
             if (option.isCollection() && raw instanceof JsonArray elements) {
-                return readCollection(option.getTemplate(), type, typeArguments[0], path, elements, report);
+                return readCollection(option.getElementTemplate(), type, typeArguments[0], path, elements, report);
             }
             if (option.isMap() && raw instanceof JsonObject entries) {
-                return readMap(option.getTemplate(), type, typeArguments[0], typeArguments[1], path, entries, report);
+                return readMap(option.getElementTemplate(), type, typeArguments[0], typeArguments[1], path, entries, report);
             }
         }
         return parse(raw, type);

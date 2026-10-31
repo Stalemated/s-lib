@@ -32,12 +32,11 @@ public interface NestedAccessor {
     void updateItem(ConfigSession<?> session, OptionInfo containerInfo, Consumer<Object> updater);
 
     /**
-     * Resolves the default value of the nested item from the container's default structure.
+     * Returns the default value of the nested item, taken from the container's default structure.
      *
-     * @param containerInfo The metadata representing the parent container.
      * @return The default item instance, or null if absent.
      */
-    Object getDefaultItem(OptionInfo containerInfo);
+    Object getDefaultItem();
 
     /**
      * Returns a string identifier for this entry (e.g., map key or list index string).
@@ -50,33 +49,33 @@ public interface NestedAccessor {
      * Creates an accessor targeting an entry in a Map container by key.
      *
      * @param entryKey The map key.
+     * @param defaults A copy of the container's default map.
      * @return A map entry accessor.
      */
-    static NestedAccessor forMap(String entryKey) {
-        return new MapNestedAccessor(Objects.requireNonNull(entryKey, "entryKey cannot be null"));
+    static NestedAccessor forMap(String entryKey, Map<?, ?> defaults) {
+        Objects.requireNonNull(entryKey, "entryKey cannot be null");
+        return new MapNestedAccessor(entryKey, defaults.get(entryKey));
     }
 
     /**
      * Creates an accessor targeting an entry in a List container by zero-based index.
      *
      * @param index The element index.
+     * @param defaults A copy of the container's default list.
      * @return A list entry accessor.
      */
-    static NestedAccessor forList(int index) {
+    static NestedAccessor forList(int index, List<?> defaults) {
         if (index < 0) {
             throw new IndexOutOfBoundsException("index cannot be negative: " + index);
         }
-        return new ListNestedAccessor(index);
+        return new ListNestedAccessor(index, index < defaults.size() ? defaults.get(index) : null);
     }
 
-    record MapNestedAccessor(String entryKey) implements NestedAccessor {
+    record MapNestedAccessor(String entryKey, Object defaultItem) implements NestedAccessor {
         @Override
         public Object getItem(ConfigSession<?> session, OptionInfo containerInfo) {
             Map<?, ?> map = session.get(containerInfo);
-            if (map != null) {
-                return map.get(entryKey);
-            }
-            return getDefaultItem(containerInfo);
+            return map != null ? map.get(entryKey) : null;
         }
 
         @Override
@@ -85,11 +84,8 @@ public interface NestedAccessor {
         }
 
         @Override
-        public Object getDefaultItem(OptionInfo containerInfo) {
-            if (containerInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
-                return defMap.get(entryKey);
-            }
-            return null;
+        public Object getDefaultItem() {
+            return defaultItem;
         }
 
         @Override
@@ -98,14 +94,11 @@ public interface NestedAccessor {
         }
     }
 
-    record ListNestedAccessor(int index) implements NestedAccessor {
+    record ListNestedAccessor(int index, Object defaultItem) implements NestedAccessor {
         @Override
         public Object getItem(ConfigSession<?> session, OptionInfo containerInfo) {
             List<?> list = session.get(containerInfo);
-            if (list != null) {
-                return (index >= 0 && index < list.size()) ? list.get(index) : null;
-            }
-            return getDefaultItem(containerInfo);
+            return list != null && index >= 0 && index < list.size() ? list.get(index) : null;
         }
 
         @Override
@@ -114,11 +107,8 @@ public interface NestedAccessor {
         }
 
         @Override
-        public Object getDefaultItem(OptionInfo containerInfo) {
-            if (containerInfo.getDefaultValue() instanceof List<?> defList && index >= 0 && index < defList.size()) {
-                return defList.get(index);
-            }
-            return null;
+        public Object getDefaultItem() {
+            return defaultItem;
         }
 
         @Override

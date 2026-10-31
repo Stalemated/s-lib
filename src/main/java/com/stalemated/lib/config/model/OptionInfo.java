@@ -1,16 +1,12 @@
 package com.stalemated.lib.config.model;
 
 import com.stalemated.lib.config.annotation.Comment;
-import com.stalemated.lib.config.annotation.ItemDropdown;
-import com.stalemated.lib.config.annotation.RangeDouble;
-import com.stalemated.lib.config.annotation.RangeFloat;
-import com.stalemated.lib.config.annotation.RangeInt;
-import com.stalemated.lib.config.annotation.RangeLong;
 import com.stalemated.lib.config.annotation.Title;
+import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
-import com.stalemated.lib.util.math.MathUtils;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.Collection;
@@ -18,6 +14,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.SortedMap;
 
 /**
  * Immutable metadata descriptor for a single config option.
@@ -34,13 +32,9 @@ public class OptionInfo implements ConfigNode {
     private final Class<?> type;
     private final Type genericType;
     private final SyncMode syncMode;
-    private final RangeInt rangeInt;
-    private final RangeLong rangeLong;
-    private final RangeFloat rangeFloat;
-    private final RangeDouble rangeDouble;
+    private final Constraint constraint;
     private final String comment;
     private final String title;
-    private final ItemDropdown itemDropdown;
     private final Object defaultValue;
     private final boolean isTemplate;
     private final ConfigNode template;
@@ -67,45 +61,9 @@ public class OptionInfo implements ConfigNode {
             f.setAccessible(true);
         }
 
-        if (field != null) {
-            this.rangeInt = field.getAnnotation(RangeInt.class);
-            this.rangeLong = field.getAnnotation(RangeLong.class);
-            this.rangeFloat = field.getAnnotation(RangeFloat.class);
-            this.rangeDouble = field.getAnnotation(RangeDouble.class);
-            Comment commentAnn = field.getAnnotation(Comment.class);
-            this.comment = commentAnn != null ? commentAnn.value() : null;
-            Title titleAnn = field.getAnnotation(Title.class);
-            this.title = titleAnn != null ? titleAnn.value() : null;
-            this.itemDropdown = field.getAnnotation(ItemDropdown.class);
-        } else {
-            this.rangeInt = null;
-            this.rangeLong = null;
-            this.rangeFloat = null;
-            this.rangeDouble = null;
-            this.comment = null;
-            this.title = null;
-            this.itemDropdown = null;
-        }
-        validateRanges();
-    }
-
-    private void validateRanges() {
-        if (rangeInt != null && rangeInt.min() > rangeInt.max()) {
-            throw invertedRange("@RangeInt", rangeInt.min(), rangeInt.max());
-        }
-        if (rangeLong != null && rangeLong.min() > rangeLong.max()) {
-            throw invertedRange("@RangeLong", rangeLong.min(), rangeLong.max());
-        }
-        if (rangeFloat != null && rangeFloat.min() > rangeFloat.max()) {
-            throw invertedRange("@RangeFloat", rangeFloat.min(), rangeFloat.max());
-        }
-        if (rangeDouble != null && rangeDouble.min() > rangeDouble.max()) {
-            throw invertedRange("@RangeDouble", rangeDouble.min(), rangeDouble.max());
-        }
-    }
-
-    private IllegalArgumentException invertedRange(String annotation, Object min, Object max) {
-        return new IllegalArgumentException(annotation + " on '" + key + "': min (" + min + ") > max (" + max + ")");
+        this.constraint = RangeConstraints.of(key, field, type);
+        this.comment = annotation(Comment.class).map(Comment::value).orElse(null);
+        this.title = annotation(Title.class).map(Title::value).orElse(null);
     }
 
     public String getKey() { return key; }
@@ -120,48 +78,12 @@ public class OptionInfo implements ConfigNode {
     @Override
     public Class<?> type() { return type; }
 
-    public Class<?> getType() { return type; }
-
-    public Type getGenericType() { return genericType; }
-
     public SyncMode getSyncMode() { return syncMode; }
 
-    public RangeInt getRangeInt() { return rangeInt; }
+    public Constraint getConstraint() { return constraint; }
 
-    public RangeLong getRangeLong() { return rangeLong; }
-
-    public RangeFloat getRangeFloat() { return rangeFloat; }
-
-    public RangeDouble getRangeDouble() { return rangeDouble; }
-
-    public int getIntStep() {
-        if (rangeInt != null) {
-            return Math.max(1, rangeInt.step());
-        }
-        return 1;
-    }
-
-    public long getLongStep() {
-        if (rangeLong != null) {
-            return Math.max(1L, rangeLong.step());
-        }
-        return 1L;
-    }
-
-    public float getFloatStep() {
-        if (rangeFloat != null) {
-            float s = rangeFloat.step();
-            return s > 0 ? s : 0.1f;
-        }
-        return 0.1f;
-    }
-
-    public double getDoubleStep() {
-        if (rangeDouble != null) {
-            double s = rangeDouble.step();
-            return s > 0 ? s : 0.1;
-        }
-        return 0.1;
+    public <A extends Annotation> Optional<A> annotation(Class<A> annotationType) {
+        return field == null ? Optional.empty() : Optional.ofNullable(field.getAnnotation(annotationType));
     }
 
     public String getComment() { return comment; }
@@ -172,21 +94,9 @@ public class OptionInfo implements ConfigNode {
         return title != null && !title.isBlank();
     }
 
-    public ItemDropdown getItemDropdown() { return itemDropdown; }
-
-    public boolean hasItemDropdown() {
-        return itemDropdown != null;
+    public Object defaultCopy() {
+        return DeepCopy.of(defaultValue, genericType);
     }
-
-    public boolean allowItemTags() {
-        return itemDropdown != null && itemDropdown.allowTags();
-    }
-
-    public Object getDefaultValue() { return defaultValue; }
-    
-    public boolean isTemplate() { return isTemplate; }
-
-    public ConfigNode getTemplate() { return template; }
 
     public ConfigNode getElementTemplate() { return template; }
 
@@ -234,31 +144,27 @@ public class OptionInfo implements ConfigNode {
         return type != null && Map.class.isAssignableFrom(type);
     }
 
+    public boolean isSortedMap() {
+        return (type != null && SortedMap.class.isAssignableFrom(type)) || defaultValue instanceof SortedMap;
+    }
+
     public boolean isEnum() {
         return type != null && type.isEnum();
-    }
-
-    public boolean hasRange() {
-        return rangeInt != null || rangeLong != null || rangeFloat != null || rangeDouble != null;
-    }
-
-    public boolean isNumeric() {
-        return type != null && (Number.class.isAssignableFrom(type) || (type.isPrimitive() && type != boolean.class && type != char.class));
     }
 
     /**
      * Resolves and extracts the current value of this option from a root config instance.
      *
      * @param rootInstance The root config instance.
-     * @return The resolved value.
+     * @return The resolved value, or a copy of the default when the root or an enclosing object is null.
      */
     public Object getValue(Object rootInstance) {
         if (isTemplate) throw new UnsupportedOperationException("Cannot read value directly from an OptionInfo template.");
-        if (rootInstance == null) return defaultValue;
+        if (rootInstance == null) return defaultCopy();
 
         try {
             Object target = resolveTargetObject(rootInstance, false);
-            if (target == null) return defaultValue;
+            if (target == null) return defaultCopy();
 
             return field.get(target);
         } catch (Exception e) {
@@ -303,36 +209,14 @@ public class OptionInfo implements ConfigNode {
     }
 
     /**
-     * Clamps a numeric value according to any {@link RangeInt}, {@link RangeLong}, {@link RangeFloat} or {@link RangeDouble} annotations.
+     * Applies this option's {@link Constraint} to a candidate value.
      * Ranged floats and doubles are also rounded to their significant digits to drop slider step noise.
      *
      * @param value The candidate value.
      * @return The clamped value if applicable, or the original value.
      */
     public Object clampValue(Object value) {
-        if (value == null) return null;
-
-        if (rangeInt != null && (type == int.class || type == Integer.class) && value instanceof Number num) {
-            int current = num.intValue();
-            return MathUtils.clamp(current, rangeInt.min(), rangeInt.max());
-        }
-
-        if (rangeLong != null && (type == long.class || type == Long.class) && value instanceof Number num) {
-            long current = num.longValue();
-            return MathUtils.clamp(current, rangeLong.min(), rangeLong.max());
-        }
-
-        if ((type == float.class || type == Float.class) && value instanceof Number num) {
-            if (rangeFloat == null) return num.floatValue();
-            return MathUtils.roundToSignificantDigits(MathUtils.clamp(num.floatValue(), rangeFloat.min(), rangeFloat.max()));
-        }
-
-        if ((type == double.class || type == Double.class) && value instanceof Number num) {
-            if (rangeDouble == null) return num.doubleValue();
-            return MathUtils.roundToSignificantDigits(MathUtils.clamp(num.doubleValue(), rangeDouble.min(), rangeDouble.max()));
-        }
-
-        return value;
+        return constraint.apply(value);
     }
 
     private Object resolveTargetObject(Object rootInstance, boolean createIfNull) throws Exception {

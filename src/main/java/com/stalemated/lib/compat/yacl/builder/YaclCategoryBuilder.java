@@ -5,6 +5,7 @@ import com.stalemated.lib.compat.yacl.factory.YaclListOptionFactory;
 import com.stalemated.lib.compat.yacl.factory.YaclMapOptionFactory;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
+import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
@@ -175,16 +176,17 @@ public class YaclCategoryBuilder<T> {
         }
         boolean available = context.availabilityRule().isAvailable(info, context.session());
 
+        Map<?, ?> defaults = YaclSessionHelper.defaultMapOf(info);
         Map<String, ?> currentMap = context.session().get(info);
-        if (currentMap == null && info.getDefaultValue() instanceof Map<?, ?> defaultMap) {
-            currentMap = (Map<String, ?>) defaultMap;
+        if (currentMap == null) {
+            currentMap = (Map<String, ?>) defaults;
         }
-        if (currentMap == null || currentMap.isEmpty()) return emptyEntriesLabel();
+        if (currentMap.isEmpty()) return emptyEntriesLabel();
 
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
             Object sampleItem = entry.getValue();
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey), Component.literal(entryKey), sampleItem, available));
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey, defaults), Component.literal(entryKey), sampleItem, available));
         }
         return this;
     }
@@ -202,16 +204,17 @@ public class YaclCategoryBuilder<T> {
         }
         boolean available = context.availabilityRule().isAvailable(info, context.session());
 
+        List<?> defaults = YaclSessionHelper.defaultListOf(info);
         List<?> currentList = context.session().get(info);
-        if (currentList == null && info.getDefaultValue() instanceof List<?> defaultList) {
-            currentList = defaultList;
+        if (currentList == null) {
+            currentList = defaults;
         }
-        if (currentList == null || currentList.isEmpty()) return emptyEntriesLabel();
+        if (currentList.isEmpty()) return emptyEntriesLabel();
 
         for (int i = 0; i < currentList.size(); i++) {
             Object sampleItem = currentList.get(i);
             Component groupName = resolveListEntryGroupName(i, sampleItem);
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i), groupName, sampleItem, available));
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i, defaults), groupName, sampleItem, available));
         }
         return this;
     }

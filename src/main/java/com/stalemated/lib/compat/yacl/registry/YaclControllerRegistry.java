@@ -5,6 +5,8 @@ import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuil
 import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
+import com.stalemated.lib.config.annotation.ItemDropdown;
+import com.stalemated.lib.config.model.Constraint;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.color.ColorUtils;
@@ -76,51 +78,57 @@ public class YaclControllerRegistry {
         registerDirect(boolean.class, Boolean.class, (info, opt) -> TickBoxControllerBuilder.create(opt));
 
         registerDirect(int.class, Integer.class, (info, opt) -> {
-            if (info.getRangeInt() != null) {
-                int step = info.getIntStep();
+            if (constraintOf(info) instanceof Constraint.IntRange range) {
                 return IntegerSliderControllerBuilder.create(opt)
-                        .range(info.getRangeInt().min(), info.getRangeInt().max())
-                        .step(step);
+                        .range(range.min(), range.max())
+                        .step(range.step());
             }
             return IntegerFieldControllerBuilder.create(opt);
         });
 
         registerDirect(long.class, Long.class, (info, opt) -> {
-            if (info != null && info.getRangeLong() != null) {
-                long step = info.getLongStep();
+            if (constraintOf(info) instanceof Constraint.LongRange range) {
                 return LongSliderControllerBuilder.create(opt)
-                        .range(info.getRangeLong().min(), info.getRangeLong().max())
-                        .step(step);
+                        .range(range.min(), range.max())
+                        .step(range.step());
             }
             return LongFieldControllerBuilder.create(opt);
         });
 
         registerDirect(float.class, Float.class, (info, opt) -> {
-            if (info.getRangeFloat() != null) {
-                float step = info.getFloatStep();
+            if (constraintOf(info) instanceof Constraint.FloatRange range) {
                 return FloatSliderControllerBuilder.create(opt)
-                        .range(info.getRangeFloat().min(), info.getRangeFloat().max())
-                        .step(step);
+                        .range(range.min(), range.max())
+                        .step(range.step());
             }
             return FloatFieldControllerBuilder.create(opt);
         });
 
         registerDirect(double.class, Double.class, (info, opt) -> {
-            if (info.getRangeDouble() != null) {
-                double step = info.getDoubleStep();
+            if (constraintOf(info) instanceof Constraint.DoubleRange range) {
                 return DoubleSliderControllerBuilder.create(opt)
-                        .range(info.getRangeDouble().min(), info.getRangeDouble().max())
-                        .step(step);
+                        .range(range.min(), range.max())
+                        .step(range.step());
             }
             return DoubleFieldControllerBuilder.create(opt);
         });
 
         registerDirect(String.class, (info, opt) -> {
-            if (info != null && info.hasItemDropdown()) {
-                return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(info.allowItemTags()));
+            Optional<ItemDropdown> dropdown = itemDropdownOf(info);
+            if (dropdown.isPresent()) {
+                boolean includeTags = dropdown.get().allowTags();
+                return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(includeTags));
             }
             return StringControllerBuilder.create(opt);
         });
+    }
+
+    private static Constraint constraintOf(OptionInfo info) {
+        return info != null ? info.getConstraint() : Constraint.NONE;
+    }
+
+    private static Optional<ItemDropdown> itemDropdownOf(OptionInfo info) {
+        return info != null ? info.annotation(ItemDropdown.class) : Optional.empty();
     }
 
     private void registerDefaultAdaptedTypes() {
@@ -146,7 +154,7 @@ public class YaclControllerRegistry {
                 str -> parseOrWarn("id", str, ResourceLocation::tryParse),
                 "minecraft:air",
                 (info, opt) -> {
-                    if (info != null && info.hasItemDropdown()) {
+                    if (itemDropdownOf(info).isPresent()) {
                         return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(false));
                     }
                     return StringControllerBuilder.create(opt);
@@ -226,7 +234,7 @@ public class YaclControllerRegistry {
                        .description(meta.description())
                        .available(meta.available());
 
-                V defaultVal = (V) info.getDefaultValue();
+                V defaultVal = (V) info.defaultCopy();
                 ConfigSession<?> session = context.session();
                 return context.synchronizer().buildSyncedOption(
                         info,
@@ -277,7 +285,7 @@ public class YaclControllerRegistry {
                        .description(meta.description())
                        .available(meta.available());
 
-                M modelDefault = (M) info.getDefaultValue();
+                M modelDefault = (M) info.defaultCopy();
                 G guiDefault = modelDefault != null ? toGui.apply(modelDefault) : fallbackGuiDefault;
 
                 ConfigSession<?> session = context.session();
@@ -397,7 +405,7 @@ public class YaclControllerRegistry {
         return context.synchronizer().buildSyncedOption(
                 info,
                 builder,
-                (E) info.getDefaultValue(),
+                (E) info.defaultCopy(),
                 () -> session.get(info),
                 val -> session.set(info, val),
                 b -> {

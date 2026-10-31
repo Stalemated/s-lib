@@ -45,7 +45,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
                 .description(meta.description())
                 .available(meta.available());
 
-        Map<String, ?> defaultMap = (Map<String, ?>) info.getDefaultValue();
+        Map<String, ?> defaultMap = (Map<String, ?>) info.defaultCopy();
         List<String> defaultGui = KeyValuePair.toLines(defaultMap);
 
         return context.synchronizer().buildSyncedListOption(
@@ -53,7 +53,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
                 builder,
                 defaultGui,
                 () -> KeyValuePair.toLines(context.session().get(info)),
-                guiList -> persistGuiMap(info, defaultMap, guiList, valClass),
+                guiList -> persistGuiMap(info, guiList, valClass),
                 b -> {
                     b.controller(StringControllerBuilder::create);
                     b.initial(resolveInitialEntry(valClass));
@@ -83,11 +83,12 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         }
 
         boolean available = context.availabilityRule().isAvailable(mapInfo, context.session());
+        Map<String, N> defaultMap = (Map<String, N>) YaclSessionHelper.defaultMapOf(mapInfo);
         Map<String, N> currentMap = context.session().get(mapInfo);
-        if (currentMap == null && mapInfo.getDefaultValue() instanceof Map<?, ?> defMap) {
-            currentMap = (Map<String, N>) defMap;
+        if (currentMap == null) {
+            currentMap = defaultMap;
         }
-        if (currentMap == null || currentMap.isEmpty()) {
+        if (currentMap.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -96,7 +97,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
 
         for (String entryKey : currentMap.keySet()) {
             Component name = Component.literal(entryKey);
-            List<String> defaultList = resolveDefaultProjectedList(mapInfo, entryKey, binding.getter());
+            List<String> defaultList = resolveDefaultProjectedList(defaultMap.get(entryKey), binding.getter());
 
             ListOption.Builder<String> builder = ListOption.<String>createBuilder()
                     .name(name)
@@ -126,20 +127,10 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         return options;
     }
 
-    @SuppressWarnings("unchecked")
-    private <N> List<String> resolveDefaultProjectedList(
-            OptionInfo mapInfo,
-            String entryKey,
-            Function<N, List<String>> listGetter
-    ) {
-        if (mapInfo.getDefaultValue() instanceof Map<?, ?> defMap && defMap.containsKey(entryKey)) {
-            N defItem = (N) defMap.get(entryKey);
-            if (defItem != null) {
-                List<String> l = listGetter.apply(defItem);
-                if (l != null) return new ArrayList<>(l);
-            }
-        }
-        return new ArrayList<>();
+    private <N> List<String> resolveDefaultProjectedList(N defaultItem, Function<N, List<String>> listGetter) {
+        if (defaultItem == null) return new ArrayList<>();
+        List<String> list = listGetter.apply(defaultItem);
+        return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
     private <N> List<String> getProjectedList(
@@ -155,7 +146,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         return new ArrayList<>();
     }
 
-    private void persistGuiMap(OptionInfo info, Map<String, ?> defaultMap, List<String> guiList, Class<?> valClass) {
+    private void persistGuiMap(OptionInfo info, List<String> guiList, Class<?> valClass) {
         Map<String, String> stringMap = KeyValuePair.fromLines(guiList);
         Map<String, Object> convertedMap = new LinkedHashMap<>(stringMap.size());
 
@@ -166,8 +157,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             }
         }
 
-        if ((info.type() != null && SortedMap.class.isAssignableFrom(info.type()))
-                || (defaultMap instanceof SortedMap)) {
+        if (info.isSortedMap()) {
             context.session().set(info, new TreeMap<>(convertedMap));
         } else {
             context.session().set(info, convertedMap);
