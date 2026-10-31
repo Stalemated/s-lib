@@ -20,7 +20,7 @@ config = "s-lib.mixins.json"
 [[dependencies.s_lib]]
 modId = "neoforge"
 type = "required"
-versionRange = "[20,)"
+versionRange = "${neoforge}"
 ordering = "NONE"
 side = "BOTH"
 

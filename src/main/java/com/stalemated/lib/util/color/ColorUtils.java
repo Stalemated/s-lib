@@ -66,11 +66,7 @@ public final class ColorUtils {
 
         String hex = stripHexPrefix(colorStr);
         if (HEX_RGB.matcher(hex).matches()) {
-            //? if <1.20.2 {
-            return TextColor.parseColor("#" + hex);
-            //?} else {
-            /*return TextColor.parseColor("#" + hex).result().orElse(null);
-            *///?}
+            return TextColor.fromRgb(Integer.parseInt(hex, 16));
         }
 
         return null;

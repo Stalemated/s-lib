@@ -44,7 +44,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 //?}
 
-//? if >=1.21.11
+//? if >=1.21.7
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 *///?}
 public class NetworkHelper {
@@ -233,9 +233,9 @@ public class NetworkHelper {
         //channel().sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4 && <1.21.11
+        //? if neoforge && >1.20.4 && <1.21.7
         //PacketDistributor.sendToServer(new WrapperPayload(id, data));
-        //? if neoforge && >=1.21.11
+        //? if neoforge && >=1.21.7
         //ClientPacketDistributor.sendToServer(new WrapperPayload(id, data));
     }
 

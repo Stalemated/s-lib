@@ -3,7 +3,7 @@ package com.stalemated.lib.component;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTextTooltip;
 import net.minecraft.util.FormattedCharSequence;
-//? if <1.21.11 {
+//? if <1.21.6 {
 import net.minecraft.client.renderer.MultiBufferSource;
 import org.joml.Matrix4f;
 //?} elif <26.1 {
@@ -25,7 +25,7 @@ public class IndentedTextTooltipComponent extends ClientTextTooltip {
         return super.getWidth(textRenderer) + this.xOffset;
     }
 
-    //? if <1.21.11 {
+    //? if <1.21.6 {
     @Override
     public void renderText(Font textRenderer, int x, int y, Matrix4f matrix, MultiBufferSource.BufferSource vertexConsumers) {
         super.renderText(textRenderer, x + this.xOffset, y, matrix, vertexConsumers);

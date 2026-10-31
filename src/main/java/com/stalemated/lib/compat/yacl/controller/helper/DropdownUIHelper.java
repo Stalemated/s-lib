@@ -3,7 +3,7 @@ package com.stalemated.lib.compat.yacl.controller.helper;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownControllerElement;
 import net.minecraft.client.gui.screens.Screen;
 
-//? if >=1.21.1
+//? if >=1.21.9
 //import net.minecraft.client.Minecraft;
 //? if yacl: >=3.9.0 {
 /*import net.minecraft.client.input.KeyEvent;
@@ -16,7 +16,7 @@ public class DropdownUIHelper {
         if (element.isDropdownVisible() && element.dropdownWidget() != null) {
             switch (keyCode) {
                 case 258: // Tab
-                    //? if <1.21.11 {
+                    //? if <1.21.9 {
                     if (Screen.hasShiftDown()) {
                     //?} else {
                     /*if (Minecraft.getInstance().hasShiftDown()) {

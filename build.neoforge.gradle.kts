@@ -100,6 +100,7 @@ tasks {
             register("name", sc.properties["mod.name"])
             register("version", sc.properties["mod.version"])
             register("minecraft", sc.properties["mod.mc_compat"])
+            register("neoforge", sc.properties["mod.neoforge_compat"])
         }
 
         val usesLegacyModsToml = sc.current.parsed < "1.20.5"

@@ -11,7 +11,7 @@ import java.awt.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
-//? if yacl: <3.9.0 && <1.21.11{
+//? if yacl: <3.9.0 && <1.21.9 {
 import net.minecraft.client.gui.screens.Screen;
 //?} elif yacl: <3.9.0 {
 /*import net.minecraft.client.input.KeyEvent;
@@ -258,7 +258,7 @@ public class AdvancedColorController extends ColorController {
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
             return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
         }
-        //?} elif <1.21.11 {
+        //?} elif <1.21.9 {
         /*@Override
         public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
             return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));

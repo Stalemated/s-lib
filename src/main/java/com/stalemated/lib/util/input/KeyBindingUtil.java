@@ -26,7 +26,7 @@ public class KeyBindingUtil {
         /*InputConstants.Key boundKey = KeyMappingHelper.getBoundKeyOf(keyBinding);
         *///?}
 
-        //? if <1.21.11 {
+        //? if <1.21.9 {
         long window = Minecraft.getInstance().getWindow().getWindow();
         if (boundKey.getType() == InputConstants.Type.MOUSE) {
             return GLFW.glfwGetMouseButton(window, boundKey.getValue()) == GLFW.GLFW_PRESS;

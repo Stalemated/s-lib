@@ -140,7 +140,7 @@ public class PlatformHelper {
     public static boolean isDedicatedServer() {
         //? if fabric {
         return FabricLoader.getInstance().getEnvironmentType() == EnvType.SERVER;
-        //?} elif neoforge && <1.21.11 || forge {
+        //?} elif neoforge && <1.21.9 || forge {
         /*return FMLEnvironment.dist == Dist.DEDICATED_SERVER;
         *///?} else {
         /*return FMLEnvironment.getDist() == Dist.DEDICATED_SERVER;
@@ -152,11 +152,11 @@ public class PlatformHelper {
      * @param player The player.
      * @return The MinecraftServer, or null if player is null.
      */
-    //? if >=1.21.11
+    //? if >=1.21.6
     //@SuppressWarnings("resource")
      public static MinecraftServer getServer(ServerPlayer player) {
          if (player == null) return null;
-         //? if <1.21.11 {
+         //? if <1.21.6 {
          return player.server;
          //?} else {
          /*return player.level().getServer();
@@ -171,7 +171,7 @@ public class PlatformHelper {
     public static boolean isSingleplayerOwner(ServerPlayer player) {
         MinecraftServer server = getServer(player);
         if (server == null) return false;
-        //? if <1.21.11 {
+        //? if <1.21.9 {
         return server.isSingleplayerOwner(player.getGameProfile());
         //?} else {
         /*return server.isSingleplayerOwner(player.nameAndId());
