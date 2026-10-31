@@ -1,12 +1,15 @@
 package com.stalemated.lib.compat.yacl.factory;
 
+import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
+import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
+import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
+import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.StringUtils;
 import com.stalemated.lib.util.TypeCoercionUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
@@ -19,6 +22,8 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Internal factory collaborator responsible for reflectively building YACL options
@@ -27,7 +32,6 @@ import java.util.List;
  * Delegates controller construction and type adaptation to {@link YaclControllerRegistry}
  * and numeric constraint enforcement to {@link OptionInfo}.
  */
-@SuppressWarnings({"unchecked", "rawtypes"})
 public final class YaclPojoFieldBuilder {
 
     private YaclPojoFieldBuilder() {}
@@ -128,27 +132,26 @@ public final class YaclPojoFieldBuilder {
             OptionDescription desc,
             boolean available
     ) {
-        Class<?> fieldType = field.getType();
         Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
         OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
+        YaclOptionMetadata meta = context.metadata(name, desc, available, containerInfo.getKey() + "." + field.getName());
+        ValueAccessor<Object> value = ValueAccessor.entryProperty(
+                context.session(),
+                containerInfo,
+                accessor,
+                item -> ReflectionUtils.getFieldValue(field, item),
+                (item, model) -> ReflectionUtils.setFieldValue(field, item, fieldInfo.clampValue(model))
+        );
 
-        // Direct controllers registered in YaclControllerRegistry (primitives, String, Color, Enum, custom)
-        YaclControllerRegistry.ControllerFactory directFactory = context.controllerRegistry().findDirectController(fieldType);
-        if (directFactory != null) {
-            return createDirectFieldOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, directFactory);
+        OptionAssembler assembler = context.assembler();
+        Optional<TypeLens<Object, Object>> lens = assembler.lensFor(field.getType(), meta);
+        if (lens.isPresent()) {
+            return assembler.option(meta, fieldInfo, value, lens.get(), defaultFieldVal, null);
         }
-
-        // Adapted types registered in YaclControllerRegistry (TextColor, ResourceLocation, UUID, Pattern, custom)
-        YaclControllerRegistry.AdaptedType adapted = context.controllerRegistry().findAdaptedType(fieldType);
-        if (adapted != null) {
-            return createAdaptedFieldOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available, adapted);
+        if (List.class.isAssignableFrom(field.getType())) {
+            TypeLens<Object, String> commaSeparated = commaSeparatedLens(context, fieldInfo.getCollectionElementType());
+            return assembler.option(meta, fieldInfo, value, commaSeparated, defaultFieldVal, null);
         }
-
-        // Inline comma-separated list options for List<E> fields inside nested POJOs
-        if (List.class.isAssignableFrom(fieldType)) {
-            return createInlineCommaSeparatedListOption(context, containerInfo, fieldInfo, accessor, field, defaultFieldVal, name, desc, available);
-        }
-
         return null;
     }
 
@@ -182,188 +185,41 @@ public final class YaclPojoFieldBuilder {
         );
     }
 
-    private static <T, V> Option<V> createDirectFieldOption(
-            YaclContext<T> context,
-            OptionInfo containerInfo,
-            OptionInfo fieldInfo,
-            NestedAccessor accessor,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available,
-            YaclControllerRegistry.ControllerFactory<V> controllerFactory
-    ) {
-        V resolvedDefault = defaultVal != null
-                ? (V) defaultVal
-                : context.controllerRegistry().resolveInitialValue(field.getType());
+    private static TypeLens<Object, String> commaSeparatedLens(YaclContext<?> context, Class<?> elemType) {
+        Optional<TypeLens<Object, Object>> elementLens = context.controllerRegistry().findLens(elemType);
+        Function<Object, String> elementToText = element -> String.valueOf(elementLens.map(lens -> lens.toGui().apply(element)).orElse(element));
+        Function<String, Object> textToElement = elementLens
+                .filter(lens -> lens.fallback() instanceof String)
+                .<Function<String, Object>>map(lens -> token -> lens.fromGui().apply(token))
+                .orElse(token -> TypeCoercionUtils.coerce(token, elemType));
 
-        Option.Builder<V> builder = Option.<V>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available);
-
-        return context.synchronizer().buildSyncedOption(
-                containerInfo,
-                builder,
-                resolvedDefault,
-                () -> {
-                    Object item = accessor.getItem(context.session(), containerInfo);
-                    if (item != null) {
-                        Object val = ReflectionUtils.getFieldValue(field, item);
-                        if (val != null) return (V) val;
-                    }
-                    return resolvedDefault;
-                },
-                val -> {
-                    Object clamped = fieldInfo.clampValue(val);
-                    accessor.updateItem(context.session(), containerInfo, item ->
-                            ReflectionUtils.setFieldValue(field, item, clamped)
-                    );
-                },
-                b -> b.controller(opt -> controllerFactory.create(fieldInfo, opt))
+        return new TypeLens<>(
+                list -> list instanceof List<?> elements ? joinNonNull(elements, elementToText) : "",
+                text -> parseTokens(text, textToElement),
+                "",
+                (info, opt) -> StringControllerBuilder.create(opt)
         );
     }
 
-    private static <T, M, G> Option<G> createAdaptedFieldOption(
-            YaclContext<T> context,
-            OptionInfo containerInfo,
-            OptionInfo fieldInfo,
-            NestedAccessor accessor,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available,
-            YaclControllerRegistry.AdaptedType<M, G> adapted
-    ) {
-        M modelDefault = defaultVal != null ? (M) defaultVal : null;
-        G guiDefault = modelDefault != null ? adapted.toGui().apply(modelDefault) : adapted.fallbackGuiDefault();
-
-        Option.Builder<G> builder = Option.<G>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available);
-
-        ConfigSession<T> session = context.session();
-        return context.synchronizer().buildSyncedOption(
-                containerInfo,
-                builder,
-                guiDefault,
-                () -> {
-                    Object item = accessor.getItem(session, containerInfo);
-                    if (item != null) {
-                        Object val = ReflectionUtils.getFieldValue(field, item);
-                        if (val != null) {
-                            return adapted.toGui().apply((M) val);
-                        }
-                    }
-                    return guiDefault;
-                },
-                guiVal -> {
-                    M modelVal = adapted.fromGui().apply(guiVal);
-                    if (modelVal != null) {
-                        accessor.updateItem(session, containerInfo, item ->
-                                ReflectionUtils.setFieldValue(field, item, modelVal)
-                        );
-                    }
-                },
-                b -> b.controller(opt -> adapted.guiControllerFactory().create(fieldInfo, opt))
-        );
-    }
-
-    private static <T> Option<String> createInlineCommaSeparatedListOption(
-            YaclContext<T> context,
-            OptionInfo containerInfo,
-            OptionInfo fieldInfo,
-            NestedAccessor accessor,
-            Field field,
-            Object defaultVal,
-            Component name,
-            OptionDescription desc,
-            boolean available
-    ) {
-        Class<?> elemType = fieldInfo.getCollectionElementType();
-        YaclControllerRegistry.AdaptedType adapted = elemType != null
-                ? context.controllerRegistry().findAdaptedType(elemType)
-                : null;
-
-        List<?> defVal = defaultVal instanceof List<?> l ? l : Collections.emptyList();
-        String defStr = formatListToString(defVal, adapted);
-
-        Option.Builder<String> builder = Option.<String>createBuilder()
-                .name(name)
-                .description(desc)
-                .available(available);
-
-        return context.synchronizer().buildSyncedOption(
-                containerInfo,
-                builder,
-                defStr,
-                () -> {
-                    Object item = accessor.getItem(context.session(), containerInfo);
-                    if (item != null) {
-                        Object val = ReflectionUtils.getFieldValue(field, item);
-                        if (val instanceof List<?> l) {
-                            return formatListToString(l, adapted);
-                        }
-                    }
-                    return defStr;
-                },
-                val -> {
-                    List<?> parsedList = parseStringToList(val, elemType, adapted);
-                    accessor.updateItem(context.session(), containerInfo, item ->
-                            ReflectionUtils.setFieldValue(field, item, parsedList)
-                    );
-                },
-                b -> b.controller(StringControllerBuilder::create)
-        );
-    }
-
-    private static String formatListToString(List<?> list, YaclControllerRegistry.AdaptedType adapted) {
-        if (list == null || list.isEmpty()) return "";
-        if (adapted != null) {
-            List<String> guiList = new ArrayList<>(list.size());
-            for (Object obj : list) {
-                if (obj != null) {
-                    guiList.add(String.valueOf(adapted.toGui().apply(obj)));
-                }
-            }
-            return StringUtils.joinCommaSeparated(guiList);
-        }
-        return StringUtils.joinCommaSeparated(list);
-    }
-
-    private static List<?> parseStringToList(String val, Class<?> elemType, YaclControllerRegistry.AdaptedType adapted) {
-        List<String> rawTokens = StringUtils.parseCommaSeparated(val);
-        if (adapted != null) {
-            List<Object> adaptedList = new ArrayList<>(rawTokens.size());
-            Object fallback = adapted.fallbackGuiDefault();
-            boolean isStringGui = fallback == null || fallback instanceof String;
-
-            for (String token : rawTokens) {
-                Object guiVal = isStringGui ? token : TypeCoercionUtils.coerce(token, fallback.getClass());
-                if (guiVal != null) {
-                    Object modelObj = adapted.fromGui().apply(guiVal);
-                    if (modelObj != null) {
-                        adaptedList.add(modelObj);
-                    }
-                }
-            }
-            return adaptedList;
-        }
-
-        if (elemType == null || elemType == String.class) {
-            return rawTokens;
-        }
-
-        List<Object> converted = new ArrayList<>(rawTokens.size());
-        for (String token : rawTokens) {
-            Object obj = TypeCoercionUtils.coerce(token, elemType);
-            if (obj != null) {
-                converted.add(obj);
+    private static String joinNonNull(List<?> elements, Function<Object, String> elementToText) {
+        List<String> tokens = new ArrayList<>(elements.size());
+        for (Object element : elements) {
+            if (element != null) {
+                tokens.add(elementToText.apply(element));
             }
         }
-        return converted;
+        return StringUtils.joinCommaSeparated(tokens);
+    }
+
+    private static List<Object> parseTokens(String text, Function<String, Object> textToElement) {
+        List<String> tokens = StringUtils.parseCommaSeparated(text);
+        List<Object> elements = new ArrayList<>(tokens.size());
+        for (String token : tokens) {
+            Object element = textToElement.apply(token);
+            if (element != null) {
+                elements.add(element);
+            }
+        }
+        return elements;
     }
 }

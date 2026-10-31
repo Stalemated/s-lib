@@ -2,23 +2,18 @@ package com.stalemated.lib.compat.yacl.registry;
 
 import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
-import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
-import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.model.Constraint;
 import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.util.color.ColorUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
-import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.*;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 
 import java.awt.Color;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -26,37 +21,14 @@ import java.util.regex.Pattern;
 import static com.stalemated.lib.SLib.LOGGER;
 
 /**
- * Registry of controller builders and type adapters for YACL.
+ * Registry of controller builders and type lenses for YACL.
  * Decouples model types from GUI controller implementations, supporting both
  * direct model controllers and intermediate adapted types (Lens pattern).
  */
 public class YaclControllerRegistry {
 
-    @FunctionalInterface
-    public interface ControllerFactory<V> {
-        ControllerBuilder<V> create(OptionInfo info, Option<V> yaclOption);
-    }
-
-    public record AdaptedType<M, G>(
-            Class<M> modelType,
-            Function<M, G> toGui,
-            Function<G, M> fromGui,
-            G fallbackGuiDefault,
-            ControllerFactory<G> guiControllerFactory
-    ) {}
-
-    public interface OptionBinder {
-        <T> Option<?> bindOption(
-                YaclContext<T> context,
-                OptionInfo info,
-                YaclOptionMetadata meta,
-                Consumer<Option.Builder<?>> customizer
-        );
-    }
-
-    private final Map<Class<?>, OptionBinder> binders = new LinkedHashMap<>();
     private final Map<Class<?>, ControllerFactory<?>> directControllers = new LinkedHashMap<>();
-    private final Map<Class<?>, AdaptedType<?, ?>> adaptedTypes = new LinkedHashMap<>();
+    private final Map<Class<?>, TypeLens<?, ?>> adaptedLenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
     private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
 
@@ -216,45 +188,10 @@ public class YaclControllerRegistry {
     }
 
     public <V> void registerDirect(Class<?> primitiveType, Class<V> boxedType, ControllerFactory<V> factory) {
-        directControllers.put(primitiveType, factory);
-        if (boxedType != null && boxedType != primitiveType) {
-            directControllers.put(boxedType, factory);
-        }
-        OptionBinder binder = new OptionBinder() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> Option<?> bindOption(
-                    YaclContext<T> context,
-                    OptionInfo info,
-                    YaclOptionMetadata meta,
-                    Consumer<Option.Builder<?>> customizer
-            ) {
-                Option.Builder<V> builder = Option.createBuilder();
-                builder.name(meta.name())
-                       .description(meta.description())
-                       .available(meta.available());
-
-                V defaultVal = (V) info.defaultCopy();
-                ConfigSession<?> session = context.session();
-                return context.synchronizer().buildSyncedOption(
-                        info,
-                        builder,
-                        defaultVal,
-                        () -> session.get(info),
-                        val -> session.set(info, val),
-                        b -> {
-                            b.controller(opt -> factory.create(info, opt));
-                            if (customizer != null) {
-                                customizer.accept(b);
-                            }
-                        }
-                );
-            }
-        };
-
-        binders.put(primitiveType, binder);
-        if (boxedType != null && boxedType != primitiveType) {
-            binders.put(boxedType, binder);
+        Objects.requireNonNull(factory, "factory cannot be null");
+        for (Class<?> type : List.of(primitiveType, boxedType)) {
+            directControllers.put(type, factory);
+            adaptedLenses.remove(type);
         }
     }
 
@@ -265,53 +202,9 @@ public class YaclControllerRegistry {
             G fallbackGuiDefault,
             ControllerFactory<G> guiControllerFactory
     ) {
-        AdaptedType<M, G> adapted = new AdaptedType<>(modelType, toGui, fromGui, fallbackGuiDefault, guiControllerFactory);
-        adaptedTypes.put(modelType, adapted);
-        if (!initialSuppliers.containsKey(modelType)) {
-            initialSuppliers.put(modelType, () -> fromGui.apply(fallbackGuiDefault));
-        }
-
-        binders.put(modelType, new OptionBinder() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public <T> Option<?> bindOption(
-                    YaclContext<T> context,
-                    OptionInfo info,
-                    YaclOptionMetadata meta,
-                    Consumer<Option.Builder<?>> customizer
-            ) {
-                Option.Builder<G> builder = Option.createBuilder();
-                builder.name(meta.name())
-                       .description(meta.description())
-                       .available(meta.available());
-
-                M modelDefault = (M) info.defaultCopy();
-                G guiDefault = modelDefault != null ? toGui.apply(modelDefault) : fallbackGuiDefault;
-
-                ConfigSession<?> session = context.session();
-                return context.synchronizer().buildSyncedOption(
-                        info,
-                        builder,
-                        guiDefault,
-                        () -> {
-                            M modelVal = session.get(info);
-                            return modelVal != null ? toGui.apply(modelVal) : fallbackGuiDefault;
-                        },
-                        guiVal -> {
-                            M modelVal = fromGui.apply(guiVal);
-                            if (modelVal != null) {
-                                session.set(info, modelVal);
-                            }
-                        },
-                        b -> {
-                            b.controller(opt -> guiControllerFactory.create(info, opt));
-                            if (customizer != null) {
-                                customizer.accept(b);
-                            }
-                        }
-                );
-            }
-        });
+        adaptedLenses.put(modelType, new TypeLens<>(toGui, fromGui, fallbackGuiDefault, guiControllerFactory));
+        directControllers.remove(modelType);
+        initialSuppliers.putIfAbsent(modelType, () -> fromGui.apply(fallbackGuiDefault));
     }
 
     public <E> void registerInitialSupplier(Class<E> type, Supplier<E> supplier) {
@@ -338,82 +231,15 @@ public class YaclControllerRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    public <V> ControllerFactory<V> findDirectController(Class<?> type) {
-        ControllerFactory<?> cf = ReflectionUtils.findAssignable(directControllers, type);
-        if (cf != null) return (ControllerFactory<V>) cf;
-        if (type.isEnum()) {
-            return (ControllerFactory<V>) createEnumDropdownFactory();
+    public <M, G> Optional<TypeLens<M, G>> findLens(Class<?> type) {
+        TypeLens<?, ?> adapted = ReflectionUtils.findAssignable(adaptedLenses, type);
+        if (adapted != null) {
+            return Optional.of((TypeLens<M, G>) adapted);
         }
-        return null;
-    }
-
-    private static <E extends Enum<E>> ControllerFactory<E> createEnumDropdownFactory() {
-        return (info, opt) -> SimpleEnumDropdownControllerBuilder.create(opt);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <M, G> AdaptedType<M, G> findAdaptedType(Class<?> type) {
-        return (AdaptedType<M, G>) ReflectionUtils.findAssignable(adaptedTypes, type);
-    }
-
-    public <T> Option<?> createOption(
-            YaclContext<T> context,
-            OptionInfo info,
-            YaclOptionMetadata meta,
-            Consumer<Option.Builder<?>> customizer
-    ) {
-        Class<?> type = info.type();
-
-        OptionBinder binder = findBinder(type);
-        if (binder != null) {
-            return binder.bindOption(context, info, meta, customizer);
+        ControllerFactory<?> direct = ReflectionUtils.findAssignable(directControllers, type);
+        if (direct != null) {
+            return Optional.of((TypeLens<M, G>) TypeLens.identity(resolveInitialValue(type), (ControllerFactory<Object>) direct));
         }
-
-        if (info.isEnum()) {
-            return bindEnumOption(context, info, meta, customizer);
-        }
-
-        throw new UnsupportedOperationException("No YACL controller or adapter registered for type: "
-                + type.getName() + " on config option: " + info.getKey());
-    }
-
-    private OptionBinder findBinder(Class<?> type) {
-        return ReflectionUtils.findAssignable(binders, type);
-    }
-
-    private static Option<?> bindEnumOption(
-            YaclContext<?> context,
-            OptionInfo info,
-            YaclOptionMetadata meta,
-            Consumer<Option.Builder<?>> customizer
-    ) {
-        return bindEnumOptionHelper(context, info, meta, customizer);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E extends Enum<E>> Option<E> bindEnumOptionHelper(
-            YaclContext<?> context,
-            OptionInfo info,
-            YaclOptionMetadata meta,
-            Consumer<Option.Builder<?>> customizer
-    ) {
-        Option.Builder<E> builder = Option.createBuilder();
-        builder.name(meta.name())
-               .description(meta.description())
-               .available(meta.available());
-        ConfigSession<?> session = context.session();
-        return context.synchronizer().buildSyncedOption(
-                info,
-                builder,
-                (E) info.defaultCopy(),
-                () -> session.get(info),
-                val -> session.set(info, val),
-                b -> {
-                    b.controller(opt -> SimpleEnumDropdownControllerBuilder.create(opt).formatValue(meta::formatEnum));
-                    if (customizer != null) {
-                        customizer.accept(b);
-                    }
-                }
-        );
+        return Optional.empty();
     }
 }

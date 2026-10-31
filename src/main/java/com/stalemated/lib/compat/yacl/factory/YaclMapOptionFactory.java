@@ -1,7 +1,11 @@
 package com.stalemated.lib.compat.yacl.factory;
 
+import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
+import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.builder.NestListBinding;
+import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
+import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.TypeCoercionUtils;
@@ -13,7 +17,6 @@ import net.minecraft.network.chat.Component;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Metadata-driven factory that produces YACL {@link ListOption} widgets for {@code Map<String, ?>} config options,
@@ -23,6 +26,8 @@ import java.util.function.Function;
  * @param context The shared YACL UI construction context.
  */
 public record YaclMapOptionFactory<T>(YaclContext<T> context) {
+
+    private static final TypeLens<String, String> TEXT = TypeLens.identity("", (info, opt) -> StringControllerBuilder.create(opt));
 
     public YaclMapOptionFactory {
         Objects.requireNonNull(context, "context cannot be null");
@@ -39,29 +44,14 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
     ) {
         YaclOptionMetadata meta = context.resolveMetadata(info);
         Class<?> valClass = info.getMapValueType();
-
-        ListOption.Builder<String> builder = ListOption.createBuilder();
-        builder.name(meta.name())
-                .description(meta.description())
-                .available(meta.available());
-
         Map<String, ?> defaultMap = (Map<String, ?>) info.defaultCopy();
-        List<String> defaultGui = KeyValuePair.toLines(defaultMap);
 
-        return context.synchronizer().buildSyncedListOption(
-                info,
-                builder,
-                defaultGui,
+        ValueAccessor<List<String>> lines = ValueAccessor.of(
+                info.getKey(),
                 () -> KeyValuePair.toLines(context.session().get(info)),
-                guiList -> persistGuiMap(info, guiList, valClass),
-                b -> {
-                    b.controller(StringControllerBuilder::create);
-                    b.initial(resolveInitialEntry(valClass));
-                    if (customizer != null) {
-                        customizer.accept(b);
-                    }
-                }
+                guiList -> persistGuiMap(info, guiList, valClass)
         );
+        return context.assembler().list(meta, info, lines, TEXT, KeyValuePair.toLines(defaultMap), resolveInitialEntry(valClass), customizer);
     }
 
     /**
@@ -92,58 +82,28 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             return Collections.emptyList();
         }
 
-        List<ListOption<String>> options = new ArrayList<>(currentMap.size());
+        OptionAssembler assembler = context.assembler();
         OptionDescription desc = context.namingStrategy().resolveDescription(context.translationPrefix(), mapInfo, available);
+        List<ListOption<String>> options = new ArrayList<>(currentMap.size());
 
         for (String entryKey : currentMap.keySet()) {
-            Component name = Component.literal(entryKey);
-            List<String> defaultList = resolveDefaultProjectedList(defaultMap.get(entryKey), binding.getter());
-
-            ListOption.Builder<String> builder = ListOption.<String>createBuilder()
-                    .name(name)
-                    .description(desc)
-                    .available(available);
-
-            ListOption<String> listOpt = context.synchronizer().buildSyncedListOption(
+            YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, available, mapInfo.getKey());
+            ValueAccessor<List<String>> projected = ValueAccessor.entryProperty(
+                    context.session(),
                     mapInfo,
-                    builder,
-                    defaultList,
-                    () -> getProjectedList(mapInfo, entryKey, binding.getter()),
-                    val -> YaclSessionHelper.<N>updateNestedMap(
-                            context.session(),
-                            mapInfo,
-                            entryKey,
-                            item -> binding.setter().accept(item, new ArrayList<>(val))
-                    ),
-                    b -> {
-                        b.controller(StringControllerBuilder::create);
-                        b.initial("");
-                    }
+                    NestedAccessor.forMap(entryKey, defaultMap),
+                    item -> copyOf(binding.getter().apply((N) item)),
+                    (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list))
             );
-
-            options.add(listOpt);
+            List<String> defaultList = copyOf(defaultMap.containsKey(entryKey) ? binding.getter().apply(defaultMap.get(entryKey)) : null);
+            options.add(assembler.list(meta, mapInfo, projected, TEXT, defaultList, "", null));
         }
 
         return options;
     }
 
-    private <N> List<String> resolveDefaultProjectedList(N defaultItem, Function<N, List<String>> listGetter) {
-        if (defaultItem == null) return new ArrayList<>();
-        List<String> list = listGetter.apply(defaultItem);
+    private static List<String> copyOf(List<String> list) {
         return list != null ? new ArrayList<>(list) : new ArrayList<>();
-    }
-
-    private <N> List<String> getProjectedList(
-            OptionInfo mapInfo,
-            String entryKey,
-            Function<N, List<String>> listGetter
-    ) {
-        Map<String, N> m = context.session().get(mapInfo);
-        if (m != null && m.containsKey(entryKey)) {
-            List<String> l = listGetter.apply(m.get(entryKey));
-            return l != null ? new ArrayList<>(l) : new ArrayList<>();
-        }
-        return new ArrayList<>();
     }
 
     private void persistGuiMap(OptionInfo info, List<String> guiList, Class<?> valClass) {

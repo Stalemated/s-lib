@@ -26,13 +26,7 @@ public record YaclOptionMetadata(
     public YaclOptionMetadata {
         Objects.requireNonNull(name, "name cannot be null");
         Objects.requireNonNull(description, "description cannot be null");
-        if (enumFormatter == null) {
-            enumFormatter = e -> Component.literal(e != null ? e.toString() : "");
-        }
-    }
-
-    public YaclOptionMetadata(Component name, OptionDescription description, boolean available) {
-        this(name, description, available, e -> Component.literal(e != null ? e.toString() : ""));
+        Objects.requireNonNull(enumFormatter, "enumFormatter cannot be null");
     }
 
     public Component formatEnum(Enum<?> value) {

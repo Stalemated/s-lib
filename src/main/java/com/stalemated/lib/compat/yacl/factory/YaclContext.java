@@ -1,12 +1,15 @@
 package com.stalemated.lib.compat.yacl.factory;
 
+import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
+import com.stalemated.lib.compat.yacl.binding.YaclBindingSynchronizer;
 import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
+import dev.isxander.yacl3.api.OptionDescription;
+import net.minecraft.network.chat.Component;
 
 import java.util.Objects;
 
@@ -57,5 +60,14 @@ public record YaclContext<T>(
      */
     public YaclOptionMetadata resolveMetadata(OptionInfo info) {
         return YaclOptionMetadata.resolve(session, info, translationPrefix, namingStrategy, availabilityRule);
+    }
+
+    public YaclOptionMetadata metadata(Component name, OptionDescription description, boolean available, String optionKey) {
+        return new YaclOptionMetadata(name, description, available,
+                value -> namingStrategy.resolveEnumValue(translationPrefix, optionKey, value));
+    }
+
+    public OptionAssembler assembler() {
+        return new OptionAssembler(synchronizer, controllerRegistry);
     }
 }

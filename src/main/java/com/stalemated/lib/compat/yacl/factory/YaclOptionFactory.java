@@ -1,5 +1,8 @@
 package com.stalemated.lib.compat.yacl.factory;
 
+import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
+import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
+import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -28,7 +31,11 @@ public record YaclOptionFactory<T>(YaclContext<T> context) {
 
     public Option<?> buildOption(OptionInfo optionInfo, Consumer<Option.Builder<?>> customizer) {
         YaclOptionMetadata meta = context.resolveMetadata(optionInfo);
-        return context.controllerRegistry().createOption(context, optionInfo, meta, customizer);
+        OptionAssembler assembler = context.assembler();
+        TypeLens<Object, Object> lens = assembler.lensFor(optionInfo.type(), meta).orElseThrow(() ->
+                new UnsupportedOperationException("No YACL controller or adapter registered for type: "
+                        + optionInfo.type().getName() + " on config option: " + optionInfo.getKey()));
+        return assembler.option(meta, optionInfo, ValueAccessor.option(context.session(), optionInfo), lens, optionInfo.defaultCopy(), customizer);
     }
 
     public Option<?> buildPojoFieldOption(

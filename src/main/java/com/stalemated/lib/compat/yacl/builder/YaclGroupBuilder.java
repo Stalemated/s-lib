@@ -1,9 +1,12 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
+import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.controller.builder.SimpleStringDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
-import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
+import com.stalemated.lib.compat.yacl.registry.TypeLens;
+import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.config.model.OptionInfo;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
@@ -14,7 +17,6 @@ import net.minecraft.network.chat.Component;
 
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * Fluent builder for YACL {@link OptionGroup}.
@@ -176,7 +178,6 @@ public class YaclGroupBuilder<T> {
         return this;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private <E> Option<?> buildListElementOption(String listKey, int index, String optionKey, E defaultElement) {
         OptionInfo listInfo = context.session().getOptionTree().get(listKey);
         if (listInfo == null || !List.class.isAssignableFrom(listInfo.type())) {
@@ -185,10 +186,14 @@ public class YaclGroupBuilder<T> {
 
         Class<?> elemClass = defaultElement != null ? defaultElement.getClass() : listInfo.getCollectionElementType();
         boolean available = context.availabilityRule().isAvailable(listInfo, context.session());
-        Component optName = context.namingStrategy().resolveName(context.translationPrefix(), optionKey);
-        OptionDescription optDesc = context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey, available);
+        YaclOptionMetadata meta = context.metadata(
+                context.namingStrategy().resolveName(context.translationPrefix(), optionKey),
+                context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey, available),
+                available,
+                optionKey
+        );
 
-        OptionInfo syntheticElementInfo = new OptionInfo(
+        OptionInfo elementInfo = new OptionInfo(
                 listKey + "[" + index + "]",
                 listInfo.getField(),
                 Collections.emptyList(),
@@ -200,99 +205,13 @@ public class YaclGroupBuilder<T> {
                 null
         );
 
-        YaclControllerRegistry.AdaptedType adapted = context.controllerRegistry().findAdaptedType(elemClass);
-        if (adapted != null) {
-            return buildAdaptedListElementOption(listInfo, syntheticElementInfo, index, defaultElement, optName, optDesc, available, adapted);
-        }
+        OptionAssembler assembler = context.assembler();
+        TypeLens<E, Object> lens = assembler.<E, Object>lensFor(elemClass, meta).orElseThrow(() ->
+                new UnsupportedOperationException("No YACL controller or adapter registered for list element type: "
+                        + (elemClass != null ? elemClass.getName() : "null") + " on list option: " + listKey));
 
-        YaclControllerRegistry.ControllerFactory direct = context.controllerRegistry().findDirectController(elemClass);
-        if (direct != null) {
-            return buildDirectListElementOption(listInfo, syntheticElementInfo, index, defaultElement, optName, optDesc, available, direct);
-        }
-
-        throw new UnsupportedOperationException("No YACL controller or adapter registered for list element type: "
-                + (elemClass != null ? elemClass.getName() : "null") + " on list option: " + listKey);
-    }
-
-    private <E, G> Option<G> buildAdaptedListElementOption(
-            OptionInfo listInfo, OptionInfo syntheticElementInfo, int index,
-            E defaultElement, Component optName, OptionDescription optDesc,
-            boolean available, YaclControllerRegistry.AdaptedType<E, G> adapted
-    ) {
-        G guiDefault = defaultElement != null
-                ? adapted.toGui().apply(defaultElement)
-                : adapted.fallbackGuiDefault();
-        E resolvedModelDefault = defaultElement != null
-                ? defaultElement
-                : adapted.fromGui().apply(guiDefault);
-
-        return buildSyncedListElementOption(
-                listInfo, syntheticElementInfo, index,
-                resolvedModelDefault, guiDefault,
-                adapted.toGui(), adapted.fromGui(),
-                optName, optDesc, available,
-                adapted.guiControllerFactory());
-    }
-
-    private <E> Option<E> buildDirectListElementOption(
-            OptionInfo listInfo, OptionInfo syntheticElementInfo, int index,
-            E defaultElement, Component optName, OptionDescription optDesc,
-            boolean available, YaclControllerRegistry.ControllerFactory<E> direct
-    ) {
-        E resolvedDefault = defaultElement != null
-                ? defaultElement
-                : context.controllerRegistry().resolveInitialValue(syntheticElementInfo.type());
-
-        return buildSyncedListElementOption(
-                listInfo, syntheticElementInfo, index,
-                resolvedDefault, resolvedDefault,
-                Function.identity(), Function.identity(),
-                optName, optDesc, available,
-                direct);
-    }
-
-    private <E, G> Option<G> buildSyncedListElementOption(
-            OptionInfo listInfo,
-            OptionInfo syntheticElementInfo,
-            int index,
-            E resolvedModelDefault,
-            G guiDefault,
-            Function<E, G> toGui,
-            Function<G, E> fromGui,
-            Component optName,
-            OptionDescription optDesc,
-            boolean available,
-            YaclControllerRegistry.ControllerFactory<G> controllerFactory
-    ) {
-        Option.Builder<G> builder = Option.<G>createBuilder()
-                .name(optName)
-                .description(optDesc)
-                .available(available);
-
-        return context.synchronizer().buildSyncedOption(
-                syntheticElementInfo,
-                builder,
-                guiDefault,
-                () -> {
-                    List<E> list = context.session().get(listInfo);
-                    if (list != null && list.size() > index && list.get(index) != null) {
-                        G guiVal = toGui.apply(list.get(index));
-                        if (guiVal != null) return guiVal;
-                    }
-                    return guiDefault;
-                },
-                guiVal -> {
-                    List<E> current = context.session().get(listInfo);
-                    List<E> updated = current != null ? new ArrayList<>(current) : new ArrayList<>();
-                    while (updated.size() <= index) {
-                        updated.add(resolvedModelDefault);
-                    }
-                    E modelVal = fromGui.apply(guiVal);
-                    updated.set(index, modelVal != null ? modelVal : resolvedModelDefault);
-                    context.session().set(listInfo, updated);
-                },
-                b -> b.controller(opt -> controllerFactory.create(syntheticElementInfo, opt))
-        );
+        E padding = defaultElement != null ? defaultElement : lens.fromGui().apply(lens.fallback());
+        return assembler.option(meta, elementInfo, ValueAccessor.listElement(context.session(), listInfo, index, padding), lens, defaultElement, null);
     }
 
     private boolean hasGroupTitle() {

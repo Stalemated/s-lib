@@ -1,10 +1,10 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.stalemated.lib.compat.yacl.binding.YaclBindingSynchronizer;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
-import com.stalemated.lib.compat.yacl.util.YaclBindingSynchronizer;
 import com.stalemated.lib.config.LocalConfigManager;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.config.session.ConfigSessionCoordinator;

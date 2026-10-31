@@ -112,8 +112,12 @@ public interface YaclNamingStrategy {
      * @return The localized or fallback enum value component.
      */
     default Component resolveEnumValue(String prefix, OptionInfo option, Enum<?> value) {
+        return resolveEnumValue(prefix, option.getKey(), value);
+    }
+
+    default Component resolveEnumValue(String prefix, String optionKey, Enum<?> value) {
         if (value == null) return Component.empty();
-        String key = resolveBaseKey(prefix, option) + "." + normalize(value.name());
+        String key = resolveBaseKey(prefix, optionKey) + "." + normalize(value.name());
         return Component.translatableWithFallback(key, value.toString());
     }
 

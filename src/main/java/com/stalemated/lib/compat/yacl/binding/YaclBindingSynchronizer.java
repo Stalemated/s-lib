@@ -1,6 +1,5 @@
-package com.stalemated.lib.compat.yacl.util;
+package com.stalemated.lib.compat.yacl.binding;
 
-import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
@@ -17,7 +16,7 @@ import java.util.function.Supplier;
 
 /**
  * Coordinates reactive state synchronization across YACL {@link Option} and {@link ListOption}
- * instances bound to the same {@link ConfigSession} and {@link OptionInfo} within one screen.
+ * instances that show the same stored value of a {@link ConfigSession} within one screen.
  * <p>
  * Prevents stale duplicate widgets in multi-tab screens from overwriting changes during
  * YACL's two-pass {@code finishOrSave()} cycle, and normalizes pending widget values when
@@ -38,7 +37,7 @@ public final class YaclBindingSynchronizer {
     }
 
     private <V, O extends Option<V>, B> O buildSynced(
-            OptionInfo info,
+            String key,
             B builder,
             V defaultValue,
             Supplier<V> getter,
@@ -52,14 +51,14 @@ public final class YaclBindingSynchronizer {
                 builder,
                 defaultValue,
                 getter,
-                val -> applySyncedMutation(info, optRef.get(), () -> setter.accept(val))
+                val -> applySyncedMutation(key, optRef.get(), () -> setter.accept(val))
         );
         if (postConfigurer != null) {
             postConfigurer.accept(builder);
         }
         O built = buildStep.apply(builder);
         optRef.set(built);
-        optionsByKey.computeIfAbsent(info.getKey(), key -> new ArrayList<>()).add(built);
+        optionsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(built);
         built.addEventListener((opt, event) -> {
             if (session.hasPreview()) {
                 session.applyToPreview(() -> setter.accept(opt.pendingValue()));
@@ -72,7 +71,7 @@ public final class YaclBindingSynchronizer {
      * Binds, configures, and builds a standard YACL {@link Option}, registering it for cross-tab
      * sync and post-setter normalization within this screen.
      *
-     * @param info           The option metadata associated with this binding.
+     * @param key            The key of the stored value; widgets sharing it are kept in sync.
      * @param builder        The YACL option builder.
      * @param defaultValue   The default GUI value.
      * @param getter         The binding getter reading from the session draft.
@@ -82,14 +81,14 @@ public final class YaclBindingSynchronizer {
      * @return The built and registered {@link Option}.
      */
     public <V> Option<V> buildSyncedOption(
-            OptionInfo info,
+            String key,
             Option.Builder<V> builder,
             V defaultValue,
             Supplier<V> getter,
             Consumer<V> setter,
             Consumer<Option.Builder<V>> postConfigurer
     ) {
-        return buildSynced(info, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(key, builder, defaultValue, getter, setter, postConfigurer,
                 Option.Builder::binding, Option.Builder::build);
     }
 
@@ -97,7 +96,7 @@ public final class YaclBindingSynchronizer {
      * Binds, configures, and builds a YACL {@link ListOption}, registering it for cross-tab
      * sync and post-setter normalization within this screen.
      *
-     * @param info           The option metadata associated with this binding.
+     * @param key            The key of the stored value; widgets sharing it are kept in sync.
      * @param builder        The YACL list option builder.
      * @param defaultValue   The default GUI list value.
      * @param getter         The binding getter reading from the session draft.
@@ -107,20 +106,20 @@ public final class YaclBindingSynchronizer {
      * @return The built and registered {@link ListOption}.
      */
     public <E> ListOption<E> buildSyncedListOption(
-            OptionInfo info,
+            String key,
             ListOption.Builder<E> builder,
             List<E> defaultValue,
             Supplier<List<E>> getter,
             Consumer<List<E>> setter,
             Consumer<ListOption.Builder<E>> postConfigurer
     ) {
-        return buildSynced(info, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(key, builder, defaultValue, getter, setter, postConfigurer,
                 ListOption.Builder::binding, ListOption.Builder::build);
     }
 
-    private void applySyncedMutation(OptionInfo info, Option<?> sourceOption, Runnable mutation) {
+    private void applySyncedMutation(String key, Option<?> sourceOption, Runnable mutation) {
         List<Option<?>> unchangedSiblings = new ArrayList<>();
-        for (Option<?> sibling : optionsByKey.getOrDefault(info.getKey(), List.of())) {
+        for (Option<?> sibling : optionsByKey.getOrDefault(key, List.of())) {
             if (sibling != sourceOption && !sibling.changed()) {
                 unchangedSiblings.add(sibling);
             }
