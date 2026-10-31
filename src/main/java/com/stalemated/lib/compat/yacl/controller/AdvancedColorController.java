@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.controller;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.stalemated.lib.util.color.ColorUtils;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ColorControllerBuilder;
@@ -7,337 +8,305 @@ import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.AbstractWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.ColorController;
-import java.awt.*;
-import net.minecraft.client.Minecraft;
+import dev.isxander.yacl3.gui.controllers.string.IStringController;
+import java.awt.Color;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.util.Mth;
 
-//? if yacl: <3.9.0 && <1.21.9 {
-import net.minecraft.client.gui.screens.Screen;
-//?} elif yacl: <3.9.0 {
-/*import net.minecraft.client.input.KeyEvent;
-*///?} else {
-/*import dev.isxander.yacl3.gui.controllers.string.IStringController;
-import net.minecraft.client.input.KeyEvent;
+//? if yacl: <3.9.0 {
+import net.minecraft.client.gui.GuiGraphics;
+//?} else {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
 import org.jspecify.annotations.NonNull;
 *///?}
-
-//? if yacl: <3.9.0 {
-public class AdvancedColorController extends ColorController {
+//? if <1.21.9 {
+import net.minecraft.client.gui.screens.Screen;
 //?} else {
-/*public class AdvancedColorController implements IStringController<Color> {
-    private final ColorController delegate;
+/*import net.minecraft.client.input.KeyEvent;
 *///?}
-    private final Option<String> stringOption;
-    private final boolean alpha;
 
-    //? if yacl: <3.9.0 {
-    public AdvancedColorController(Option<String> stringOption, boolean alpha) {
-        super(Option.<Color>createBuilder()
-                .name(stringOption.name())
-                .binding(
-                        previewColor(stringOption.pendingValue()),
-                        () -> previewColor(stringOption.pendingValue()),
-                        val -> {}
-                )
-                .controller(ColorControllerBuilder::create)
-                .available(stringOption.available())
-                .build(), alpha);
-        this.stringOption = stringOption;
-        this.alpha = alpha;
-    //?} else {
-    /*public AdvancedColorController(Option<String> stringOption, boolean alpha) {
-        this.stringOption = stringOption;
-        this.alpha = alpha;
-        this.delegate = new ColorController(Option.<Color>createBuilder()
-                .name(stringOption.name())
-                .binding(
-                        previewColor(stringOption.pendingValue()),
-                        () -> previewColor(stringOption.pendingValue()),
-                        val -> {}
-                )
-                .controller(ColorControllerBuilder::create)
-                .available(stringOption.available())
-                .build(), alpha);
-    *///?}
+public class AdvancedColorController implements IStringController<String> {
+    private final Option<String> option;
+    private final boolean allowAlpha;
 
-        this.option().addEventListener((opt, event) -> {
-            Color pickerColor = opt.pendingValue();
-            Color currentColor = ColorUtils.parseArgbColor(this.stringOption.pendingValue());
-            if (!pickerColor.equals(currentColor)) {
-                String hex;
-                if (this.alpha) {
-                    hex = String.format("#%02X%02X%02X%02X", pickerColor.getAlpha(), pickerColor.getRed(), pickerColor.getGreen(), pickerColor.getBlue());
-                } else {
-                    hex = String.format("#%02X%02X%02X", pickerColor.getRed(), pickerColor.getGreen(), pickerColor.getBlue());
-                }
-                this.stringOption.requestSet(hex);
-            }
-        });
+    public AdvancedColorController(Option<String> option, boolean allowAlpha) {
+        this.option = option;
+        this.allowAlpha = allowAlpha;
+    }
 
-        this.stringOption.addEventListener((opt, event) -> {
-            if (this.option().available() != opt.available()) {
-                this.option().setAvailable(opt.available());
-            }
-            Color parsed = ColorUtils.parseArgbColor(opt.pendingValue());
-            if (parsed != null && !parsed.equals(this.option().pendingValue())) {
-                this.option().requestSet(parsed);
-            }
-        });
+    @Override
+    public Option<String> option() {
+        return option;
     }
 
     @Override
     public String getString() {
-        return this.stringOption.pendingValue();
+        return option.pendingValue();
     }
 
     @Override
-    public void setFromString(String value) {
-        this.stringOption.requestSet(value);
-
-        Color parsed = ColorUtils.parseArgbColor(value);
-        if (parsed != null && !parsed.equals(this.option().pendingValue())) {
-            this.option().requestSet(parsed);
+    public void setFromString(String text) {
+        if (parse(text) != null) {
+            option.requestSet(text);
         }
     }
-
-    @Override
-    public Component formatValue() {
-        return Component.literal(getString());
-    }
-
-    //? if yacl: >=3.9.0 {
-    /*@Override
-    public Option<Color> option() {
-        return this.delegate.option();
-    }
-
-    public boolean allowAlpha() {
-        return this.alpha;
-    }
-    *///?}
 
     @Override
     public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
-        if (this.option().available() != this.stringOption.available()) {
-            this.option().setAvailable(this.stringOption.available());
-        }
-        return new AdvancedColorControllerElement(this, screen, widgetDimension);
+        return new AdvancedColorControllerElement(new ColorController(pickerOption(), allowAlpha), screen, widgetDimension);
     }
 
-    //? if yacl: <3.9.0 {
-    public class AdvancedColorControllerElement extends ColorControllerElement {
-        public AdvancedColorControllerElement(AdvancedColorController control, YACLScreen screen, Dimension<Integer> dim) {
-            super(control, screen, dim);
-    //?} else {
-    /*public class AdvancedColorControllerElement extends ColorController.ColorControllerElement {
-        public AdvancedColorControllerElement(AdvancedColorController control, YACLScreen screen, Dimension<Integer> dim) {
-            super(control.delegate, screen, dim);
-    *///?}
+    private Option<Color> pickerOption() {
+        return Option.<Color>createBuilder()
+                .name(option.name())
+                .binding(currentColor(), this::currentColor, picked -> {})
+                .controller(ColorControllerBuilder::create)
+                .build();
+    }
 
-            AdvancedColorController.this.stringOption.addEventListener((opt, event) -> {
-                String newVal = opt.pendingValue();
-                if (!newVal.equals(this.inputField)) {
-                    this.inputField = newVal;
-                    this.caretPos = this.inputField.length();
-                }
-            });
+    private Color currentColor() {
+        String value = getString();
+        Color color = parse(value);
+        if (color == null) {
+            throw new IllegalStateException("Color option holds '" + value + "', which is not a color");
+        }
+        return color;
+    }
+
+    private Color parse(String text) {
+        if (allowAlpha) {
+            return ColorUtils.parseArgbColor(text);
+        }
+        TextColor textColor = ColorUtils.parseTextColor(text);
+        return textColor != null ? new Color(textColor.getValue()) : null;
+    }
+
+    private class AdvancedColorControllerElement extends ColorController.ColorControllerElement {
+        private final Option<Color> picker;
+        private String shownValue;
+        private Color pickerColor;
+
+        AdvancedColorControllerElement(ColorController pickerController, YACLScreen screen, Dimension<Integer> dim) {
+            super(pickerController, screen, dim);
+            this.picker = pickerController.option();
+            this.shownValue = getString();
+            this.pickerColor = picker.pendingValue();
+            this.inputField = shownValue;
+        }
+
+        //? if yacl: <3.9.0 {
+        @Override
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+            syncWithOption();
+            super.render(graphics, mouseX, mouseY, delta);
+        }
+        //?} else {
+        /*@Override
+        public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+            syncWithOption();
+            super.extractRenderState(graphics, mouseX, mouseY, a);
+        }
+        *///?}
+
+        private void syncWithOption() {
+            Color picked = picker.pendingValue();
+            if (!picked.equals(pickerColor)) {
+                setFromString(ColorUtils.toArgbHex(picked));
+            }
+
+            String value = getString();
+            boolean changed = !value.equals(shownValue);
+            if (changed) {
+                shownValue = value;
+                pickerColor = currentColor();
+                setPickerColorKeepingInput(pickerColor);
+            }
+            if (changed || !inputFieldFocused) {
+                show(value);
+            }
+        }
+
+        private void setPickerColorKeepingInput(Color color) {
+            String input = inputField;
+            picker.requestSet(color);
+            inputField = input;
+        }
+
+        private void show(String value) {
+            if (inputField.equals(value)) return;
+            inputField = value;
+            caretPos = value.length();
+            selectionLength = 0;
+            checkRenderOffset();
         }
 
         @Override
-        public void write(String string) {
-            if (!AdvancedColorController.this.stringOption.available()) return;
-            if (this.modifyInput(builder -> {
-                if (this.selectionLength != 0) {
-                    int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
-                    int end = Math.max(this.caretPos, this.caretPos + this.selectionLength);
-                    builder.delete(start, end);
-                    this.caretPos = start;
-                }
-                builder.insert(this.caretPos, string);
-            })) {
-                this.caretPos += string.length();
-                this.selectionLength = 0;
-                this.updateControl();
+        protected Component getValueText() {
+            MutableComponent text = Component.literal(inputField);
+            return parse(inputField) != null ? text : text.withStyle(ChatFormatting.RED);
+        }
+
+        @Override
+        protected boolean isAvailable() {
+            return option.available();
+        }
+
+        @Override
+        public boolean modifyInput(Consumer<StringBuilder> edit) {
+            return isAvailable() && super.modifyInput(edit);
+        }
+
+        @Override
+        protected void updateControl() {
+            setFromString(inputField);
+        }
+
+        @Override
+        public void write(String text) {
+            int start = getSelectionStart();
+            int end = getSelectionEnd();
+            if (modifyInput(builder -> builder.replace(start, end, text))) {
+                caretPos = start + text.length();
+                selectionLength = 0;
+                checkRenderOffset();
             }
         }
 
         @Override
         protected void doBackspace() {
-            if (!AdvancedColorController.this.stringOption.available()) return;
-            if (this.selectionLength != 0) {
-                this.doDelete();
-                return;
-            }
-            if (this.caretPos > 0 && this.modifyInput(builder -> builder.deleteCharAt(this.caretPos - 1))) {
-                this.caretPos--;
-                this.updateControl();
+            if (selectionLength != 0) {
+                write("");
+            } else if (caretPos > 0 && modifyInput(builder -> builder.deleteCharAt(caretPos - 1))) {
+                caretPos--;
+                checkRenderOffset();
             }
         }
 
         @Override
         protected void doDelete() {
-            if (!AdvancedColorController.this.stringOption.available()) return;
-            if (this.selectionLength != 0) {
-                if (this.modifyInput(builder -> {
-                    int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
-                    int end = Math.max(this.caretPos, this.caretPos + this.selectionLength);
-                    builder.delete(start, end);
-                })) {
-                    this.caretPos = Math.min(this.caretPos, this.caretPos + this.selectionLength);
-                    this.selectionLength = 0;
-                    this.updateControl();
+            if (selectionLength != 0) {
+                write("");
+            } else if (caretPos < inputField.length()) {
+                modifyInput(builder -> builder.deleteCharAt(caretPos));
+            }
+        }
+
+        @Override
+        protected boolean doCopy() {
+            if (selectionLength == 0) return false;
+            client.keyboardHandler.setClipboard(getSelection());
+            return true;
+        }
+
+        @Override
+        protected boolean doCut() {
+            if (!doCopy()) return false;
+            write("");
+            return true;
+        }
+
+        @Override
+        protected boolean doSelectAll() {
+            caretPos = inputField.length();
+            selectionLength = -caretPos;
+            checkRenderOffset();
+            return true;
+        }
+
+        @Override
+        protected int getDefaultCaretPos() {
+            return inputField.length();
+        }
+
+        private void moveCaret(int position) {
+            caretPos = Mth.clamp(position, 0, inputField.length());
+            selectionLength = 0;
+            checkRenderOffset();
+        }
+
+        private boolean handleKey(int key, boolean selectAll, boolean copy, boolean paste, boolean cut) {
+            if (!inputFieldFocused) return false;
+            if (selectAll) return doSelectAll();
+            if (copy) return doCopy();
+            if (paste) return doPaste();
+            if (cut) return doCut();
+
+            switch (key) {
+                case InputConstants.KEY_ESCAPE, InputConstants.KEY_RETURN -> unfocus();
+                case InputConstants.KEY_BACKSPACE -> doBackspace();
+                case InputConstants.KEY_DELETE -> doDelete();
+                case InputConstants.KEY_LEFT -> moveCaret(caretPos - 1);
+                case InputConstants.KEY_RIGHT -> moveCaret(caretPos + 1);
+                case InputConstants.KEY_HOME -> moveCaret(0);
+                case InputConstants.KEY_END -> moveCaret(inputField.length());
+                default -> {
+                    return false;
                 }
-                return;
             }
-            if (this.caretPos < this.inputField.length() && this.modifyInput(builder -> builder.deleteCharAt(this.caretPos))) {
-                this.updateControl();
-            }
-        }
-
-        @Override protected boolean doCut() {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            if (this.selectionLength != 0) { this.doCopy(); this.doDelete(); return true; } return false;
-        }
-
-        @Override protected boolean doCopy() {
-            if (this.selectionLength != 0) {
-                int start = Math.min(this.caretPos, this.caretPos + this.selectionLength);
-                int end = Math.max(this.caretPos, this.caretPos + this.selectionLength);
-                Minecraft.getInstance().keyboardHandler.setClipboard(this.inputField.substring(start, end));
-                return true;
-            }
-            return false;
-        }
-
-        @Override protected boolean doSelectAll() {
-            this.caretPos = this.inputField.length(); this.selectionLength = -this.inputField.length(); return true;
-        }
-
-        @Override protected void setSelectionLength() {  }
-
-        @Override protected int getDefaultCaretPos() { return this.inputField.length(); }
-
-        private boolean handleKeyAction(int keyCode, boolean isSelectAll, boolean isCopy, boolean isPaste, boolean isCut) {
-            if (!this.inputFieldFocused || !AdvancedColorController.this.stringOption.available()) return false;
-            
-            if (isSelectAll) { this.doSelectAll(); return true; }
-            if (isCopy) { this.doCopy(); return true; }
-            if (isPaste) { this.write(Minecraft.getInstance().keyboardHandler.getClipboard()); return true; }
-            if (isCut) { this.doCut(); return true; }
-
-            switch (keyCode) {
-                case 259:
-                    this.doBackspace();
-                    return true;
-                case 261:
-                    this.doDelete();
-                    return true;
-                case 263: // Left
-                    if (this.caretPos > 0) this.caretPos--;
-                    this.selectionLength = 0;
-                    return true;
-                case 262: // Right
-                    if (this.caretPos < this.inputField.length()) this.caretPos++;
-                    this.selectionLength = 0;
-                    return true;
-                case 268: // Start
-                    this.caretPos = 0;
-                    this.selectionLength = 0;
-                    return true;
-                case 269: // End
-                    this.caretPos = this.inputField.length();
-                    this.selectionLength = 0;
-                    return true;
-            }
-            return false;
+            return true;
         }
 
         //? if yacl: <3.8.0 {
         @Override
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
+            return handleKey(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
         }
         //?} elif <1.21.9 {
         /*@Override
         public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
-            return handleKeyAction(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
+            return handleKey(keyCode, Screen.isSelectAll(keyCode), Screen.isCopy(keyCode), Screen.isPaste(keyCode), Screen.isCut(keyCode));
         }
         *///?} elif yacl: <3.9.0 {
         /*@Override
         public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
             KeyEvent event = new KeyEvent(keyCode, scanCode, modifiers);
-            return handleKeyAction(keyCode, event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
+            return handleKey(keyCode, event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
         }
         *///?} else {
         /*@Override
-        public boolean keyPressed(KeyEvent event) {
-            return handleKeyAction(event.key(), event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
+        public boolean keyPressed(@NonNull KeyEvent event) {
+            return handleKey(event.key(), event.isSelectAll(), event.isCopy(), event.isPaste(), event.isCut());
         }
         *///?}
 
-        //? if yacl: >=3.8.0 {
-        /*private void handleInputClick(double mouseX, double mouseY) {
-            if (this.inputFieldBounds != null && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) && !this.isMouseOverColorPreview(mouseX, mouseY)) {
-                this.setFocused(true);
-                int clickOffset = (int) mouseX - this.inputFieldBounds.x();
-                String renderedText = this.textRenderer.plainSubstrByWidth(this.inputField, this.inputFieldBounds.width() * 2);
-                this.caretPos = this.textRenderer.plainSubstrByWidth(renderedText, clickOffset).length();
-
-                int clickX = this.inputFieldBounds.x();
-                int bestCaret = 0;
-                int minDistance = Integer.MAX_VALUE;
-
-                for (int i = 0; i <= this.inputField.length(); i++) {
-                    int charX = clickX + this.textRenderer.width(this.inputField.substring(0, i));
-                    int distance = Math.abs(charX - (int) mouseX);
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        bestCaret = i;
-                    }
-                }
-
-                this.caretPos = bestCaret;
-                this.selectionLength = 0;
+        private boolean click(double mouseX, double mouseY, BooleanSupplier colorPreviewClick) {
+            if (!isAvailable()) return false;
+            if (isMouseOverColorPreview(mouseX, mouseY)) {
+                boolean handled = colorPreviewClick.getAsBoolean();
+                selectionLength = 0;
+                return handled;
             }
+            caretPos = inputFieldBounds.isPointInside((int) mouseX, (int) mouseY) ? caretAt(mouseX) : getDefaultCaretPos();
+            selectionLength = 0;
+            return true;
         }
-        *///?}
+
+        private int caretAt(double mouseX) {
+            int textX = inputFieldBounds.xLimit() - textRenderer.width(getValueText()) + renderOffset;
+            return textRenderer.plainSubstrByWidth(inputField, (int) mouseX - textX).length();
+        }
 
         //? if yacl: <3.8.0 {
         @Override
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            boolean handled = super.mouseClicked(mouseX, mouseY, button);
-            if (handled) {
-                if (this.inputField.isEmpty()) {
-                    this.caretPos = 0;
-                } else if (this.caretPos == 1 && mouseX < this.getDimension().x() + this.getXPadding() + 4) {
-                    this.caretPos = 0;
-                }
-            }
-            return handled;
+            return click(mouseX, mouseY, () -> super.mouseClicked(mouseX, mouseY, button));
         }
         //?} elif yacl: <3.9.0 {
         /*@Override
         public boolean onMouseClicked(double mouseX, double mouseY, int button) {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            boolean handled = super.onMouseClicked(mouseX, mouseY, button);
-            handleInputClick(mouseX, mouseY);
-            return handled;
+            return click(mouseX, mouseY, () -> super.onMouseClicked(mouseX, mouseY, button));
         }
         *///?} else {
         /*@Override
         public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
-            if (!AdvancedColorController.this.stringOption.available()) return false;
-            boolean handled = super.mouseClicked(event, doubleClick);
-            handleInputClick(event.x(), event.y());
-            return handled;
+            return click(event.x(), event.y(), () -> super.mouseClicked(event, doubleClick));
         }
         *///?}
-    }
-
-    private static Color previewColor(String text) {
-        Color parsed = ColorUtils.parseArgbColor(text);
-        return parsed != null ? parsed : Color.WHITE;
     }
 }

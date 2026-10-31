@@ -4,10 +4,6 @@ import com.stalemated.lib.compat.yacl.controller.AdvancedColorController;
 import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;
-import dev.isxander.yacl3.api.utils.Dimension;
-import dev.isxander.yacl3.gui.AbstractWidget;
-import dev.isxander.yacl3.gui.YACLScreen;
-import net.minecraft.network.chat.Component;
 
 public class AdvancedColorControllerBuilder implements ControllerBuilder<String> {
     private final Option<String> option;
@@ -29,23 +25,6 @@ public class AdvancedColorControllerBuilder implements ControllerBuilder<String>
     @SuppressWarnings("UnstableApiUsage")
     @Override
     public Controller<String> build() {
-        final AdvancedColorController advancedColorController = new AdvancedColorController(this.option, this.alpha);
-
-        return new Controller<>() {
-            @Override
-            public Option<String> option() {
-                return AdvancedColorControllerBuilder.this.option;
-            }
-
-            @Override
-            public Component formatValue() {
-                return advancedColorController.formatValue();
-            }
-
-            @Override
-            public AbstractWidget provideWidget(YACLScreen screen, Dimension<Integer> widgetDimension) {
-                return advancedColorController.provideWidget(screen, widgetDimension);
-            }
-        };
+        return new AdvancedColorController(this.option, this.alpha);
     }
 }
