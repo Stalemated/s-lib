@@ -16,7 +16,7 @@ public class ScrollingTextRenderer {
     private final long startTime;
 
     public ScrollingTextRenderer() {
-        this.startTime = System.currentTimeMillis();
+        this.startTime = System.nanoTime() / 1_000_000L;
     }
 
     //? if <26.1 {
@@ -29,7 +29,7 @@ public class ScrollingTextRenderer {
 
         if (textWidth > availableWidth) {
             int overflowWidth = textWidth - availableWidth;
-            long elapsedTime = System.currentTimeMillis() - this.startTime;
+            long elapsedTime = System.nanoTime() / 1_000_000L - this.startTime;
             int scrollOffset = ScrollMathUtil.calculateScrollOffset(overflowWidth, SCROLL_SPEED_PIXELS_PER_SECOND, SCROLL_PAUSE_MS, elapsedTime);
         //? if <26.1 {
             context.drawString(textRenderer, text, x - scrollOffset, y, isDisabled ? 0xAAAAAA : 0xFFFFFF);
