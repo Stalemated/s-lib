@@ -37,7 +37,7 @@ repositories {
 
 dependencies {
     // YACL
-    compileOnly("dev.isxander:yet-another-config-lib:${property("deps.yacl")}-forge")
+    modCompileOnly("dev.isxander:yet-another-config-lib:${property("deps.yacl")}-forge")
 
     // Jankson
     jarJar("blue.endless:jankson:${property("deps.jankson")}")
@@ -56,10 +56,6 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
-    filter {
-        // In Forge 1.20.1, YACL's published artifact is SRG-obfuscated, meaning it cannot resolve in headless JUnit tests
-        excludeTestsMatching("com.stalemated.lib.compat.yacl.*")
-    }
 }
 
 configurations.all {
