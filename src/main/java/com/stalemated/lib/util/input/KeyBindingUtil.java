@@ -2,9 +2,12 @@ package com.stalemated.lib.util.input;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
+//? if <26.3 {
 import net.minecraft.client.Minecraft;
-//? if <26.3
 import org.lwjgl.glfw.GLFW;
+//?} else {
+/*import org.lwjgl.sdl.SDLMouse;
+*///?}
 
 //? if fabric {
 //? if <26.1 {
@@ -40,12 +43,9 @@ public class KeyBindingUtil {
         return InputConstants.isKeyDown(window, boundKey.getValue());
         *///?} else {
         /*if (boundKey.getType() == InputConstants.Type.MOUSE) {
-            int btn = boundKey.getValue();
-            var mouse = Minecraft.getInstance().mouseHandler;
-            if (btn == 0 || btn == 1) return mouse.isLeftPressed();
-            if (btn == 2) return mouse.isMiddlePressed();
-            if (btn == 3) return mouse.isRightPressed();
-            return false;
+            int button = boundKey.getValue();
+            if (button < 1 || button > Integer.SIZE) return false;
+            return (SDLMouse.SDL_GetMouseState(null, null) & (1 << (button - 1))) != 0;
         }
         return InputConstants.isKeyDown(boundKey.getValue());
         *///?}
