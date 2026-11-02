@@ -19,17 +19,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 final class OptionValueReader {
 
     private final Gson gson;
-    private final Function<Field, String> jsonName;
+    private final Json5KeyLayout layout;
     private final Map<Class<?>, Map<String, Field>> fieldsByClass = new ConcurrentHashMap<>();
 
-    OptionValueReader(Gson gson, Function<Field, String> jsonName) {
+    OptionValueReader(Gson gson, Json5KeyLayout layout) {
         this.gson = gson;
-        this.jsonName = jsonName;
+        this.layout = layout;
     }
 
     Object read(OptionInfo option, String path, JsonElement raw, LoadReport report) {
@@ -74,6 +73,12 @@ final class OptionValueReader {
     }
 
     private Object readElement(ConfigNode template, Type elementType, String path, JsonElement raw, LoadReport report) {
+        Object element = parseOrSalvage(template, elementType, path, raw, report);
+        reportUnknownKeys(template, path, raw, report);
+        return element;
+    }
+
+    private Object parseOrSalvage(ConfigNode template, Type elementType, String path, JsonElement raw, LoadReport report) {
         try {
             return parse(raw, elementType);
         } catch (RuntimeException elementFailure) {
@@ -81,6 +86,34 @@ final class OptionValueReader {
                 return salvageFields(elementType, path, fields, elementFailure, report);
             }
             throw elementFailure;
+        }
+    }
+
+    private void reportUnknownKeys(ConfigNode template, String path, JsonElement raw, LoadReport report) {
+        if (template instanceof CategoryNode category && raw instanceof JsonObject fields) {
+            Map<String, Field> fieldsByJsonName = fieldsByClass.computeIfAbsent(category.type(), this::indexSerializedFields);
+            for (Map.Entry<String, JsonElement> entry : fields.entrySet()) {
+                String fieldPath = Json5KeyLayout.childPath(path, entry.getKey());
+                Field field = fieldsByJsonName.get(entry.getKey());
+                if (field == null) {
+                    report.unknownKey(fieldPath, entry.getValue());
+                    continue;
+                }
+                if (!entry.getKey().equals(layout.jsonName(field))) {
+                    report.requireMigration();
+                }
+                reportUnknownKeys(category.getChild(field.getName()), fieldPath, entry.getValue(), report);
+            }
+        } else if (template instanceof OptionInfo container && container.getElementTemplate() != null) {
+            if (raw instanceof JsonArray elements) {
+                for (int i = 0; i < elements.size(); i++) {
+                    reportUnknownKeys(container.getElementTemplate(), Json5KeyLayout.elementPath(path, i), elements.get(i), report);
+                }
+            } else if (raw instanceof JsonObject entries) {
+                for (Map.Entry<String, JsonElement> entry : entries.entrySet()) {
+                    reportUnknownKeys(container.getElementTemplate(), Json5KeyLayout.childPath(path, entry.getKey()), entry.getValue(), report);
+                }
+            }
         }
     }
 
@@ -111,7 +144,7 @@ final class OptionValueReader {
             for (Field field : current.getDeclaredFields()) {
                 if (OptionTree.isIgnored(field) || field.isSynthetic()) continue;
                 field.setAccessible(true);
-                fieldsByJsonName.putIfAbsent(jsonName.apply(field), field);
+                layout.namesOf(field).forEach(name -> fieldsByJsonName.putIfAbsent(name, field));
             }
         }
         return fieldsByJsonName;

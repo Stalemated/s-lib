@@ -43,7 +43,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         this.gson = optionTree.gson();
 
         this.layout = new Json5KeyLayout(optionTree, gson.fieldNamingStrategy());
-        this.reader = new OptionValueReader(gson, layout::jsonName);
+        this.reader = new OptionValueReader(gson, layout);
 
         this.grammar = JsonGrammar.builder()
                 .withComments(true)
@@ -119,7 +119,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     }
 
     private void readOption(T instance, JsonObject rootObject, OptionInfo option, LoadReport report) {
-        JsonElement raw = layout.find(rootObject, option);
+        JsonElement raw = layout.find(rootObject, option, report);
         if (raw == null) {
             report.requireMigration();
             return;

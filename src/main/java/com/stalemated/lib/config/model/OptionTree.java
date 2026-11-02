@@ -2,6 +2,7 @@ package com.stalemated.lib.config.model;
 
 import com.google.gson.Gson;
 import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory;
+import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.annotation.Sync;
@@ -150,8 +151,11 @@ public class OptionTree {
         String title = field != null && field.isAnnotationPresent(Title.class)
                 ? field.getAnnotation(Title.class).value()
                 : null;
+        String comment = field != null && field.isAnnotationPresent(Comment.class)
+                ? field.getAnnotation(Comment.class).value()
+                : null;
         Constraint constraint = isTemplate ? Constraints.ofFields(key, type, fields) : Constraint.NONE;
-        return new CategoryNode(type, genericType, children, title, constraint);
+        return new CategoryNode(type, genericType, children, title, comment, constraint);
     }
 
     private List<Field> resolveCategoryPath(List<Field> path, Field field, boolean isTemplate) {

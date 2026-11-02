@@ -17,4 +17,9 @@ public interface ConfigNode {
      * Gets the constraint represented by this node.
      */
     Constraint constraint();
+
+    /**
+     * Gets the comment written above this node in the config file, or null if it has none.
+     */
+    String comment();
 }

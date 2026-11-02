@@ -39,11 +39,13 @@ public final class SLibGsonDefaults {
     }
 
     /**
-     * Applies default GSON adapters and configs, including skipping fields marked with {@link Ignore}.
+     * Applies default GSON adapters and configs, including writing null values
+     * and skipping fields marked with {@link Ignore}.
      *
      * @param builder The GsonBuilder to configure.
      */
     public static void apply(GsonBuilder builder) {
+        builder.serializeNulls();
         builder.setExclusionStrategies(IGNORED_FIELDS);
         registerJavaDefaults(builder);
         registerMinecraftDefaults(builder);

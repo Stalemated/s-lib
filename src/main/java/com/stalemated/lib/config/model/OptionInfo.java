@@ -85,7 +85,8 @@ public class OptionInfo implements ConfigNode {
         return field == null ? Optional.empty() : Optional.ofNullable(field.getAnnotation(annotationType));
     }
 
-    public String getComment() { return comment; }
+    @Override
+    public String comment() { return comment; }
 
     public String getTitle() { return title; }
 

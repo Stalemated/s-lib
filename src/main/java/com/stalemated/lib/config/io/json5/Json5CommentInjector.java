@@ -59,11 +59,9 @@ public class Json5CommentInjector {
             JsonElement childJson = jsonObj.get(key);
             if (childJson == null) continue;
 
-            if (childSchema instanceof OptionInfo optionInfo) {
-                String comment = optionInfo.getComment();
-                if (comment != null && !comment.isEmpty()) {
-                    jsonObj.setComment(key, comment);
-                }
+            String comment = childSchema.comment();
+            if (comment != null && !comment.isEmpty()) {
+                jsonObj.setComment(key, comment);
             }
             // Recurse into child
             inject(childJson, childSchema, jsonName);

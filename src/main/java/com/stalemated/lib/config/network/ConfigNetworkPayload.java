@@ -114,9 +114,7 @@ public final class ConfigNetworkPayload {
     }
 
     private static void put(JsonObject payload, OptionInfo option, Object value, ConfigSerializer<?> serializer) {
-        if (value != null) {
-            payload.add(option.getKey(), JsonParser.parseString(serializer.serializeOption(value)));
-        }
+        payload.add(option.getKey(), JsonParser.parseString(serializer.serializeOption(value)));
     }
 
     private static void applySingleOption(String key, JsonElement elem, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
@@ -131,8 +129,6 @@ public final class ConfigNetworkPayload {
             LOGGER.warn("Rejected remote change to '{}': it is a {} option and this payload only carries {} options", key, option.getSyncMode(), acceptedMode);
             return;
         }
-
-        if (elem == null || elem.isJsonNull()) return;
 
         try {
             Object rawValue = serializer.deserializeOption(elem.toString(), option.genericType());

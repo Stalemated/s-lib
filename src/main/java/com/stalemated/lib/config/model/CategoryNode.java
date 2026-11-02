@@ -4,7 +4,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 
-public record CategoryNode(Class<?> type, Type genericType, Map<String, ConfigNode> children, String title, Constraint constraint) implements ConfigNode {
+public record CategoryNode(Class<?> type, Type genericType, Map<String, ConfigNode> children, String title, String comment, Constraint constraint) implements ConfigNode {
 
     public CategoryNode {
         children = Collections.unmodifiableMap(children);
