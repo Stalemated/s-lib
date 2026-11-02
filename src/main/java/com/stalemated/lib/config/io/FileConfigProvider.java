@@ -43,7 +43,7 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     }
 
     @Override
-    public Optional<ConfigLoadFailure> load() {
+    public synchronized Optional<ConfigLoadFailure> load() {
         if (FileUtils.isNewOrEmpty(configPath.toFile())) {
             this.instance = defaultFactory.get();
             return saveLoaded(List.of());
@@ -113,7 +113,7 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     }
 
     @Override
-    public void save() {
+    public synchronized void save() {
         Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
         try {
             if (configPath.getParent() != null) {
