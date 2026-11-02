@@ -39,7 +39,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     private final Listeners<BiConsumer<ServerPlayer, T>> informListeners = new Listeners<>(this::getName);
     private final Map<UUID, T> informedConfigs = new ConcurrentHashMap<>();
 
-    private volatile SyncView<T> view = new SyncView<>(ConnectionState.DISCONNECTED, null);
+    private volatile SyncView<T> view = new SyncView<>(ConnectionState.DISCONNECTED, null, true);
 
     private final ConfigNetworkHandler<T> networkHandler;
 
@@ -89,6 +89,10 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return view.state();
     }
 
+    public boolean canChangeOverrides() {
+        return view.canChangeOverrides();
+    }
+
     boolean checkServerPermission(ServerPlayer player) {
         return serverPermissionCheck.test(player);
     }
@@ -106,18 +110,18 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         informedConfigs.remove(playerId);
     }
 
-    void acceptServerConfig(T serverConfig) {
-        switchView(new SyncView<>(ConnectionState.MULTIPLAYER_MODDED, serverConfig));
+    void acceptServerConfig(T serverConfig, boolean canChangeOverrides) {
+        switchView(new SyncView<>(ConnectionState.MULTIPLAYER_MODDED, serverConfig, canChangeOverrides));
     }
 
     void onClientJoinMultiplayer() {
         if (view.state() != ConnectionState.MULTIPLAYER_MODDED) {
-            switchView(new SyncView<>(ConnectionState.MULTIPLAYER_UNMODDED, configWithDefaultOverrides()));
+            switchView(new SyncView<>(ConnectionState.MULTIPLAYER_UNMODDED, configWithDefaultOverrides(), false));
         }
     }
 
     void onClientJoinSingleplayer() {
-        switchView(new SyncView<>(ConnectionState.SINGLEPLAYER, null));
+        switchView(new SyncView<>(ConnectionState.SINGLEPLAYER, null, true));
     }
 
     private T configWithDefaultOverrides() {
@@ -157,7 +161,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     void clearServerConfig() {
-        switchView(new SyncView<>(ConnectionState.DISCONNECTED, null));
+        switchView(new SyncView<>(ConnectionState.DISCONNECTED, null, true));
     }
 
     /**
@@ -319,7 +323,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return localManager.serializer();
     }
 
-    private record SyncView<T>(ConnectionState state, T serverConfig) {
+    private record SyncView<T>(ConnectionState state, T serverConfig, boolean canChangeOverrides) {
         T effective(T local) {
             boolean onServer = state == ConnectionState.MULTIPLAYER_MODDED || state == ConnectionState.MULTIPLAYER_UNMODDED;
             return onServer && serverConfig != null ? serverConfig : local;

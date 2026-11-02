@@ -42,29 +42,26 @@ public record YaclOptionFactory<T>(YaclContext<T> context) {
             OptionInfo mapInfo,
             String entryKey,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
-        return YaclPojoFieldBuilder.buildPojoFieldOption(context, mapInfo, entryKey, field, sampleItem, available);
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, mapInfo, entryKey, field, sampleItem);
     }
 
     public Option<?> buildPojoFieldOption(
             OptionInfo listInfo,
             int index,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
-        return YaclPojoFieldBuilder.buildPojoFieldOption(context, listInfo, index, field, sampleItem, available);
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, listInfo, index, field, sampleItem);
     }
 
     public Option<?> buildPojoFieldOption(
             OptionInfo containerInfo,
             NestedAccessor accessor,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
-        return YaclPojoFieldBuilder.buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, available);
+        return YaclPojoFieldBuilder.buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem);
     }
 }

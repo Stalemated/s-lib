@@ -7,6 +7,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.List;
+
 final class MinecraftConfigTransport implements ConfigTransport {
 
     static final ConfigTransport INSTANCE = new MinecraftConfigTransport();
@@ -40,15 +42,13 @@ final class MinecraftConfigTransport implements ConfigTransport {
 
     @Override
     @SuppressWarnings("resource")
-    public void sendToAllClients(ResourceLocation channel, String json) {
+    public List<ServerPlayer> remotePlayers() {
         MinecraftServer server = ConfigRegistry.currentServer();
-        if (server == null) return;
+        if (server == null) return List.of();
 
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (!isSingleplayerOwner(player)) {
-                sendToClient(player, channel, json);
-            }
-        }
+        return server.getPlayerList().getPlayers().stream()
+                .filter(player -> !isSingleplayerOwner(player))
+                .toList();
     }
 
     @Override

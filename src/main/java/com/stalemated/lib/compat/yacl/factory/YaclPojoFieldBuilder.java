@@ -13,7 +13,6 @@ import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.StringUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.Option;
-import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
 
@@ -43,7 +42,6 @@ public final class YaclPojoFieldBuilder {
      * @param entryKey The key of the entry within the map.
      * @param field The reflective field in the POJO.
      * @param sampleItem A sample or current instance of the POJO.
-     * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
      * @return The built {@link Option}.
      * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
@@ -53,10 +51,9 @@ public final class YaclPojoFieldBuilder {
             OptionInfo mapInfo,
             String entryKey,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
-        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey, YaclSessionHelper.defaultMapOf(mapInfo)), field, sampleItem, available);
+        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey, YaclSessionHelper.defaultMapOf(mapInfo)), field, sampleItem);
     }
 
     /**
@@ -67,7 +64,6 @@ public final class YaclPojoFieldBuilder {
      * @param index The zero-based index of the entry within the list.
      * @param field The reflective field in the POJO.
      * @param sampleItem A sample or current instance of the POJO.
-     * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
      * @return The built {@link Option}.
      * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
@@ -77,10 +73,9 @@ public final class YaclPojoFieldBuilder {
             OptionInfo listInfo,
             int index,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
-        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index, YaclSessionHelper.defaultListOf(listInfo)), field, sampleItem, available);
+        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index, YaclSessionHelper.defaultListOf(listInfo)), field, sampleItem);
     }
 
     /**
@@ -92,7 +87,6 @@ public final class YaclPojoFieldBuilder {
      * @param accessor The nested entry accessor strategy.
      * @param field The reflective field in the POJO.
      * @param sampleItem A sample or current instance of the POJO.
-     * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
      * @return The built {@link Option}.
      * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
@@ -102,12 +96,11 @@ public final class YaclPojoFieldBuilder {
             OptionInfo containerInfo,
             NestedAccessor accessor,
             Field field,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
         Component name = context.namingStrategy().resolvePojoFieldName(context.translationPrefix(), containerInfo, field);
-        OptionDescription desc = context.namingStrategy().resolvePojoFieldDescription(context.translationPrefix(), containerInfo, field, available);
-        return buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, name, desc, available);
+        Component desc = context.namingStrategy().resolvePojoFieldDescription(context.translationPrefix(), containerInfo, field);
+        return buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, name, desc);
     }
 
     /**
@@ -120,7 +113,6 @@ public final class YaclPojoFieldBuilder {
      * @param sampleItem A sample or current instance of the POJO.
      * @param name The display title component.
      * @param desc The description or tooltip.
-     * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
      * @return The built {@link Option}.
      * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
@@ -132,13 +124,12 @@ public final class YaclPojoFieldBuilder {
             Field field,
             Object sampleItem,
             Component name,
-            OptionDescription desc,
-            boolean available
+            Component desc
     ) {
         Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
         OptionInfo fieldInfo = resolveFieldOptionInfo(context, containerInfo, field, defaultFieldVal);
         String optionKey = containerInfo.getKey() + "." + field.getName();
-        YaclOptionMetadata meta = context.metadata(name, desc, available, optionKey);
+        YaclOptionMetadata meta = context.metadata(name, desc, containerInfo, optionKey);
         ValueAccessor<Object> value = ValueAccessor.entryProperty(
                 context.session(),
                 containerInfo,

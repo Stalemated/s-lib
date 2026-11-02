@@ -185,11 +185,10 @@ public class YaclGroupBuilder<T> {
         }
 
         Class<?> elemClass = defaultElement != null ? defaultElement.getClass() : listInfo.getCollectionElementType();
-        boolean available = context.availabilityRule().isAvailable(listInfo, context.session());
         YaclOptionMetadata meta = context.metadata(
                 context.namingStrategy().resolveName(context.translationPrefix(), optionKey),
-                context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey, available),
-                available,
+                context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey),
+                listInfo,
                 optionKey
         );
 

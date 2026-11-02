@@ -2,7 +2,6 @@ package com.stalemated.lib.compat.yacl.registry;
 
 import com.stalemated.lib.config.annotation.SharedDescription;
 import com.stalemated.lib.config.model.OptionInfo;
-import dev.isxander.yacl3.api.OptionDescription;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
@@ -46,11 +45,10 @@ public interface YaclNamingStrategy {
      *
      * @param prefix The translation prefix.
      * @param option The option metadata.
-     * @param available Whether the option is currently interactively editable.
      * @return The option description.
      */
-    default OptionDescription resolveDescription(String prefix, OptionInfo option, boolean available) {
-        return describe(descriptionKey(prefix, option.getKey(), option.field()), available);
+    default Component resolveDescription(String prefix, OptionInfo option) {
+        return describe(prefix, option.getKey(), option.field());
     }
 
     /**
@@ -58,26 +56,18 @@ public interface YaclNamingStrategy {
      *
      * @param prefix The translation prefix.
      * @param optionKey The option key.
-     * @param available Whether the option is currently interactively editable.
      * @return The option description.
      */
-    default OptionDescription resolveDescription(String prefix, String optionKey, boolean available) {
-        return describe(descriptionKey(prefix, optionKey, null), available);
+    default Component resolveDescription(String prefix, String optionKey) {
+        return describe(prefix, optionKey, null);
     }
 
-    private String descriptionKey(String prefix, String optionKey, Field field) {
+    private Component describe(String prefix, String optionKey, Field field) {
         SharedDescription shared = field != null ? field.getAnnotation(SharedDescription.class) : null;
-        return shared != null
+        String descriptionKey = shared != null
                 ? prefix + ".description." + normalize(shared.value())
                 : resolveBaseKey(prefix, optionKey) + ".desc";
-    }
-
-    private static OptionDescription describe(String descriptionKey, boolean available) {
-        Component descText = Component.translatableWithFallback(descriptionKey, "");
-        if (!available) {
-            return OptionDescription.of(descText, Component.translatable(TranslationKeys.OP_REQUIRED));
-        }
-        return OptionDescription.of(descText);
+        return Component.translatableWithFallback(descriptionKey, "");
     }
 
     /**
@@ -108,14 +98,10 @@ public interface YaclNamingStrategy {
      * so a constant named {@code DESC} never shares the {@code .desc} key of the option.
      *
      * @param prefix The translation prefix.
-     * @param option The option metadata.
+     * @param optionKey The dot-separated key of the option.
      * @param value The enum constant value.
      * @return The localized or fallback enum value component.
      */
-    default Component resolveEnumValue(String prefix, OptionInfo option, Enum<?> value) {
-        return resolveEnumValue(prefix, option.getKey(), value);
-    }
-
     default Component resolveEnumValue(String prefix, String optionKey, Enum<?> value) {
         if (value == null) return Component.empty();
         String key = resolveBaseKey(prefix, optionKey) + ".value." + normalize(value.name());
@@ -211,11 +197,10 @@ public interface YaclNamingStrategy {
      * @param prefix The translation prefix.
      * @param mapInfo The parent map option metadata.
      * @param field The reflective field.
-     * @param available Whether the option is currently interactively editable.
      * @return The option description.
      */
-    default OptionDescription resolvePojoFieldDescription(String prefix, OptionInfo mapInfo, Field field, boolean available) {
-        return describe(descriptionKey(prefix, mapInfo.getKey() + "." + field.getName(), field), available);
+    default Component resolvePojoFieldDescription(String prefix, OptionInfo mapInfo, Field field) {
+        return describe(prefix, mapInfo.getKey() + "." + field.getName(), field);
     }
 
     YaclNamingStrategy DEFAULT = new YaclNamingStrategy() {};

@@ -4,6 +4,8 @@ import com.stalemated.lib.network.NetworkHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.List;
+
 interface ConfigTransport {
 
     void registerClientReceiver(ResourceLocation channel, NetworkHelper.ClientReceiver receiver);
@@ -16,7 +18,7 @@ interface ConfigTransport {
 
     void sendToClient(ServerPlayer player, ResourceLocation channel, String json);
 
-    void sendToAllClients(ResourceLocation channel, String json);
+    List<ServerPlayer> remotePlayers();
 
     void sendToServer(ResourceLocation channel, String json);
 

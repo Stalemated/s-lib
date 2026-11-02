@@ -1,7 +1,5 @@
 package com.stalemated.lib.compat.yacl.registry;
 
-import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.session.ConfigSession;
 import dev.isxander.yacl3.api.OptionDescription;
 import net.minecraft.network.chat.Component;
 
@@ -14,7 +12,7 @@ import java.util.function.Function;
  *
  * @param name The translated option display title.
  * @param description The translated option description or tooltip.
- * @param available Whether the option is editable based on network sync rules.
+ * @param available Whether the availability rule lets the user edit the option.
  * @param enumFormatter Function resolving localized display names for enum constants.
  */
 public record YaclOptionMetadata(
@@ -33,27 +31,11 @@ public record YaclOptionMetadata(
         return enumFormatter.apply(value);
     }
 
-    /**
-     * Resolves presentation metadata for the given option and session.
-     *
-     * @param session The configuration session.
-     * @param info The option metadata.
-     * @param translationPrefix The prefix of every translation key on the screen.
-     * @param namingStrategy The naming strategy.
-     * @param availabilityRule The availability rule.
-     * @return A new {@link YaclOptionMetadata} instance.
-     */
-    public static YaclOptionMetadata resolve(
-            ConfigSession<?> session,
-            OptionInfo info,
-            String translationPrefix,
-            YaclNamingStrategy namingStrategy,
-            OptionAvailabilityRule availabilityRule
-    ) {
-        boolean available = availabilityRule.isAvailable(info, session);
-        Component name = namingStrategy.resolveName(translationPrefix, info);
-        OptionDescription description = namingStrategy.resolveDescription(translationPrefix, info, available);
-        Function<Enum<?>, Component> enumFormatter = e -> namingStrategy.resolveEnumValue(translationPrefix, info, e);
-        return new YaclOptionMetadata(name, description, available, enumFormatter);
+    public static YaclOptionMetadata editable(Component name, Component description, Function<Enum<?>, Component> enumFormatter) {
+        return new YaclOptionMetadata(name, OptionDescription.of(description), true, enumFormatter);
+    }
+
+    public static YaclOptionMetadata locked(Component name, Component description, Component reason, Function<Enum<?>, Component> enumFormatter) {
+        return new YaclOptionMetadata(name, OptionDescription.of(description, reason), false, enumFormatter);
     }
 }

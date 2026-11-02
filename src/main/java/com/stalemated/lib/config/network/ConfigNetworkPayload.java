@@ -3,6 +3,7 @@ package com.stalemated.lib.config.network;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -33,7 +34,27 @@ public final class ConfigNetworkPayload {
     private static final int CHANNEL_WRAPPER_BYTES = 512;
     public static final int MAX_SERVER_BOUND_BYTES = VANILLA_SERVER_BOUND_LIMIT_BYTES - CHANNEL_WRAPPER_BYTES;
 
+    private static final String CAN_CHANGE_OVERRIDES = "canChangeOverrides";
+    private static final String OPTIONS = "options";
+
     private ConfigNetworkPayload() {}
+
+    public record ServerConfigMessage(JsonObject options, boolean canChangeOverrides) {}
+
+    public static String serverConfig(String options, boolean canChangeOverrides) {
+        return "{\"" + CAN_CHANGE_OVERRIDES + "\":" + canChangeOverrides + ",\"" + OPTIONS + "\":" + options + "}";
+    }
+
+    public static ServerConfigMessage readServerConfig(FriendlyByteBuf buf) {
+        JsonObject message = JsonParser.parseString(buf.readUtf(MAX_PAYLOAD_BYTES)).getAsJsonObject();
+        if (!(message.get(OPTIONS) instanceof JsonObject options)
+                || !(message.get(CAN_CHANGE_OVERRIDES) instanceof JsonPrimitive canChange)
+                || !canChange.isBoolean()) {
+            throw new IllegalArgumentException("Server config message needs '" + OPTIONS + "' as an object and '"
+                    + CAN_CHANGE_OVERRIDES + "' as a boolean, got keys " + message.keySet());
+        }
+        return new ServerConfigMessage(options, canChange.getAsBoolean());
+    }
 
     /**
      * Serializes every option of one sync mode into a flat JSON object.
@@ -94,9 +115,12 @@ public final class ConfigNetworkPayload {
             LOGGER.error("Ignoring config sync payload of {} chars that is not a JSON object: {}", json.length(), e.getMessage());
             return;
         }
+        apply(jsonObject, tree, acceptedMode, targetInstance, serializer);
+    }
 
-        for (String key : jsonObject.keySet()) {
-            applySingleOption(key, jsonObject.get(key), tree, acceptedMode, targetInstance, serializer);
+    public static void apply(JsonObject options, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+        for (String key : options.keySet()) {
+            applySingleOption(key, options.get(key), tree, acceptedMode, targetInstance, serializer);
         }
     }
 

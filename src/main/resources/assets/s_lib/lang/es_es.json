@@ -1,4 +1,5 @@
 {
-  "s_lib.config_screen.op_required": "\n§4§lAdvertencia:§f §cDebes ser un operador del servidor para editar esto.§f",
+  "s_lib.config_screen.no_permission": "\n§4§lAdvertencia:§f §cEste servidor no te permite editar esto.§f",
+  "s_lib.config_screen.server_without_mod": "\n§4§lAdvertencia:§f §cEste servidor no tiene el mod, por lo que usa el valor por defecto.§f",
   "s_lib.config_screen.no_entries": "Sin entradas"
 }

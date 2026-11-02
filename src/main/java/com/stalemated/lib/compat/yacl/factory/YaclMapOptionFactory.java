@@ -10,7 +10,6 @@ import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.codec.KeyValuePair;
 import dev.isxander.yacl3.api.ListOption;
-import dev.isxander.yacl3.api.OptionDescription;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
 
@@ -80,7 +79,6 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             return Collections.emptyList();
         }
 
-        boolean available = context.availabilityRule().isAvailable(mapInfo, context.session());
         Map<String, N> defaultMap = (Map<String, N>) YaclSessionHelper.defaultMapOf(mapInfo);
         Map<String, N> currentMap = context.session().get(mapInfo);
         if (currentMap == null) {
@@ -91,11 +89,11 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         }
 
         OptionAssembler assembler = context.assembler();
-        OptionDescription desc = context.namingStrategy().resolveDescription(context.translationPrefix(), mapInfo, available);
+        Component desc = context.namingStrategy().resolveDescription(context.translationPrefix(), mapInfo);
         List<ListOption<String>> options = new ArrayList<>(currentMap.size());
 
         for (String entryKey : currentMap.keySet()) {
-            YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, available, mapInfo.getKey());
+            YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, mapInfo, mapInfo.getKey());
             ValueAccessor<List<String>> projected = ValueAccessor.entryProperty(
                     context.session(),
                     mapInfo,

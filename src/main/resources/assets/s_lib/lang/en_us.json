@@ -1,4 +1,5 @@
 {
-  "s_lib.config_screen.op_required": "\n§4§lWarning:§f §cYou must be a server operator to edit this.§f",
+  "s_lib.config_screen.no_permission": "\n§4§lWarning:§f §cThis server does not let you edit this.§f",
+  "s_lib.config_screen.server_without_mod": "\n§4§lWarning:§f §cThis server does not have the mod, so it uses the default value.§f",
   "s_lib.config_screen.no_entries": "No entries"
 }

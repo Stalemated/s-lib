@@ -174,7 +174,6 @@ public class YaclCategoryBuilder<T> {
         if (info.hasTitle()) {
             label(info.getTitle());
         }
-        boolean available = context.availabilityRule().isAvailable(info, context.session());
 
         Map<?, ?> defaults = YaclSessionHelper.defaultMapOf(info);
         Map<String, ?> currentMap = context.session().get(info);
@@ -186,7 +185,7 @@ public class YaclCategoryBuilder<T> {
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
             Object sampleItem = entry.getValue();
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey, defaults), Component.literal(entryKey), sampleItem, available));
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey, defaults), Component.literal(entryKey), sampleItem));
         }
         return this;
     }
@@ -202,7 +201,6 @@ public class YaclCategoryBuilder<T> {
         if (info.hasTitle()) {
             label(info.getTitle());
         }
-        boolean available = context.availabilityRule().isAvailable(info, context.session());
 
         List<?> defaults = YaclSessionHelper.defaultListOf(info);
         List<?> currentList = context.session().get(info);
@@ -214,7 +212,7 @@ public class YaclCategoryBuilder<T> {
         for (int i = 0; i < currentList.size(); i++) {
             Object sampleItem = currentList.get(i);
             Component groupName = resolveListEntryGroupName(i, sampleItem);
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i, defaults), groupName, sampleItem, available));
+            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i, defaults), groupName, sampleItem));
         }
         return this;
     }
@@ -332,8 +330,7 @@ public class YaclCategoryBuilder<T> {
             OptionInfo containerInfo,
             NestedAccessor accessor,
             Component groupName,
-            Object sampleItem,
-            boolean available
+            Object sampleItem
     ) {
         OptionGroup.Builder groupBuilder = OptionGroup.createBuilder()
                 .name(groupName)
@@ -348,7 +345,7 @@ public class YaclCategoryBuilder<T> {
                         groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.translationPrefix(), titleVal)));
                     }
                 }
-                groupOptions.add(this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem, available));
+                groupOptions.add(this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem));
             }
         }
 

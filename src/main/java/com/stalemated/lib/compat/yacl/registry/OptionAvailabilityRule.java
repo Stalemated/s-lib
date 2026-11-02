@@ -4,10 +4,11 @@ import com.stalemated.lib.config.SyncedConfigManager;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
-import com.stalemated.lib.client.ClientConfigPermissions;
 import com.stalemated.lib.config.session.ConfigSession;
+import net.minecraft.network.chat.Component;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Strategy interface to evaluate whether a config option is interactively editable on the client.
@@ -16,71 +17,37 @@ import java.util.Objects;
 public interface OptionAvailabilityRule {
 
     /**
-     * Evaluates whether an option is available for user interaction under the current connection state.
-     *
-     * @param option The configuration option to evaluate.
-     * @param connectionState The current client-server connection state.
-     * @return True if editable, false otherwise.
-     */
-    boolean isAvailable(OptionInfo option, ConnectionState connectionState);
-
-    /**
-     * Evaluates availability by extracting the network {@link ConnectionState} from the session manager.
+     * Explains why an option cannot be edited on the screen right now.
      *
      * @param option The configuration option to evaluate.
      * @param session The active configuration session.
-     * @return True if the option is editable, false otherwise.
+     * @return The reason shown below the option description, or empty if the option is editable.
      */
-    default boolean isAvailable(OptionInfo option, ConfigSession<?> session) {
-        ConnectionState state = session.getManager() instanceof SyncedConfigManager<?> synced
-                ? synced.getConnectionState()
-                : null;
-        return isAvailable(option, state);
-    }
+    Optional<Component> unavailableReason(OptionInfo option, ConfigSession<?> session);
 
     /**
-     * Combines this rule with another rule using logical AND.
+     * Combines this rule with another rule. The option is editable only if both rules allow it,
+     * and the reason of this rule wins when both block it.
      *
      * @param other The other rule to combine with.
-     * @return A composed rule that returns true only if both rules return true.
+     * @return A composed rule.
      */
     default OptionAvailabilityRule and(OptionAvailabilityRule other) {
         Objects.requireNonNull(other, "other rule cannot be null");
-        return (option, state) -> this.isAvailable(option, state) && other.isAvailable(option, state);
+        return (option, session) -> unavailableReason(option, session).or(() -> other.unavailableReason(option, session));
     }
 
-    /**
-     * Combines this rule with another rule using logical OR.
-     *
-     * @param other The other rule to combine with.
-     * @return A composed rule that returns true if either rule returns true.
-     */
-    default OptionAvailabilityRule or(OptionAvailabilityRule other) {
-        Objects.requireNonNull(other, "other rule cannot be null");
-        return (option, state) -> this.isAvailable(option, state) || other.isAvailable(option, state);
-    }
-
-    /**
-     * Returns a rule that represents the logical negation of this rule.
-     *
-     * @return A negated availability rule.
-     */
-    default OptionAvailabilityRule negate() {
-        return (option, state) -> !this.isAvailable(option, state);
-    }
-
-    OptionAvailabilityRule DEFAULT = (option, state) -> {
-        // Local-only and INFORM_SERVER client preferences are always editable
-        if (state == null || option.getSyncMode() != SyncMode.OVERRIDE_CLIENT) {
-            return true;
+    OptionAvailabilityRule DEFAULT = (option, session) -> {
+        if (option.getSyncMode() != SyncMode.OVERRIDE_CLIENT
+                || !(session.getManager() instanceof SyncedConfigManager<?> synced)
+                || synced.canChangeOverrides()) {
+            return Optional.empty();
         }
-        // Server-authoritative options cannot be altered when connected to unmodded vanilla servers
-        if (state == ConnectionState.MULTIPLAYER_UNMODDED) {
-            return false;
-        }
-        // In singleplayer or modded multiplayer, require operator privileges
-        return ClientConfigPermissions.OP_OR_SP.get();
+        String reason = synced.getConnectionState() == ConnectionState.MULTIPLAYER_UNMODDED
+                ? TranslationKeys.SERVER_WITHOUT_MOD
+                : TranslationKeys.NO_PERMISSION;
+        return Optional.of(Component.translatable(reason));
     };
 
-    OptionAvailabilityRule UNRESTRICTED = (option, state) -> ClientConfigPermissions.ANYONE.get();
+    OptionAvailabilityRule UNRESTRICTED = (option, session) -> Optional.empty();
 }

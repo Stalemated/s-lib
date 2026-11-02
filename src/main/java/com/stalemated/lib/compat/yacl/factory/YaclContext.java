@@ -8,12 +8,12 @@ import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
-import dev.isxander.yacl3.api.OptionDescription;
 import net.minecraft.network.chat.Component;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Immutable context object grouping the shared state required across YACL screen, category, and option builders.
@@ -73,12 +73,14 @@ public record YaclContext<T>(
      * @return The resolved {@link YaclOptionMetadata}.
      */
     public YaclOptionMetadata resolveMetadata(OptionInfo info) {
-        return YaclOptionMetadata.resolve(session, info, translationPrefix, namingStrategy, availabilityRule);
+        return metadata(namingStrategy.resolveName(translationPrefix, info), namingStrategy.resolveDescription(translationPrefix, info), info, info.getKey());
     }
 
-    public YaclOptionMetadata metadata(Component name, OptionDescription description, boolean available, String optionKey) {
-        return new YaclOptionMetadata(name, description, available,
-                value -> namingStrategy.resolveEnumValue(translationPrefix, optionKey, value));
+    public YaclOptionMetadata metadata(Component name, Component description, OptionInfo storedOption, String optionKey) {
+        Function<Enum<?>, Component> enumFormatter = value -> namingStrategy.resolveEnumValue(translationPrefix, optionKey, value);
+        return availabilityRule.unavailableReason(storedOption, session)
+                .map(reason -> YaclOptionMetadata.locked(name, description, reason, enumFormatter))
+                .orElseGet(() -> YaclOptionMetadata.editable(name, description, enumFormatter));
     }
 
     public OptionAssembler assembler() {
