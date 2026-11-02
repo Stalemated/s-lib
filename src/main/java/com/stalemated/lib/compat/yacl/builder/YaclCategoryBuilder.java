@@ -229,6 +229,9 @@ public class YaclCategoryBuilder<T> {
      */
     public <N> YaclCategoryBuilder<T> nestedMapLists(String mapKey, NestListBinding<N> binding) {
         OptionInfo mapInfo = requireOptionInfo(mapKey);
+        if (mapInfo.hasTitle()) {
+            label(mapInfo.getTitle());
+        }
 
         List<ListOption<String>> projectedLists = mapOptionFactory.buildProjectedMapListOptions(mapInfo, binding);
         if (projectedLists.isEmpty()) return emptyEntriesLabel();

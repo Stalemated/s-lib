@@ -221,17 +221,24 @@ public class YaclGroupBuilder<T> {
 
     private void appendOptionWithTitle(List<Option<?>> list, OptionInfo info) {
         if (info.hasTitle()) {
-            Component titleComp = context.namingStrategy().resolveTitle(context.translationPrefix(), info.getTitle());
-            if (list.isEmpty()) {
-                if (!hasGroupTitle()) {
-                    this.name = titleComp;
-                }
-            } else {
-                list.add(LabelOption.create(titleComp));
-            }
+            appendTitle(list, info.getTitle());
         }
         Consumer<Option.Builder<?>> customizer = overrides.get(info.getKey());
         list.add(optionFactory.buildOption(info, customizer));
+    }
+
+    private void appendTitle(List<Option<?>> list, String title) {
+        Component titleText = context.namingStrategy().resolveTitle(context.translationPrefix(), title);
+        if (!list.isEmpty()) {
+            list.add(LabelOption.create(titleText));
+        } else if (!hasGroupTitle()) {
+            this.name = titleText;
+            if (description == null) {
+                this.description = OptionDescription.of(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), title));
+            }
+        } else if (!titleText.equals(name)) {
+            list.add(LabelOption.create(titleText));
+        }
     }
 
     public OptionGroup build() {
