@@ -50,7 +50,7 @@ public interface YaclNamingStrategy {
      * @return The option description.
      */
     default OptionDescription resolveDescription(String prefix, OptionInfo option, boolean available) {
-        return describe(descriptionKey(prefix, option.getKey(), option.getField()), available);
+        return describe(descriptionKey(prefix, option.getKey(), option.field()), available);
     }
 
     /**

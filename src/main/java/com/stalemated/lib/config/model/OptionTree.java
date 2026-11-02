@@ -31,7 +31,7 @@ public class OptionTree {
     private final Map<String, OptionInfo> options = new LinkedHashMap<>();
     private final List<OptionInfo> syncedOptions = new ArrayList<>();
     private final List<OptionInfo> localOnlyOptions = new ArrayList<>();
-    private final ConfigNode schemaRoot;
+    private final CategoryNode schemaRoot;
 
     /**
      * Creates an {@link OptionTree} for the specified config class, using its no-arg constructor for defaults.
@@ -69,7 +69,7 @@ public class OptionTree {
                 ? rootClass.getAnnotation(Sync.class).value()
                 : SyncMode.OVERRIDE_CLIENT;
 
-        this.schemaRoot = buildNode("", null, rootClass, new ArrayList<>(), rootMode, defaultInstance, false, false);
+        this.schemaRoot = buildCategoryNode("", null, rootClass, rootClass, new ArrayList<>(), rootMode, defaultInstance, false);
 
         for (OptionInfo option : options.values()) {
             if (option.getSyncMode().isSynced()) {
@@ -82,10 +82,6 @@ public class OptionTree {
 
     private ConfigNode buildNode(String key, Field field, Type genericType, List<Field> path, SyncMode syncMode, Object parentInstance, boolean isTemplate, boolean isTemplateRoot) {
         Class<?> type = ReflectionUtils.getRawClass(genericType);
-
-        if (field == null) {
-            return buildCategoryNode(key, null, genericType, type, path, syncMode, parentInstance, isTemplate);
-        }
 
         if (isTemplateRoot) {
             return buildTemplateRoot(key, field, genericType, type, syncMode);
@@ -155,7 +151,7 @@ public class OptionTree {
                 ? field.getAnnotation(Comment.class).value()
                 : null;
         Constraint constraint = isTemplate ? Constraints.ofFields(key, type, fields) : Constraint.NONE;
-        return new CategoryNode(type, genericType, children, title, comment, constraint);
+        return new CategoryNode(field, type, genericType, children, title, comment, constraint);
     }
 
     private List<Field> resolveCategoryPath(List<Field> path, Field field, boolean isTemplate) {
@@ -245,7 +241,7 @@ public class OptionTree {
 
     public DeepCopy deepCopy() { return deepCopy; }
 
-    public ConfigNode getSchemaRoot() { return schemaRoot; }
+    public CategoryNode getSchemaRoot() { return schemaRoot; }
 
     public OptionInfo get(String key) { return options.get(key); }
 

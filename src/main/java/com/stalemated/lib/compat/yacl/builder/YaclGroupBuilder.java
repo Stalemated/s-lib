@@ -195,7 +195,7 @@ public class YaclGroupBuilder<T> {
 
         OptionInfo elementInfo = new OptionInfo(
                 listKey + "[" + index + "]",
-                listInfo.getField(),
+                listInfo.field(),
                 Collections.emptyList(),
                 listInfo.getSyncMode(),
                 defaultElement,

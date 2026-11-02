@@ -29,7 +29,7 @@ final class Json5KeyLayout {
                 parent = parent.child(namesOf(category));
                 path.add(parent);
             }
-            path.add(parent.child(namesOf(option.getField())));
+            path.add(parent.child(namesOf(option.field())));
             optionPaths.put(option, List.copyOf(path));
         }
     }

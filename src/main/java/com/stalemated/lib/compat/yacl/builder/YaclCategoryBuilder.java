@@ -251,37 +251,34 @@ public class YaclCategoryBuilder<T> {
      * @return This category builder.
      */
     public YaclCategoryBuilder<T> autoGenerate() {
-        ConfigNode root = context.session().getOptionTree().getSchemaRoot();
+        CategoryNode root = context.session().getOptionTree().getSchemaRoot();
+        List<String> pendingLeaves = new ArrayList<>();
+        String currentSectionTitle = null;
 
-        if (root instanceof CategoryNode categoryNode) {
-            List<String> pendingLeaves = new ArrayList<>();
-            String currentSectionTitle = null;
+        for (Map.Entry<String, ConfigNode> entry : root.children().entrySet()) {
+            String childKey = entry.getKey();
+            ConfigNode childNode = entry.getValue();
 
-            for (Map.Entry<String, ConfigNode> entry : categoryNode.children().entrySet()) {
-                String childKey = entry.getKey();
-                ConfigNode childNode = entry.getValue();
-
-                if (childNode instanceof OptionInfo info) {
-                    if (info.isCollection() || info.isMap()) {
-                        flushPendingLeaves(pendingLeaves, currentSectionTitle);
-                        currentSectionTitle = null;
-                        emitCollectionOrMapOption(info);
-                    } else {
-                        if (info.hasTitle()) {
-                            flushPendingLeaves(pendingLeaves, currentSectionTitle);
-                            currentSectionTitle = info.getTitle();
-                        }
-                        pendingLeaves.add(childKey);
-                    }
-                } else if (childNode instanceof CategoryNode) {
+            if (childNode instanceof OptionInfo info) {
+                if (info.isCollection() || info.isMap()) {
                     flushPendingLeaves(pendingLeaves, currentSectionTitle);
                     currentSectionTitle = null;
-                    nested(childKey);
+                    emitCollectionOrMapOption(info);
+                } else {
+                    if (info.hasTitle()) {
+                        flushPendingLeaves(pendingLeaves, currentSectionTitle);
+                        currentSectionTitle = info.getTitle();
+                    }
+                    pendingLeaves.add(childKey);
                 }
+            } else if (childNode instanceof CategoryNode) {
+                flushPendingLeaves(pendingLeaves, currentSectionTitle);
+                currentSectionTitle = null;
+                nested(childKey);
             }
-
-            flushPendingLeaves(pendingLeaves, currentSectionTitle);
         }
+
+        flushPendingLeaves(pendingLeaves, currentSectionTitle);
         return this;
     }
 

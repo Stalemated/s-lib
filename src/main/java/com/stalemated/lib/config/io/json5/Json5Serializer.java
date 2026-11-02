@@ -33,6 +33,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final JsonGrammar grammar;
     private final Gson gson;
     private final Json5KeyLayout layout;
+    private final Json5TreeConverter treeConverter;
     private final OptionValueReader reader;
 
     public Json5Serializer(OptionTree optionTree) {
@@ -43,6 +44,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         this.gson = optionTree.gson();
 
         this.layout = new Json5KeyLayout(optionTree, gson.fieldNamingStrategy());
+        this.treeConverter = new Json5TreeConverter(layout);
         this.reader = new OptionValueReader(gson, layout);
 
         this.grammar = JsonGrammar.builder()
@@ -60,20 +62,11 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
      */
     @Override
     public String serialize(T instance) {
-        com.google.gson.JsonObject tree = new com.google.gson.JsonObject();
+        com.google.gson.JsonObject options = new com.google.gson.JsonObject();
         for (OptionInfo option : optionTree.all()) {
-            layout.put(tree, option, gson.toJsonTree(option.getValue(instance), option.genericType()));
+            layout.put(options, option, gson.toJsonTree(option.getValue(instance), option.genericType()));
         }
-
-        JsonObject rootObject;
-        try {
-            rootObject = jankson.load(gson.toJson(tree));
-        } catch (SyntaxError e) {
-            throw new IllegalStateException("Jankson rejected JSON produced by GSON: " + e.getCompleteMessage(), e);
-        }
-
-        Json5CommentInjector.inject(rootObject, optionTree.getSchemaRoot(), layout::jsonName);
-        return rootObject.toJson(grammar);
+        return treeConverter.toJankson(options, optionTree.getSchemaRoot()).toJson(grammar);
     }
 
     /**

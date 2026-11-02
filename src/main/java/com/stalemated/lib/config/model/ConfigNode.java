@@ -1,8 +1,14 @@
 package com.stalemated.lib.config.model;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 
 public interface ConfigNode {
+    /**
+     * Gets the field that holds this node's value, or null for the root category.
+     */
+    Field field();
+
     /**
      * Gets the runtime type represented by this node.
      */

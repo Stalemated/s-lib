@@ -66,7 +66,8 @@ public class OptionInfo implements ConfigNode {
 
     public String getKey() { return key; }
 
-    public Field getField() { return field; }
+    @Override
+    public Field field() { return field; }
 
     public List<Field> getFieldPath() { return fieldPath; }
     
