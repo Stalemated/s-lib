@@ -17,12 +17,22 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import com.stalemated.lib.compat.yacl.controller.helper.ItemRegistryHelper;
+import com.stalemated.lib.predicate.target.TargetKind;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class ItemOrTagControllerElement extends AbstractDropdownControllerElement<String, String> {
+    private static final Map<TargetKind, ChatFormatting> COLORS_BY_KIND = new EnumMap<>(Map.of(
+            TargetKind.ALL, ChatFormatting.AQUA,
+            TargetKind.NEGATED, ChatFormatting.RED,
+            TargetKind.REGEX, ChatFormatting.GREEN,
+            TargetKind.NAMESPACE, ChatFormatting.YELLOW,
+            TargetKind.TAG, ChatFormatting.GOLD
+    ));
+
     private final ItemOrTagController itemOrTagController;
     private final Map<String, ItemStack> iconsByTarget = new HashMap<>();
     private ItemStack currentItemIcon = ItemStack.EMPTY;
@@ -33,7 +43,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     }
 
     private static boolean isSpecialTarget(String value) {
-        return value.equals("*") || value.startsWith("!") || value.startsWith("regex:") || value.endsWith(":*") || value.startsWith("#");
+        return TargetKind.of(value) != TargetKind.ITEM;
     }
 
     private static ItemStack iconFor(String target) {
@@ -47,12 +57,8 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     }
 
     private Component formatTargetText(String value) {
-        if (value.equals("*")) return Component.literal(value).withStyle(ChatFormatting.AQUA);
-        if (value.startsWith("!")) return Component.literal(value).withStyle(ChatFormatting.RED);
-        if (value.startsWith("regex:")) return Component.literal(value).withStyle(ChatFormatting.GREEN);
-        if (value.endsWith(":*")) return Component.literal(value).withStyle(ChatFormatting.YELLOW);
-        if (value.startsWith("#")) return Component.literal(value).withStyle(ChatFormatting.GOLD);
-        return Component.literal(value);
+        ChatFormatting color = COLORS_BY_KIND.get(TargetKind.of(value));
+        return color != null ? Component.literal(value).withStyle(color) : Component.literal(value);
     }
 
     //? if yacl: <3.9.0 {

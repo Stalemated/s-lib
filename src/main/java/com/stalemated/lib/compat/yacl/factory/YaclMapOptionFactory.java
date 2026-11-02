@@ -17,6 +17,8 @@ import net.minecraft.network.chat.Component;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static com.stalemated.lib.SLib.LOGGER;
+
 /**
  * Metadata-driven factory that produces YACL {@link ListOption} widgets for {@code Map<String, ?>} config options,
  * including both key-value pair lists and projected inner list properties of nested POJO maps.
@@ -112,18 +114,29 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
+    private static KeyValuePair parseOrWarn(String line) {
+        try {
+            return KeyValuePair.parse(line);
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("Ignoring map entry: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private static List<String> toLines(Map<String, ?> map, TypeLens<Object, String> valueText) {
         return KeyValuePair.toLines(map, value -> valueText.guiOf(value, ""));
     }
 
     private void persistGuiMap(OptionInfo info, List<String> guiList, TypeLens<Object, String> valueText) {
-        Map<String, String> stringMap = KeyValuePair.fromLines(guiList);
-        Map<String, Object> convertedMap = new LinkedHashMap<>(stringMap.size());
+        Map<String, Object> convertedMap = new LinkedHashMap<>(guiList.size());
 
-        for (Map.Entry<String, String> entry : stringMap.entrySet()) {
-            Object value = valueText.fromGui().apply(entry.getValue());
+        for (String line : guiList) {
+            KeyValuePair pair = parseOrWarn(line);
+            if (pair == null) continue;
+
+            Object value = valueText.fromGui().apply(pair.value());
             if (value != null) {
-                convertedMap.put(entry.getKey(), value);
+                convertedMap.put(pair.key(), value);
             }
         }
 

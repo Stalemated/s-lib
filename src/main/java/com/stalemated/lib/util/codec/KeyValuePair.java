@@ -42,6 +42,7 @@ public record KeyValuePair(String key, String value) {
      *
      * @param line The string line to parse.
      * @return The parsed {@link KeyValuePair}, or null if the line is null or empty.
+     * @throws IllegalArgumentException If a quoted key is never closed or is followed by anything but ':'.
      */
     public static KeyValuePair parse(String line) {
         if (line == null) return null;
@@ -81,6 +82,7 @@ public record KeyValuePair(String key, String value) {
      *
      * @param lines The list of formatted strings.
      * @return A map with parsed entries, preserving encounter order.
+     * @throws IllegalArgumentException If a line has a malformed quoted key.
      */
     public static Map<String, String> fromLines(List<String> lines) {
         Map<String, String> result = new LinkedHashMap<>();
@@ -100,16 +102,20 @@ public record KeyValuePair(String key, String value) {
     }
 
     private static KeyValuePair parseQuoted(String trimmed) {
-        char q = trimmed.charAt(0);
-        int end = findClosingQuote(trimmed, q);
-        if (end == -1) return parseUnquoted(trimmed);
+        int end = findClosingQuote(trimmed, trimmed.charAt(0));
+        if (end == -1) {
+            throw new IllegalArgumentException("Unclosed quote in '" + trimmed + "'");
+        }
 
-        String rawKey = trimmed.substring(1, end).replace("\\" + q, String.valueOf(q)).replace("\\\\", "\\").trim();
-        if (rawKey.isEmpty()) return parseUnquoted(trimmed);
+        String key = StringUtils.stripQuotes(trimmed.substring(0, end + 1)).trim();
+        if (key.isEmpty()) return parseUnquoted(trimmed);
 
         String rest = trimmed.substring(end + 1).trim();
-        if (rest.startsWith(":")) rest = rest.substring(1).trim();
-        return new KeyValuePair(rawKey, StringUtils.stripQuotes(rest));
+        if (rest.isEmpty()) return new KeyValuePair(key, "");
+        if (!rest.startsWith(":")) {
+            throw new IllegalArgumentException("Expected ':' after the quoted key in '" + trimmed + "'");
+        }
+        return new KeyValuePair(key, StringUtils.stripQuotes(rest.substring(1)));
     }
 
     private static int findClosingQuote(String trimmed, char quoteChar) {
