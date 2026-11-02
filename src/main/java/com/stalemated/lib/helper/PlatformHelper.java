@@ -1,7 +1,6 @@
 package com.stalemated.lib.helper;
 
 import java.nio.file.Path;
-import java.util.function.Supplier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -32,33 +31,15 @@ import net.neoforged.fml.loading.FMLEnvironment;
 public class PlatformHelper {
 
     /**
-     * Resolves a directory path from a system property override (e.g., for testing environments),
-     * or from the platform loader (FabricLoader or FMLPaths) when no override is set.
-     *
-     * @param systemProperty The system property key to check for an override.
-     * @param platformSupplier Supplier providing the path from the platform loader.
-     * @return The resolved directory {@link Path}.
-     */
-    private static Path resolveDirectory(String systemProperty, Supplier<Path> platformSupplier) {
-        String override = System.getProperty(systemProperty);
-        if (override != null && !override.isEmpty()) {
-            return Path.of(override);
-        }
-        return platformSupplier.get();
-    }
-
-    /**
      * Gets the path to the config directory.
      * @return The absolute path to the config directory (e.g. {@code .minecraft/config/}).
      */
     public static Path getConfigDir() {
-        return resolveDirectory("slib.config_dir", () -> {
-            //? if fabric {
-            return FabricLoader.getInstance().getConfigDir();
-            //?} elif forge || neoforge {
-            /*return FMLPaths.CONFIGDIR.get();
-            *///?}
-        });
+        //? if fabric {
+        return FabricLoader.getInstance().getConfigDir();
+        //?} elif forge || neoforge {
+        /*return FMLPaths.CONFIGDIR.get();
+        *///?}
     }
 
     /**
@@ -66,13 +47,11 @@ public class PlatformHelper {
      * @return The absolute path to the game directory (e.g. {@code .minecraft/}).
      */
     public static Path getGameDir() {
-        return resolveDirectory("slib.game_dir", () -> {
-            //? if fabric {
-            return FabricLoader.getInstance().getGameDir();
-            //?} elif forge || neoforge {
-            /*return FMLPaths.GAMEDIR.get();
-            *///?}
-        });
+        //? if fabric {
+        return FabricLoader.getInstance().getGameDir();
+        //?} elif forge || neoforge {
+        /*return FMLPaths.GAMEDIR.get();
+        *///?}
     }
 
     /**
