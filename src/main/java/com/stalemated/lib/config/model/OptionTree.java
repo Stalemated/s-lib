@@ -253,6 +253,10 @@ public class OptionTree {
 
     public List<OptionInfo> getSyncedOptions() { return Collections.unmodifiableList(syncedOptions); }
 
+    public boolean hasOptionsSyncedAs(SyncMode mode) {
+        return syncedOptions.stream().anyMatch(option -> option.getSyncMode() == mode);
+    }
+
     public List<OptionInfo> getLocalOnlyOptions() { return Collections.unmodifiableList(localOnlyOptions); }
 
     /**

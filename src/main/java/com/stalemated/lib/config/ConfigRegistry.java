@@ -1,6 +1,7 @@
 package com.stalemated.lib.config;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.nio.file.Path;
@@ -18,7 +19,27 @@ public final class ConfigRegistry {
     private static final Map<Path, ConfigManager<?>> FILES = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SyncedConfigManager<?>> CHANNELS = new ConcurrentHashMap<>();
 
+    private static volatile MinecraftServer currentServer;
+
     private ConfigRegistry() {}
+
+    static MinecraftServer currentServer() {
+        return currentServer;
+    }
+
+    public static void onServerStarted(MinecraftServer server) {
+        currentServer = server;
+    }
+
+    public static void onServerStopped() {
+        currentServer = null;
+    }
+
+    public static void onPlayerLeaveServer(ServerPlayer player) {
+        for (SyncedConfigManager<?> manager : CHANNELS.values()) {
+            manager.forgetInformedConfig(player.getUUID());
+        }
+    }
 
     static synchronized void claimFile(LocalConfigManager<?> manager) {
         Path file = fileOf(manager.getConfigPath());

@@ -104,13 +104,15 @@ public final class ConfigNetworkPayload {
      * Reads a config payload from a packet buffer and safely applies clamped values.
      *
      * @param buf The incoming packet buffer.
+     * @param maxLength The largest payload accepted from the sender, {@link #MAX_PAYLOAD_BYTES} for the server
+     * and {@link #MAX_SERVER_BOUND_BYTES} for clients.
      * @param tree The option schema tree.
      * @param acceptedMode The only sync mode this payload is allowed to change.
      * @param targetInstance The target config POJO to update.
      * @param serializer The config serializer.
      */
-    public static void readAndApply(FriendlyByteBuf buf, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
-        applyFromJson(buf.readUtf(MAX_PAYLOAD_BYTES), tree, acceptedMode, targetInstance, serializer);
+    public static void readAndApply(FriendlyByteBuf buf, int maxLength, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+        applyFromJson(buf.readUtf(maxLength), tree, acceptedMode, targetInstance, serializer);
     }
 
     private static void put(JsonObject payload, OptionInfo option, Object value, ConfigSerializer<?> serializer) {

@@ -13,6 +13,10 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -33,9 +37,9 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     private final Predicate<ServerPlayer> serverPermissionCheck;
     private final Listeners<Consumer<T>> changeListeners = new Listeners<>(this::getName);
     private final Listeners<BiConsumer<ServerPlayer, T>> informListeners = new Listeners<>(this::getName);
+    private final Map<UUID, T> informedConfigs = new ConcurrentHashMap<>();
 
-    private volatile ConnectionState state = ConnectionState.DISCONNECTED;
-    private volatile T serverConfig = null;
+    private volatile SyncView<T> view = new SyncView<>(ConnectionState.DISCONNECTED, null);
 
     private final ConfigNetworkHandler<T> networkHandler;
 
@@ -82,58 +86,57 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     public ConnectionState getConnectionState() {
-        return state;
-    }
-
-    T getServerConfig() {
-        return serverConfig;
-    }
-
-    void setServerConfig(T serverConfig) {
-        this.serverConfig = serverConfig;
+        return view.state();
     }
 
     boolean checkServerPermission(ServerPlayer player) {
         return serverPermissionCheck.test(player);
     }
 
-    T createDefaultOrClone() {
-        return localManager.createDefaultOrClone();
+    public Optional<T> informedConfigOf(ServerPlayer player) {
+        return Optional.ofNullable(informedConfigs.get(player.getUUID()));
     }
 
-    void notifyInformListeners(ServerPlayer player, T config) {
-        informListeners.fire(listener -> listener.accept(player, config));
+    void acceptInformedConfig(ServerPlayer player, T informedConfig) {
+        informedConfigs.put(player.getUUID(), informedConfig);
+        informListeners.fire(listener -> listener.accept(player, informedConfig));
     }
 
-    /**
-     * Changes the current connection state of the client.
-     *
-     * @param newState The new state.
-     */
-    void setConnectionState(ConnectionState newState) {
-        this.state = newState;
+    void forgetInformedConfig(UUID playerId) {
+        informedConfigs.remove(playerId);
+    }
 
-        if (newState == ConnectionState.MULTIPLAYER_UNMODDED) {
-            T unmoddedConfig = cloneConfig(local());
-            T defaultValues = createDefaultOrClone();
-
-            for (OptionInfo option : getOptionTree().all()) {
-                if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
-                    option.setValue(unmoddedConfig, option.getValue(defaultValues));
-                }
-            }
-            this.serverConfig = unmoddedConfig;
-        }
+    void acceptServerConfig(T serverConfig) {
+        switchView(new SyncView<>(ConnectionState.MULTIPLAYER_MODDED, serverConfig));
     }
 
     void onClientJoinMultiplayer() {
-        if (this.state != ConnectionState.MULTIPLAYER_MODDED) {
-            setConnectionState(ConnectionState.MULTIPLAYER_UNMODDED);
+        if (view.state() != ConnectionState.MULTIPLAYER_MODDED) {
+            switchView(new SyncView<>(ConnectionState.MULTIPLAYER_UNMODDED, configWithDefaultOverrides()));
         }
     }
 
     void onClientJoinSingleplayer() {
-        setConnectionState(ConnectionState.SINGLEPLAYER);
+        switchView(new SyncView<>(ConnectionState.SINGLEPLAYER, null));
+    }
+
+    private T configWithDefaultOverrides() {
+        T config = cloneConfig(local());
+        T defaultValues = localManager.createDefaultOrClone();
+        for (OptionInfo option : getOptionTree().getSyncedOptions()) {
+            if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
+                option.setValue(config, option.getValue(defaultValues));
+            }
+        }
+        return config;
+    }
+
+    private void switchView(SyncView<T> next) {
+        T before = get();
+        view = next;
+        if (get() != before) {
+            fireChanged();
+        }
     }
 
     /**
@@ -146,14 +149,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
      */
     @Override
     public T get() {
-        T local = local();
-        ConnectionState currentState = this.state;
-        T currentServer = this.serverConfig;
-
-        if ((currentState == ConnectionState.MULTIPLAYER_MODDED || currentState == ConnectionState.MULTIPLAYER_UNMODDED) && currentServer != null) {
-            return currentServer;
-        }
-        return local;
+        return view.effective(local());
     }
 
     public T local() {
@@ -161,9 +157,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     void clearServerConfig() {
-        this.serverConfig = null;
-        setConnectionState(ConnectionState.DISCONNECTED);
-        fireChanged();
+        switchView(new SyncView<>(ConnectionState.DISCONNECTED, null));
     }
 
     /**
@@ -237,29 +231,35 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     private void applyLocalChange(OptionInfo option, Object value, SyncBatch batch) {
         option.setValue(local(), value);
-        if (this.serverConfig != null) {
-            option.setValue(this.serverConfig, value);
+        T serverConfig = view.serverConfig();
+        if (serverConfig != null) {
+            option.setValue(serverConfig, value);
         }
         batch.localChanged = true;
     }
 
     private void applyInformChange(OptionInfo option, Object value, SyncBatch batch) {
         applyLocalChange(option, value, batch);
-        if (this.state == ConnectionState.MULTIPLAYER_MODDED || this.state == ConnectionState.SINGLEPLAYER) {
+        ConnectionState state = view.state();
+        if (state == ConnectionState.MULTIPLAYER_MODDED || state == ConnectionState.SINGLEPLAYER) {
             batch.sendInform = true;
         }
     }
 
     private void applyOverrideChange(OptionChange change, SyncBatch batch) {
-        if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
-            batch.serverOverrides.add(change);
-        } else if (this.state == ConnectionState.MULTIPLAYER_UNMODDED) {
-            localManager.logger().warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
-            batch.rejected = true;
-        } else {
-            applyLocalChange(change.option(), change.clampedValue(), batch);
-            if (this.state == ConnectionState.SINGLEPLAYER) {
+        switch (view.state()) {
+            case MULTIPLAYER_MODDED -> batch.serverOverrides.add(change);
+            case MULTIPLAYER_UNMODDED -> {
+                localManager.logger().warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
+                batch.rejected = true;
+            }
+            case SINGLEPLAYER -> {
+                applyLocalChange(change.option(), change.clampedValue(), batch);
                 batch.requestOverrideBroadcast = true;
+            }
+            case DISCONNECTED -> {
+                applyLocalChange(change.option(), change.clampedValue(), batch);
+                batch.broadcastToClients = true;
             }
         }
     }
@@ -281,13 +281,17 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         if (batch.requestOverrideBroadcast) {
             networkHandler.requestOverrideBroadcast();
         }
+        if (batch.broadcastToClients) {
+            networkHandler.broadcastServerConfig();
+        }
     }
 
     private boolean sendOverridesToServer(List<OptionChange> overrides) {
         if (!networkHandler.sendOverridesToServer(overrides)) return false;
 
+        T serverConfig = view.serverConfig();
         for (OptionChange override : overrides) {
-            override.option().setValue(this.serverConfig, override.clampedValue());
+            override.option().setValue(serverConfig, override.clampedValue());
         }
         return true;
     }
@@ -315,11 +319,19 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return localManager.serializer();
     }
 
+    private record SyncView<T>(ConnectionState state, T serverConfig) {
+        T effective(T local) {
+            boolean onServer = state == ConnectionState.MULTIPLAYER_MODDED || state == ConnectionState.MULTIPLAYER_UNMODDED;
+            return onServer && serverConfig != null ? serverConfig : local;
+        }
+    }
+
     private static class SyncBatch {
         final List<OptionChange> serverOverrides = new ArrayList<>();
         boolean localChanged = false;
         boolean sendInform = false;
         boolean requestOverrideBroadcast = false;
+        boolean broadcastToClients = false;
         boolean rejected = false;
     }
 }

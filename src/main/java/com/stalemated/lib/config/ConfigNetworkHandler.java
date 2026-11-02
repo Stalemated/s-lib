@@ -40,45 +40,46 @@ final class ConfigNetworkHandler<T> {
 
     /**
      * Handles an incoming S2C config synchronization payload from the server.
+     * The first payload of a connection also sends this client's {@link SyncMode#INFORM_SERVER} options to the server.
      *
      * @param buf The buffer containing the payload data.
      */
     void handleServerConfigPayload(FriendlyByteBuf buf) {
-        if (manager.getConnectionState() == ConnectionState.SINGLEPLAYER) {
+        ConnectionState state = manager.getConnectionState();
+        if (state == ConnectionState.SINGLEPLAYER) {
             return; // Ignore network loopback in singleplayer
         }
-        T target = manager.cloneConfig(manager.local());
-        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, target, manager.serializer());
-        manager.setServerConfig(target);
-        manager.setConnectionState(ConnectionState.MULTIPLAYER_MODDED);
-        manager.fireChanged();
+        T serverConfig = manager.cloneConfig(manager.local());
+        ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, serverConfig, manager.serializer());
+        manager.acceptServerConfig(serverConfig);
+
+        if (state != ConnectionState.MULTIPLAYER_MODDED && manager.getOptionTree().hasOptionsSyncedAs(SyncMode.INFORM_SERVER)) {
+            sendInformToServer();
+        }
     }
 
     /**
      * Handles an incoming C2S client override request payload on the server.
-     * The payload only carries the options the client changed.
+     * The payload only carries the options the client changed. The singleplayer owner may always change them,
+     * since opening a world to LAN without cheats does not make its owner an operator.
      *
      * @param player The sender player.
      * @param buf The buffer containing the payload data.
      */
     void handleClientOverridePayload(ServerPlayer player, FriendlyByteBuf buf) {
-        if (manager.checkServerPermission(player)) {
-            boolean isHost = transport.isSingleplayerOwner(player);
-
-            if (!isHost) {
-                ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
-                saveRemoteChange(player);
-            }
-
-            for (ServerPlayer p : transport.playersOnServerOf(player)) {
-                sendConfigToPlayer(p);
-            }
-        } else {
-            // If rejected, send back the config to avoid desyncs
+        boolean isHost = transport.isSingleplayerOwner(player);
+        if (!isHost && !manager.checkServerPermission(player)) {
             if (player != null) {
                 sendConfigToPlayer(player);
             }
+            return;
         }
+
+        if (!isHost) {
+            ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
+            saveRemoteChange(player);
+        }
+        broadcastServerConfig();
     }
 
     private void saveRemoteChange(ServerPlayer player) {
@@ -96,12 +97,13 @@ final class ConfigNetworkHandler<T> {
      * @param buf The buffer containing the payload data.
      */
     void handleClientInformPayload(ServerPlayer player, FriendlyByteBuf buf) {
-        // Read informed data into a temporary clone of the default config
-        T tempConfig = manager.createDefaultOrClone();
-        ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.INFORM_SERVER, tempConfig, manager.serializer());
+        manager.acceptInformedConfig(player, informedConfig(buf));
+    }
 
-        // Notify listeners about this player's specific choices
-        manager.notifyInformListeners(player, tempConfig);
+    T informedConfig(FriendlyByteBuf buf) {
+        T informed = manager.cloneConfig(manager.local());
+        ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.INFORM_SERVER, informed, manager.serializer());
+        return informed;
     }
 
     /**
@@ -114,10 +116,21 @@ final class ConfigNetworkHandler<T> {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
         if (transport.isSingleplayerOwner(player)) return;
 
-        String json = ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
+        String json = serverSnapshot();
         if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, "player " + player.getName().getString())) {
-            transport.sendToClient(player, channels.serverConfig(), ConfigNetworkPayload.encode(json));
+            transport.sendToClient(player, channels.serverConfig(), json);
         }
+    }
+
+    void broadcastServerConfig() {
+        String json = serverSnapshot();
+        if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, "every player")) {
+            transport.sendToAllClients(channels.serverConfig(), json);
+        }
+    }
+
+    private String serverSnapshot() {
+        return ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
     }
 
     /**
@@ -147,7 +160,7 @@ final class ConfigNetworkHandler<T> {
 
     private boolean sendToServer(ResourceLocation packet, String json) {
         if (!fits(json, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, "the server")) return false;
-        transport.sendToServer(packet, ConfigNetworkPayload.encode(json));
+        transport.sendToServer(packet, json);
         return true;
     }
 

@@ -1,11 +1,8 @@
 package com.stalemated.lib.config;
 
 import com.stalemated.lib.network.NetworkHelper;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-
-import java.util.List;
 
 interface ConfigTransport {
 
@@ -17,11 +14,11 @@ interface ConfigTransport {
 
     void unregisterServerReceiver(ResourceLocation channel);
 
-    void sendToClient(ServerPlayer player, ResourceLocation channel, FriendlyByteBuf buf);
+    void sendToClient(ServerPlayer player, ResourceLocation channel, String json);
 
-    void sendToServer(ResourceLocation channel, FriendlyByteBuf buf);
+    void sendToAllClients(ResourceLocation channel, String json);
+
+    void sendToServer(ResourceLocation channel, String json);
 
     boolean isSingleplayerOwner(ServerPlayer player);
-
-    List<ServerPlayer> playersOnServerOf(ServerPlayer player);
 }

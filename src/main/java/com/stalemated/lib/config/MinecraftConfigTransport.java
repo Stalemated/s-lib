@@ -1,13 +1,11 @@
 package com.stalemated.lib.config;
 
+import com.stalemated.lib.config.network.ConfigNetworkPayload;
 import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.network.NetworkHelper;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-
-import java.util.List;
 
 final class MinecraftConfigTransport implements ConfigTransport {
 
@@ -36,23 +34,30 @@ final class MinecraftConfigTransport implements ConfigTransport {
     }
 
     @Override
-    public void sendToClient(ServerPlayer player, ResourceLocation channel, FriendlyByteBuf buf) {
-        NetworkHelper.sendToClient(player, channel, buf);
+    public void sendToClient(ServerPlayer player, ResourceLocation channel, String json) {
+        NetworkHelper.sendToClient(player, channel, ConfigNetworkPayload.encode(json));
     }
 
     @Override
-    public void sendToServer(ResourceLocation channel, FriendlyByteBuf buf) {
-        NetworkHelper.sendToServer(channel, buf);
+    @SuppressWarnings("resource")
+    public void sendToAllClients(ResourceLocation channel, String json) {
+        MinecraftServer server = ConfigRegistry.currentServer();
+        if (server == null) return;
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!isSingleplayerOwner(player)) {
+                sendToClient(player, channel, json);
+            }
+        }
+    }
+
+    @Override
+    public void sendToServer(ResourceLocation channel, String json) {
+        NetworkHelper.sendToServer(channel, ConfigNetworkPayload.encode(json));
     }
 
     @Override
     public boolean isSingleplayerOwner(ServerPlayer player) {
         return PlatformHelper.isSingleplayerOwner(player);
-    }
-
-    @Override
-    public List<ServerPlayer> playersOnServerOf(ServerPlayer player) {
-        MinecraftServer server = PlatformHelper.getServer(player);
-        return server == null ? List.of() : server.getPlayerList().getPlayers();
     }
 }

@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 //? if fabric {
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import com.stalemated.lib.network.NetworkHelper;
 //?} elif forge {
@@ -13,6 +14,8 @@ import com.stalemated.lib.network.NetworkHelper;
 import com.stalemated.lib.network.NetworkHelper;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.FMLEnvironment;
@@ -29,6 +32,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 //?}
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 *///?}
 
 //? if forge || neoforge {
@@ -55,6 +60,9 @@ implements ModInitializer
 
         NetworkHelper.registerChannel();
         MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedIn);
+        MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedOut);
+        MinecraftForge.EVENT_BUS.addListener(SLib::onServerStarted);
+        MinecraftForge.EVENT_BUS.addListener(SLib::onServerStopped);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             SLibClient.init();
         }
@@ -78,6 +86,9 @@ implements ModInitializer
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> ConfigRegistry.onPlayerJoinServer(handler.player)));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> ConfigRegistry.onPlayerLeaveServer(handler.player));
+        ServerLifecycleEvents.SERVER_STARTED.register(ConfigRegistry::onServerStarted);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> ConfigRegistry.onServerStopped());
     }
     //?}
 
@@ -88,6 +99,32 @@ implements ModInitializer
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
             ConfigRegistry.onPlayerJoinServer(serverPlayer);
         }
+    }
+    *///?}
+
+    //? if neoforge
+    //@SubscribeEvent
+    //? if forge || neoforge {
+    /*private static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof ServerPlayer serverPlayer) {
+            ConfigRegistry.onPlayerLeaveServer(serverPlayer);
+        }
+    }
+    *///?}
+
+    //? if neoforge
+    //@SubscribeEvent
+    //? if forge || neoforge {
+    /*private static void onServerStarted(ServerStartedEvent event) {
+        ConfigRegistry.onServerStarted(event.getServer());
+    }
+    *///?}
+
+    //? if neoforge
+    //@SubscribeEvent
+    //? if forge || neoforge {
+    /*private static void onServerStopped(ServerStoppedEvent event) {
+        ConfigRegistry.onServerStopped();
     }
     *///?}
 }
