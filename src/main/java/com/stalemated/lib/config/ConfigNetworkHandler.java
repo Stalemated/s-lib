@@ -4,11 +4,8 @@ import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.network.ConfigNetworkPayload;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
-import com.stalemated.lib.helper.PlatformHelper;
-import com.stalemated.lib.network.NetworkHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.UncheckedIOException;
@@ -21,22 +18,24 @@ final class ConfigNetworkHandler<T> {
 
     private final SyncedConfigManager<T> manager;
     private final SyncChannels channels;
+    private final ConfigTransport transport;
 
-    ConfigNetworkHandler(SyncedConfigManager<T> manager, SyncChannels channels) {
+    ConfigNetworkHandler(SyncedConfigManager<T> manager, SyncChannels channels, ConfigTransport transport) {
         this.manager = manager;
         this.channels = channels;
+        this.transport = transport;
     }
 
     void registerReceivers() {
-        NetworkHelper.registerClientReceiver(channels.serverConfig(), this::handleServerConfigPayload);
-        NetworkHelper.registerServerReceiver(channels.clientOverride(), this::handleClientOverridePayload);
-        NetworkHelper.registerServerReceiver(channels.clientInform(), this::handleClientInformPayload);
+        transport.registerClientReceiver(channels.serverConfig(), this::handleServerConfigPayload);
+        transport.registerServerReceiver(channels.clientOverride(), this::handleClientOverridePayload);
+        transport.registerServerReceiver(channels.clientInform(), this::handleClientInformPayload);
     }
 
     void unregisterReceivers() {
-        NetworkHelper.unregisterClientReceiver(channels.serverConfig());
-        NetworkHelper.unregisterServerReceiver(channels.clientOverride());
-        NetworkHelper.unregisterServerReceiver(channels.clientInform());
+        transport.unregisterClientReceiver(channels.serverConfig());
+        transport.unregisterServerReceiver(channels.clientOverride());
+        transport.unregisterServerReceiver(channels.clientInform());
     }
 
     /**
@@ -64,18 +63,15 @@ final class ConfigNetworkHandler<T> {
      */
     void handleClientOverridePayload(ServerPlayer player, FriendlyByteBuf buf) {
         if (manager.checkServerPermission(player)) {
-            boolean isHost = PlatformHelper.isSingleplayerOwner(player);
+            boolean isHost = transport.isSingleplayerOwner(player);
 
             if (!isHost) {
                 ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
                 saveRemoteChange(player);
             }
 
-            MinecraftServer server = PlatformHelper.getServer(player);
-            if (server != null) {
-                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                    sendConfigToPlayer(p);
-                }
+            for (ServerPlayer p : transport.playersOnServerOf(player)) {
+                sendConfigToPlayer(p);
             }
         } else {
             // If rejected, send back the config to avoid desyncs
@@ -116,11 +112,11 @@ final class ConfigNetworkHandler<T> {
      */
     void sendConfigToPlayer(ServerPlayer player) {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
-        if (PlatformHelper.isSingleplayerOwner(player)) return;
+        if (transport.isSingleplayerOwner(player)) return;
 
         String json = ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
         if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, "player " + player.getName().getString())) {
-            NetworkHelper.sendToClient(player, channels.serverConfig(), ConfigNetworkPayload.encode(json));
+            transport.sendToClient(player, channels.serverConfig(), ConfigNetworkPayload.encode(json));
         }
     }
 
@@ -151,7 +147,7 @@ final class ConfigNetworkHandler<T> {
 
     private boolean sendToServer(ResourceLocation packet, String json) {
         if (!fits(json, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, "the server")) return false;
-        NetworkHelper.sendToServer(packet, ConfigNetworkPayload.encode(json));
+        transport.sendToServer(packet, ConfigNetworkPayload.encode(json));
         return true;
     }
 

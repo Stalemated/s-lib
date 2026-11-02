@@ -20,6 +20,7 @@ public final class SyncedConfigBuilder<T> extends ConfigBuilder<T, SyncedConfigM
     private ResourceLocation syncChannel;
     private Predicate<ServerPlayer> serverPermissionCheck = ServerConfigPermissions.OP_ONLY;
     private final List<BiConsumer<ServerPlayer, T>> informListeners = new ArrayList<>();
+    private ConfigTransport transport = MinecraftConfigTransport.INSTANCE;
 
     SyncedConfigBuilder(String modId, Class<T> configClass) {
         super(modId, configClass);
@@ -40,6 +41,11 @@ public final class SyncedConfigBuilder<T> extends ConfigBuilder<T, SyncedConfigM
         return this;
     }
 
+    SyncedConfigBuilder<T> transport(ConfigTransport transport) {
+        this.transport = Objects.requireNonNull(transport, "transport cannot be null");
+        return this;
+    }
+
     public SyncedConfigBuilder<T> onInform(BiConsumer<ServerPlayer, T> listener) {
         informListeners.add(Objects.requireNonNull(listener, "listener cannot be null"));
         return this;
@@ -47,7 +53,7 @@ public final class SyncedConfigBuilder<T> extends ConfigBuilder<T, SyncedConfigM
 
     @Override
     SyncedConfigManager<T> create(LocalConfigManager<T> localManager) {
-        SyncedConfigManager<T> manager = new SyncedConfigManager<>(localManager, resolveChannel(), serverPermissionCheck);
+        SyncedConfigManager<T> manager = new SyncedConfigManager<>(localManager, resolveChannel(), serverPermissionCheck, transport);
         informListeners.forEach(manager::addInformListener);
         return manager;
     }

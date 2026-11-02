@@ -39,14 +39,14 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     private final ConfigNetworkHandler<T> networkHandler;
 
-    SyncedConfigManager(LocalConfigManager<T> localManager, ResourceLocation syncChannel, Predicate<ServerPlayer> serverPermissionCheck) {
+    SyncedConfigManager(LocalConfigManager<T> localManager, ResourceLocation syncChannel, Predicate<ServerPlayer> serverPermissionCheck, ConfigTransport transport) {
         if (!localManager.hasSerializer()) {
             throw new IllegalArgumentException("Synced config '" + localManager.getName() + "' needs a provider with a serializer to sync over the network");
         }
         this.localManager = localManager;
         this.syncChannel = syncChannel;
         this.serverPermissionCheck = serverPermissionCheck;
-        this.networkHandler = new ConfigNetworkHandler<>(this, SyncChannels.of(syncChannel));
+        this.networkHandler = new ConfigNetworkHandler<>(this, SyncChannels.of(syncChannel), transport);
     }
 
     /**
