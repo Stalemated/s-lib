@@ -5,6 +5,7 @@ import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
 import com.stalemated.lib.config.io.FileConfigProvider;
 import com.stalemated.lib.config.io.json5.Json5Serializer;
+import com.stalemated.lib.config.io.json5.SLibGsonDefaults;
 import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.io.PathUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
@@ -26,7 +27,7 @@ public abstract class ConfigBuilder<T, M extends LocalConfigManager<T>, B extend
     private Logger logger;
     private Supplier<T> defaultFactory;
     private ConfigProvider<T> provider;
-    private Consumer<GsonBuilder> gsonCustomizer;
+    private Consumer<GsonBuilder> gsonCustomizer = builder -> {};
     private final List<Consumer<T>> loadListeners = new ArrayList<>();
     private final List<Consumer<T>> saveListeners = new ArrayList<>();
     private final List<Consumer<T>> changeListeners = new ArrayList<>();
@@ -92,13 +93,16 @@ public abstract class ConfigBuilder<T, M extends LocalConfigManager<T>, B extend
      * @return The configured manager.
      */
     public M build() {
+        if (defaultFactory != null) {
+            LocalConfigManager.requireFreshInstances(modId, configClass, defaultFactory);
+        }
         Supplier<T> factory = defaultFactory != null ? defaultFactory : () -> ReflectionUtils.tryInstantiate(configClass);
         Logger resolvedLogger = logger != null ? logger : LoggerFactory.getLogger(modId);
         Path path = configPath != null ? configPath : PathUtils.buildPath(modId + ".json5");
-        OptionTree tree = new OptionTree(configClass, factory);
+        OptionTree tree = new OptionTree(configClass, factory, SLibGsonDefaults.create(gsonCustomizer));
         ConfigProvider<T> resolvedProvider = provider != null
                 ? provider
-                : new FileConfigProvider<>(path, factory, resolvedLogger, new Json5Serializer<>(tree, gsonCustomizer));
+                : new FileConfigProvider<>(path, factory, resolvedLogger, new Json5Serializer<>(tree));
 
         M manager = create(resolvedProvider, path, resolvedLogger, tree, factory);
         loadListeners.forEach(manager::addLoadListener);

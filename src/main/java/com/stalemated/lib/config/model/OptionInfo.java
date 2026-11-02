@@ -38,12 +38,9 @@ public class OptionInfo implements ConfigNode {
     private final Object defaultValue;
     private final boolean isTemplate;
     private final ConfigNode template;
+    private final DeepCopy deepCopy;
 
-    public OptionInfo(String key, Field field, List<Field> fieldPath, SyncMode syncMode, Object defaultValue) {
-        this(key, field, fieldPath, syncMode, defaultValue, field.getType(), field.getGenericType(), false, null);
-    }
-
-    public OptionInfo(String key, Field field, List<Field> fieldPath, SyncMode syncMode, Object defaultValue, Class<?> type, Type genericType, boolean isTemplate, ConfigNode template) {
+    public OptionInfo(String key, Field field, List<Field> fieldPath, SyncMode syncMode, Object defaultValue, Class<?> type, Type genericType, boolean isTemplate, ConfigNode template, DeepCopy deepCopy) {
         this.key = key;
         this.field = field;
         this.fieldPath = fieldPath != null ? Collections.unmodifiableList(fieldPath) : Collections.emptyList();
@@ -53,6 +50,7 @@ public class OptionInfo implements ConfigNode {
         this.genericType = genericType;
         this.isTemplate = isTemplate;
         this.template = template;
+        this.deepCopy = deepCopy;
 
         if (this.field != null && !this.isTemplate) {
             this.field.setAccessible(true);
@@ -96,7 +94,7 @@ public class OptionInfo implements ConfigNode {
     }
 
     public Object defaultCopy() {
-        return DeepCopy.of(defaultValue, genericType);
+        return deepCopy.of(defaultValue, genericType);
     }
 
     public ConfigNode getElementTemplate() { return template; }

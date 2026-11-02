@@ -72,6 +72,9 @@ public class LocalConfigManager<T> {
     public static <T> LocalConfigManager<T> forInstance(T instance, Supplier<T> defaultFactory, Consumer<T> onSave) {
         Objects.requireNonNull(instance, "instance cannot be null");
         Class<T> clazz = (Class<T>) instance.getClass();
+        if (defaultFactory != null) {
+            requireFreshInstances(clazz.getSimpleName(), clazz, defaultFactory);
+        }
         OptionTree tree = OptionTree.of(clazz, defaultFactory);
 
         ConfigProvider<T> provider = new ConfigProvider<>() {
@@ -95,6 +98,16 @@ public class LocalConfigManager<T> {
         LocalConfigManager<T> manager = new LocalConfigManager<>(provider, null, null, tree, defaultFactory);
         manager.registered = true;
         return manager;
+    }
+
+    static void requireFreshInstances(String name, Class<?> type, Supplier<?> defaultFactory) {
+        Object first = defaultFactory.get();
+        if (first == null) {
+            throw new IllegalArgumentException("defaultFactory of '" + name + "' returned null instead of a " + type.getSimpleName());
+        }
+        if (first == defaultFactory.get()) {
+            throw new IllegalArgumentException("defaultFactory of '" + name + "' must create a new " + type.getSimpleName() + " on every call, got the same instance twice");
+        }
     }
 
     public Subscription onChange(Consumer<T> listener) {
@@ -225,8 +238,9 @@ public class LocalConfigManager<T> {
         return serializer().serializeOption(value);
     }
 
+    @SuppressWarnings("unchecked")
     public <V> V fromJson(String json, Class<V> type) {
-        return type.cast(serializer().deserializeOption(json, type));
+        return (V) serializer().deserializeOption(json, type);
     }
 
     ConfigSerializer<T> serializer() {

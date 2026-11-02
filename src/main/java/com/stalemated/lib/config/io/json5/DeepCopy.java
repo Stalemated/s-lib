@@ -1,7 +1,6 @@
 package com.stalemated.lib.config.io.json5;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 
@@ -15,8 +14,6 @@ import java.util.regex.Pattern;
 
 public final class DeepCopy {
 
-    private static final Gson GSON = createGson();
-
     private static final Set<Class<?>> IMMUTABLE_TYPES = Set.of(
             String.class, Boolean.class, Character.class,
             Byte.class, Short.class, Integer.class, Long.class, Float.class, Double.class,
@@ -24,20 +21,18 @@ public final class DeepCopy {
             UUID.class, Pattern.class, Color.class, TextColor.class, ResourceLocation.class
     );
 
-    private DeepCopy() {}
+    private final Gson gson;
 
-    public static <V> V of(V value, Type type) {
+    public DeepCopy(Gson gson) {
+        this.gson = gson;
+    }
+
+    public <V> V of(V value, Type type) {
         if (isImmutable(value)) return value;
-        return GSON.fromJson(GSON.toJsonTree(value, type), type);
+        return gson.fromJson(gson.toJsonTree(value, type), type);
     }
 
     private static boolean isImmutable(Object value) {
         return value == null || value instanceof Enum<?> || IMMUTABLE_TYPES.contains(value.getClass());
-    }
-
-    private static Gson createGson() {
-        GsonBuilder builder = new GsonBuilder();
-        SLibGsonDefaults.apply(builder);
-        return builder.create();
     }
 }

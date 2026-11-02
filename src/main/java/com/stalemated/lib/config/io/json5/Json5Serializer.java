@@ -6,7 +6,6 @@ import blue.endless.jankson.JsonGrammar;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.annotation.Comment;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
@@ -18,7 +17,6 @@ import com.stalemated.lib.config.model.OptionTree;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -38,21 +36,11 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     private final OptionValueReader reader;
 
     public Json5Serializer(OptionTree optionTree) {
-        this(optionTree, null);
-    }
-
-    public Json5Serializer(OptionTree optionTree, Consumer<GsonBuilder> gsonCustomizer) {
         this.optionTree = optionTree;
 
         // Jankson used as preprocessor
         this.jankson = Jankson.builder().build();
-
-        GsonBuilder gBuilder = new GsonBuilder();
-        SLibGsonDefaults.apply(gBuilder);
-        if (gsonCustomizer != null) {
-            gsonCustomizer.accept(gBuilder);
-        }
-        this.gson = gBuilder.create();
+        this.gson = optionTree.gson();
 
         this.layout = new Json5KeyLayout(optionTree, gson.fieldNamingStrategy());
         this.reader = new OptionValueReader(gson, layout::jsonName);

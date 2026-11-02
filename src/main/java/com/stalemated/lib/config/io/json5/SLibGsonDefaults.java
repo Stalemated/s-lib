@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.io.json5;
 
 import com.google.gson.*;
+import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.util.color.ColorUtils;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
@@ -8,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 import java.awt.Color;
 import java.lang.reflect.Type;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 /**
@@ -15,14 +17,34 @@ import java.util.regex.Pattern;
  */
 public final class SLibGsonDefaults {
 
+    private static final ExclusionStrategy IGNORED_FIELDS = new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipField(FieldAttributes field) {
+            return field.getAnnotation(Ignore.class) != null;
+        }
+
+        @Override
+        public boolean shouldSkipClass(Class<?> type) {
+            return false;
+        }
+    };
+
     private SLibGsonDefaults() {}
 
+    public static Gson create(Consumer<GsonBuilder> customizer) {
+        GsonBuilder builder = new GsonBuilder();
+        apply(builder);
+        customizer.accept(builder);
+        return builder.create();
+    }
+
     /**
-     * Applies default GSON adapters and configs.
+     * Applies default GSON adapters and configs, including skipping fields marked with {@link Ignore}.
      *
      * @param builder The GsonBuilder to configure.
      */
     public static void apply(GsonBuilder builder) {
+        builder.setExclusionStrategies(IGNORED_FIELDS);
         registerJavaDefaults(builder);
         registerMinecraftDefaults(builder);
     }
@@ -33,7 +55,7 @@ public final class SLibGsonDefaults {
         builder.registerTypeAdapter(String.class, stringDeserializer());
         builder.registerTypeAdapter(Color.class, colorAdapter());
         builder.registerTypeAdapter(UUID.class, uuidAdapter());
-        builder.registerTypeAdapter(Pattern.class, patternAdapter());
+        builder.registerTypeAdapter(Pattern.class, new PatternAdapter());
     }
 
     private static void registerMinecraftDefaults(GsonBuilder builder) {
@@ -58,10 +80,6 @@ public final class SLibGsonDefaults {
 
     private static UuidAdapter uuidAdapter() {
         return new UuidAdapter();
-    }
-
-    private static PatternAdapter patternAdapter() {
-        return new PatternAdapter();
     }
 
     private static ResourceLocationAdapter resourceLocationAdapter() {
@@ -141,15 +159,4 @@ public final class SLibGsonDefaults {
         }
     }
 
-    private static final class PatternAdapter implements JsonSerializer<Pattern>, JsonDeserializer<Pattern> {
-        @Override
-        public JsonElement serialize(Pattern src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(src.pattern());
-        }
-
-        @Override
-        public Pattern deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return Pattern.compile(json.getAsString());
-        }
-    }
 }

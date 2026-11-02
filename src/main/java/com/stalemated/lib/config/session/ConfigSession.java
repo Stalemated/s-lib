@@ -1,11 +1,9 @@
 package com.stalemated.lib.config.session;
 
-import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.LocalConfigManager;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -150,10 +148,10 @@ public class ConfigSession<T> {
         this.committed = true;
     }
 
-    private static void applyEdits(List<OptionChange> edits, Object workingCopy) {
+    private void applyEdits(List<OptionChange> edits, Object workingCopy) {
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
-            option.setValue(workingCopy, DeepCopy.of(edit.clampedValue(), option.genericType()));
+            option.setValue(workingCopy, optionTree.deepCopy().of(edit.clampedValue(), option.genericType()));
         }
     }
 
@@ -163,8 +161,8 @@ public class ConfigSession<T> {
             OptionInfo option = edit.option();
             Object applied = option.getValue(active);
 
-            if (ReflectionUtils.deepEquals(applied, edit.clampedValue())) {
-                option.setValue(base, DeepCopy.of(applied, option.genericType()));
+            if (optionTree.sameValue(applied, edit.clampedValue())) {
+                option.setValue(base, optionTree.deepCopy().of(applied, option.genericType()));
             }
         }
     }

@@ -8,7 +8,7 @@ import com.stalemated.lib.config.io.InvalidEntry;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
+import com.stalemated.lib.config.model.OptionTree;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -109,7 +109,7 @@ final class OptionValueReader {
         Map<String, Field> fieldsByJsonName = new HashMap<>();
         for (Class<?> current = elementClass; current != null && current != Object.class; current = current.getSuperclass()) {
             for (Field field : current.getDeclaredFields()) {
-                if (ReflectionUtils.isStaticOrTransient(field) || field.isSynthetic()) continue;
+                if (OptionTree.isIgnored(field) || field.isSynthetic()) continue;
                 field.setAccessible(true);
                 fieldsByJsonName.putIfAbsent(jsonName.apply(field), field);
             }

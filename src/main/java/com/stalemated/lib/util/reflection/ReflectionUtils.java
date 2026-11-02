@@ -8,6 +8,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public final class ReflectionUtils {
@@ -213,6 +214,10 @@ public final class ReflectionUtils {
      * @return True if both objects are deeply equal, false otherwise.
      */
     public static boolean deepEquals(Object a, Object b) {
+        return deepEquals(a, b, field -> false);
+    }
+
+    public static boolean deepEquals(Object a, Object b, Predicate<Field> skippedFields) {
         if (Objects.deepEquals(a, b)) return true;
         if (a == null || b == null) return false;
 
@@ -224,7 +229,7 @@ public final class ReflectionUtils {
             if (a instanceof Object[] arrA && b instanceof Object[] arrB) {
                 if (arrA.length != arrB.length) return false;
                 for (int i = 0; i < arrA.length; i++) {
-                    if (!deepEquals(arrA[i], arrB[i])) return false;
+                    if (!deepEquals(arrA[i], arrB[i], skippedFields)) return false;
                 }
                 return true;
             }
@@ -240,7 +245,7 @@ public final class ReflectionUtils {
             if (listA.size() != listB.size()) return false;
 
             for (int i = 0; i < listA.size(); i++) {
-                if (!deepEquals(listA.get(i), listB.get(i))) return false;
+                if (!deepEquals(listA.get(i), listB.get(i), skippedFields)) return false;
             }
             return true;
         }
@@ -254,7 +259,7 @@ public final class ReflectionUtils {
                 boolean found = false;
                 Iterator<Object> itB = remainingB.iterator();
                 while (itB.hasNext()) {
-                    if (deepEquals(itemA, itB.next())) {
+                    if (deepEquals(itemA, itB.next(), skippedFields)) {
                         itB.remove();
                         found = true;
                         break;
@@ -271,7 +276,7 @@ public final class ReflectionUtils {
 
             for (Map.Entry<?, ?> entryA : mapA.entrySet()) {
                 if (!mapB.containsKey(entryA.getKey())) return false;
-                if (!deepEquals(entryA.getValue(), mapB.get(entryA.getKey()))) return false;
+                if (!deepEquals(entryA.getValue(), mapB.get(entryA.getKey()), skippedFields)) return false;
             }
             return true;
         }
@@ -283,13 +288,13 @@ public final class ReflectionUtils {
             Iterator<?> itB = collB.iterator();
 
             while (itA.hasNext() && itB.hasNext()) {
-                if (!deepEquals(itA.next(), itB.next())) return false;
+                if (!deepEquals(itA.next(), itB.next(), skippedFields)) return false;
             }
             return !itA.hasNext() && !itB.hasNext();
         }
 
         if (a.getClass() == b.getClass() && !hasOverriddenEquals(a.getClass())) {
-            return compareFields(a, b);
+            return compareFields(a, b, skippedFields);
         }
 
         return false;
@@ -314,6 +319,10 @@ public final class ReflectionUtils {
      * @return True if all non-static, non-transient fields match deeply, false otherwise.
      */
     public static boolean compareFields(Object a, Object b) {
+        return compareFields(a, b, field -> false);
+    }
+
+    private static boolean compareFields(Object a, Object b, Predicate<Field> skippedFields) {
         if (a == b) return true;
         if (a == null || b == null) return false;
         if (a.getClass() != b.getClass() || a.getClass().isArray()) return false;
@@ -321,7 +330,8 @@ public final class ReflectionUtils {
         if (isSystemClass(a.getClass())) return false;
 
         for (Field field : COMPARED_FIELDS.get(a.getClass())) {
-            if (!deepEquals(readField(field, a), readField(field, b))) return false;
+            if (skippedFields.test(field)) continue;
+            if (!deepEquals(readField(field, a), readField(field, b), skippedFields)) return false;
         }
         return true;
     }

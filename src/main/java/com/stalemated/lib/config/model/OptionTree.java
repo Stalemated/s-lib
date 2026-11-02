@@ -1,10 +1,13 @@
 package com.stalemated.lib.config.model;
 
+import com.google.gson.Gson;
+import com.google.gson.internal.bind.ReflectiveTypeAdapterFactory;
 import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.annotation.Sync;
 import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.io.json5.DeepCopy;
+import com.stalemated.lib.config.io.json5.SLibGsonDefaults;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 
@@ -22,6 +25,8 @@ import java.util.function.Supplier;
 public class OptionTree {
 
     private final Class<?> rootClass;
+    private final Gson gson;
+    private final DeepCopy deepCopy;
     private final Map<String, OptionInfo> options = new LinkedHashMap<>();
     private final List<OptionInfo> syncedOptions = new ArrayList<>();
     private final List<OptionInfo> localOnlyOptions = new ArrayList<>();
@@ -50,7 +55,13 @@ public class OptionTree {
     }
 
     public OptionTree(Class<?> rootClass, Supplier<?> defaultFactory) {
+        this(rootClass, defaultFactory, SLibGsonDefaults.create(builder -> {}));
+    }
+
+    public OptionTree(Class<?> rootClass, Supplier<?> defaultFactory, Gson gson) {
         this.rootClass = rootClass;
+        this.gson = gson;
+        this.deepCopy = new DeepCopy(gson);
         Object defaultInstance = defaultFactory != null ? defaultFactory.get() : ReflectionUtils.tryInstantiate(rootClass);
 
         SyncMode rootMode = rootClass.isAnnotationPresent(Sync.class)
@@ -76,14 +87,7 @@ public class OptionTree {
         }
 
         if (isTemplateRoot) {
-            if (isNativeLeaf(type)) {
-                requireNoRangedFields(key, type);
-                return buildOptionLeaf(key, field, genericType, type, path, syncMode, parentInstance, true);
-            }
-            if (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type)) {
-                return buildCollectionNode(key, field, genericType, type, path, syncMode, parentInstance, true);
-            }
-            return buildCategoryNode(key, field, genericType, type, path, syncMode, parentInstance, true);
+            return buildTemplateRoot(key, field, genericType, type, syncMode);
         }
 
         if (field.isAnnotationPresent(Nest.class)) {
@@ -96,9 +100,23 @@ public class OptionTree {
         return buildOptionLeaf(key, field, genericType, type, path, syncMode, parentInstance, isTemplate);
     }
 
+    private ConfigNode buildTemplateRoot(String key, Field field, Type genericType, Class<?> type, SyncMode syncMode) {
+        if (!ReflectionUtils.hasPublicNoArgsConstructor(type)) {
+            requireNoRangedFields(key, type);
+            return buildOptionLeaf(key, field, genericType, type, null, syncMode, null, true);
+        }
+        if (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type)) {
+            return buildCollectionNode(key, field, genericType, type, null, syncMode, null, true);
+        }
+        if (gson.getAdapter(type) instanceof ReflectiveTypeAdapterFactory.Adapter<?, ?>) {
+            return buildCategoryNode(key, field, genericType, type, null, syncMode, null, true);
+        }
+        return buildOptionLeaf(key, field, genericType, type, null, syncMode, null, true);
+    }
+
     private OptionInfo buildOptionLeaf(String key, Field field, Type genericType, Class<?> type, List<Field> path, SyncMode syncMode, Object parentInstance, boolean isTemplate) {
         Object defaultValue = resolveDefaultValue(field, parentInstance, isTemplate);
-        OptionInfo info = new OptionInfo(key, field, path, syncMode, defaultValue, type, genericType, isTemplate, null);
+        OptionInfo info = new OptionInfo(key, field, path, syncMode, defaultValue, type, genericType, isTemplate, null, deepCopy);
 
         if (!isTemplate) this.options.put(key, info);
 
@@ -116,7 +134,7 @@ public class OptionTree {
         Type innerGeneric = extractInnerType(genericType);
         ConfigNode template = buildNode(key + ".*", field, innerGeneric, null, syncMode, null, true, true);
         Object defaultValue = resolveDefaultValue(field, parentInstance, isTemplate);
-        OptionInfo info = new OptionInfo(key, field, path, syncMode, defaultValue, type, genericType, isTemplate, template);
+        OptionInfo info = new OptionInfo(key, field, path, syncMode, defaultValue, type, genericType, isTemplate, template, deepCopy);
 
         if (!isTemplate) this.options.put(key, info);
 
@@ -217,16 +235,11 @@ public class OptionTree {
         }
     }
 
-    private boolean isNativeLeaf(Class<?> type) {
-        if (type.isPrimitive() || Number.class.isAssignableFrom(type) ||
-            type == String.class || type == Boolean.class ||
-            type == Character.class || type.isEnum()) {
-            return true;
-        }
-        return !ReflectionUtils.hasPublicNoArgsConstructor(type);
-    }
-
     public Class<?> getRootClass() { return rootClass; }
+
+    public Gson gson() { return gson; }
+
+    public DeepCopy deepCopy() { return deepCopy; }
 
     public ConfigNode getSchemaRoot() { return schemaRoot; }
 
@@ -250,7 +263,7 @@ public class OptionTree {
         for (OptionInfo option : syncedOptions) {
             if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                 Object val = option.getValue(source);
-                option.setValue(target, DeepCopy.of(val, option.genericType()));
+                option.setValue(target, deepCopy.of(val, option.genericType()));
             }
         }
     }
@@ -266,7 +279,7 @@ public class OptionTree {
 
         for (OptionInfo option : options.values()) {
             Object val = option.getValue(source);
-            option.setValue(target, DeepCopy.of(val, option.genericType()));
+            option.setValue(target, deepCopy.of(val, option.genericType()));
         }
     }
 
@@ -289,10 +302,14 @@ public class OptionTree {
             Object candidateVal = option.getValue(candidate);
             Object clampedVal = option.clampValue(candidateVal);
 
-            if (!ReflectionUtils.deepEquals(currentVal, clampedVal)) {
+            if (!sameValue(currentVal, clampedVal)) {
                 changes.add(new OptionChange(option, clampedVal));
             }
         }
         return Collections.unmodifiableList(changes);
+    }
+
+    public boolean sameValue(Object a, Object b) {
+        return ReflectionUtils.deepEquals(a, b, OptionTree::isIgnored);
     }
 }
