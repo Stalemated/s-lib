@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.controller;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.isxander.yacl3.api.utils.Dimension;
 import dev.isxander.yacl3.gui.YACLScreen;
 import dev.isxander.yacl3.gui.controllers.dropdown.AbstractDropdownControllerElement;
@@ -40,6 +41,10 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     public ItemOrTagControllerElement(ItemOrTagController control, YACLScreen screen, Dimension<Integer> dim) {
         super(control, screen, dim);
         this.itemOrTagController = control;
+    }
+
+    private static boolean isEnterKey(int keyCode) {
+        return keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER;
     }
 
     private static boolean isSpecialTarget(String value) {
@@ -163,7 +168,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (this.isDropdownVisible() && (keyCode == 257 || keyCode == 335)) {
+        if (this.isDropdownVisible() && isEnterKey(keyCode)) {
             this.unfocus();
             return true;
         }
@@ -174,7 +179,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     public boolean onKeyPressed(int keyCode, int scanCode, int modifiers) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (this.isDropdownVisible() && (keyCode == 257 || keyCode == 335)) {
+        if (this.isDropdownVisible() && isEnterKey(keyCode)) {
             this.unfocus();
             return true;
         }
@@ -185,7 +190,7 @@ public class ItemOrTagControllerElement extends AbstractDropdownControllerElemen
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (this.isDropdownVisible() && (event.key() == 257 || event.key() == 335)) {
+        if (this.isDropdownVisible() && isEnterKey(event.key())) {
             this.unfocus();
             return true;
         }
