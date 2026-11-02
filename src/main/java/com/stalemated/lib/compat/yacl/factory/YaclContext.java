@@ -11,6 +11,8 @@ import com.stalemated.lib.config.session.ConfigSession;
 import dev.isxander.yacl3.api.OptionDescription;
 import net.minecraft.network.chat.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -40,6 +42,18 @@ public record YaclContext<T>(
         Objects.requireNonNull(namingStrategy, "namingStrategy cannot be null");
         Objects.requireNonNull(controllerRegistry, "controllerRegistry cannot be null");
         Objects.requireNonNull(availabilityRule, "availabilityRule cannot be null");
+        requireDistinctTranslationKeys(session, translationPrefix, namingStrategy);
+    }
+
+    private static void requireDistinctTranslationKeys(ConfigSession<?> session, String translationPrefix, YaclNamingStrategy namingStrategy) {
+        Map<String, String> optionByTranslationKey = new HashMap<>();
+        for (OptionInfo option : session.getOptionTree().all()) {
+            String translationKey = namingStrategy.resolveBaseKey(translationPrefix, option);
+            String sharedWith = optionByTranslationKey.putIfAbsent(translationKey, option.getKey());
+            if (sharedWith != null) {
+                throw new IllegalStateException("Options '" + sharedWith + "' and '" + option.getKey() + "' share the translation key '" + translationKey + "'");
+            }
+        }
     }
 
     public YaclContext(

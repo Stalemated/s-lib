@@ -104,7 +104,8 @@ public interface YaclNamingStrategy {
 
     /**
      * Resolves the localized display component for an enum constant of a config option.
-     * Uses {@code <baseKey>.<constant in snake_case>} with a fallback to {@code value.toString()}.
+     * Uses {@code <baseKey>.value.<constant in snake_case>} with a fallback to {@code value.toString()},
+     * so a constant named {@code DESC} never shares the {@code .desc} key of the option.
      *
      * @param prefix The translation prefix.
      * @param option The option metadata.
@@ -117,7 +118,7 @@ public interface YaclNamingStrategy {
 
     default Component resolveEnumValue(String prefix, String optionKey, Enum<?> value) {
         if (value == null) return Component.empty();
-        String key = resolveBaseKey(prefix, optionKey) + "." + normalize(value.name());
+        String key = resolveBaseKey(prefix, optionKey) + ".value." + normalize(value.name());
         return Component.translatableWithFallback(key, value.toString());
     }
 
