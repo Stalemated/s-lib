@@ -4,7 +4,7 @@ import com.stalemated.lib.config.SyncedConfigManager;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
-import com.stalemated.lib.config.permissions.ClientConfigPermissions;
+import com.stalemated.lib.client.ClientConfigPermissions;
 import com.stalemated.lib.config.session.ConfigSession;
 
 import java.util.Objects;

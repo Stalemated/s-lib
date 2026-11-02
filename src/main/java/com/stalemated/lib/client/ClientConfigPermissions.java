@@ -1,11 +1,11 @@
-package com.stalemated.lib.config.permissions;
+package com.stalemated.lib.client;
 
 import java.util.function.Supplier;
 import net.minecraft.client.Minecraft;
 //? if >=1.21.11
 //import net.minecraft.server.permissions.Permissions;
 
-public class ClientConfigPermissions {
+public final class ClientConfigPermissions {
     public static final Supplier<Boolean> OP_OR_SP = () -> {
         Minecraft client = Minecraft.getInstance();
         boolean inMultiplayer = client.level != null && !client.isLocalServer();
@@ -18,4 +18,6 @@ public class ClientConfigPermissions {
     };
     
     public static final Supplier<Boolean> ANYONE = () -> true;
+
+    private ClientConfigPermissions() {}
 }

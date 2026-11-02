@@ -8,8 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 //?}
 
 //? if forge || neoforge {
-/*import com.stalemated.lib.helper.PlatformHelper;
-import net.minecraft.client.KeyMapping;
+/*import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 *///?}
 
@@ -68,7 +67,7 @@ implements ClientModInitializer
 
     //? if forge || neoforge {
     /*private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        for (KeyMapping kb : PlatformHelper.KEYBINDINGS) {
+        for (KeyMapping kb : ClientPlatformHelper.pendingKeyMappings()) {
             event.register(kb);
         }
     }

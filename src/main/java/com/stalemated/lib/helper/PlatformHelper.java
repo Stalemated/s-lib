@@ -2,24 +2,13 @@ package com.stalemated.lib.helper;
 
 import java.nio.file.Path;
 import java.util.function.Supplier;
-import net.minecraft.client.KeyMapping;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 //? if fabric {
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.api.EnvType;
-//? if <26.1 {
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-//?} else {
-/*import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-*///?}
 //?}
-
-//? if forge || neoforge {
-/*import java.util.ArrayList;
-import java.util.List;
-*///?}
 
 //? if forge {
 /*import net.minecraftforge.fml.loading.FMLPaths;
@@ -41,9 +30,6 @@ import net.neoforged.fml.loading.FMLEnvironment;
  * An abstraction layer for retrieving platform-specific information and performing actions across different modloaders.
  */
 public class PlatformHelper {
-
-    //? if forge || neoforge
-    //public static final List<KeyMapping> KEYBINDINGS = new ArrayList<>();
 
     /**
      * Resolves a directory path from a system property override (e.g., for testing environments),
@@ -116,20 +102,6 @@ public class PlatformHelper {
         return FabricLoader.getInstance().isModLoaded(modId);
         //?} elif forge || neoforge {
         /*return LoadingModList.get().getModFileById(modId) != null;
-        *///?}
-    }
-
-    /**
-     * Registers a keybind to the client platform.
-     * @param keyBinding The keybind to register.
-     */
-    public static void registerKeyBinding(KeyMapping keyBinding) {
-        //? if fabric && <26.1 {
-        KeyBindingHelper.registerKeyBinding(keyBinding);
-        //?} elif fabric && >=26.1 {
-        /*KeyMappingHelper.registerKeyMapping(keyBinding);
-        *///?} elif forge || neoforge {
-        /*KEYBINDINGS.add(keyBinding);
         *///?}
     }
 
