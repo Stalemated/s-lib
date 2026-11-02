@@ -1,12 +1,13 @@
 package com.stalemated.lib.network;
 
+import com.stalemated.lib.helper.PlatformHelper;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -14,8 +15,6 @@ import static com.stalemated.lib.SLib.LOGGER;
 import static com.stalemated.lib.SLib.MOD_ID;
 
 //? if fabric{
-import net.fabricmc.api.EnvType;
-import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 //?if >=1.20.5 {
 /*import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -49,8 +48,8 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 *///?}
 public class NetworkHelper {
 
-    private static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new HashMap<>();
-    private static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new HashMap<>();
+    private static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new ConcurrentHashMap<>();
 
     //? if forge {
     /*private static final String PROTOCOL_VERSION = "1";
@@ -98,8 +97,9 @@ public class NetworkHelper {
         NetworkEvent.Context context = contextSupplier.get();
 
         context.enqueueWork(() -> {
-            if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER) {
-                dispatchToServer(context.getSender(), packet.id, packet.data);
+            ServerPlayer sender = context.getSender();
+            if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER && sender != null) {
+                dispatchToServer(sender, packet.id, packet.data);
             } else if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
                 dispatchToClient(packet.id, packet.data);
             }
@@ -172,7 +172,7 @@ public class NetworkHelper {
             server.execute(() -> dispatchToServer(player, channel, data));
         });
 
-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+        if (!PlatformHelper.isDedicatedServer()) {
             ClientNetworkHelper.registerClientReceiver(CHANNEL_ID);
         }
     }
@@ -197,7 +197,7 @@ public class NetworkHelper {
         ServerPlayNetworking.registerGlobalReceiver(WrapperPayload.ID, (payload, context) ->
                 dispatchToServer(context.player(), payload.channelId(), payload.data()));
 
-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
+        if (!PlatformHelper.isDedicatedServer()) {
             ClientNetworkHelper.registerClientReceiver();
         }
     }
@@ -219,16 +219,15 @@ public class NetworkHelper {
     }
 
     public static void sendToServer(ResourceLocation id, FriendlyByteBuf buf) {
+        if (PlatformHelper.isDedicatedServer()) {
+            throw new IllegalStateException("Cannot send packet " + id + " to the server from a dedicated server");
+        }
         byte[] data = new byte[buf.readableBytes()];
         buf.readBytes(data);
-        //? if fabric {
-        if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT) {
-            //? if <1.20.5
-            ClientNetworkHelper.sendToServer(CHANNEL_ID, wrap(id, data));
-            //? if >=1.20.5
-            //ClientNetworkHelper.sendToServer(new WrapperPayload(id, data));
-        }
-        //?}
+        //? if fabric && <1.20.5
+        ClientNetworkHelper.sendToServer(CHANNEL_ID, wrap(id, data));
+        //? if fabric && >=1.20.5
+        //ClientNetworkHelper.sendToServer(new WrapperPayload(id, data));
         //? if forge
         //channel().sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
@@ -240,11 +239,25 @@ public class NetworkHelper {
     }
 
     public static void registerServerReceiver(ResourceLocation id, ServerReceiver receiver) {
-        SERVER_RECEIVERS.put(id, receiver);
+        register(SERVER_RECEIVERS, id, receiver, "Server");
     }
 
     public static void registerClientReceiver(ResourceLocation id, ClientReceiver receiver) {
-        CLIENT_RECEIVERS.put(id, receiver);
+        register(CLIENT_RECEIVERS, id, receiver, "Client");
+    }
+
+    private static <R> void register(Map<ResourceLocation, R> receivers, ResourceLocation id, R receiver, String side) {
+        if (receivers.putIfAbsent(id, receiver) != null) {
+            throw new IllegalStateException(side + " receiver for channel " + id + " is already registered");
+        }
+    }
+
+    public static void unregisterServerReceiver(ResourceLocation id) {
+        SERVER_RECEIVERS.remove(id);
+    }
+
+    public static void unregisterClientReceiver(ResourceLocation id) {
+        CLIENT_RECEIVERS.remove(id);
     }
 
     static void dispatchToServer(ServerPlayer player, ResourceLocation channel, byte[] data) {

@@ -121,8 +121,7 @@ public class LocalConfigManager<T> {
      * @throws IllegalStateException If another registered config already uses the same file or sync channel.
      */
     public final void register() {
-        onRegister();
-        registered = true;
+        claimOnce();
 
         Optional<ConfigLoadFailure> failure = provider.load();
         failure.ifPresent(f -> loadFailedListeners.fire(listener -> listener.accept(f)));
@@ -130,6 +129,12 @@ public class LocalConfigManager<T> {
         T loaded = provider.instance();
         loadListeners.fire(listener -> listener.accept(loaded));
         fireChanged();
+    }
+
+    private void claimOnce() {
+        if (registered) return;
+        onRegister();
+        registered = true;
     }
 
     void onRegister() {

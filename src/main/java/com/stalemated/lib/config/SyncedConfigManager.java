@@ -51,24 +51,12 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         }
         this.syncChannel = syncChannel;
         this.serverPermissionCheck = serverPermissionCheck;
-
-        //? if <1.21 {
-        ResourceLocation s2cPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_s2c");
-        ResourceLocation c2sPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_c2s");
-        ResourceLocation informC2sPacket = new ResourceLocation(syncChannel.getNamespace(), syncChannel.getPath() + "_inform_c2s");
-        //?} else {
-        /*ResourceLocation s2cPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_s2c");
-        ResourceLocation c2sPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_c2s");
-        ResourceLocation informC2sPacket = ResourceLocation.fromNamespaceAndPath(syncChannel.getNamespace(), syncChannel.getPath() + "_inform_c2s");
-        *///?}
-
-        this.networkHandler = new ConfigNetworkHandler<>(this, s2cPacket, c2sPacket, informC2sPacket);
+        this.networkHandler = new ConfigNetworkHandler<>(this, SyncChannels.of(syncChannel));
     }
 
     @Override
     void onRegister() {
-        super.onRegister();
-        ConfigRegistry.claimChannel(this);
+        ConfigRegistry.claimFileAndChannel(this);
         networkHandler.registerReceivers();
     }
 

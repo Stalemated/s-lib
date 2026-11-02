@@ -19,29 +19,23 @@ import static com.stalemated.lib.SLib.LOGGER;
 final class ConfigNetworkHandler<T> {
 
     private final SyncedConfigManager<T> manager;
-    private final ResourceLocation s2cPacket;
-    private final ResourceLocation c2sPacket;
-    private final ResourceLocation informC2sPacket;
+    private final SyncChannels channels;
 
-    ConfigNetworkHandler(SyncedConfigManager<T> manager, ResourceLocation s2cPacket, ResourceLocation c2sPacket, ResourceLocation informC2sPacket) {
+    ConfigNetworkHandler(SyncedConfigManager<T> manager, SyncChannels channels) {
         this.manager = manager;
-        this.s2cPacket = s2cPacket;
-        this.c2sPacket = c2sPacket;
-        this.informC2sPacket = informC2sPacket;
+        this.channels = channels;
     }
 
     void registerReceivers() {
-        registerClientReceivers();
-        registerServerReceivers();
+        NetworkHelper.registerClientReceiver(channels.serverConfig(), this::handleServerConfigPayload);
+        NetworkHelper.registerServerReceiver(channels.clientOverride(), this::handleClientOverridePayload);
+        NetworkHelper.registerServerReceiver(channels.clientInform(), this::handleClientInformPayload);
     }
 
-    private void registerClientReceivers() {
-        NetworkHelper.registerClientReceiver(s2cPacket, this::handleServerConfigPayload);
-    }
-
-    private void registerServerReceivers() {
-        NetworkHelper.registerServerReceiver(c2sPacket, this::handleClientOverridePayload);
-        NetworkHelper.registerServerReceiver(informC2sPacket, this::handleClientInformPayload);
+    void unregisterReceivers() {
+        NetworkHelper.unregisterClientReceiver(channels.serverConfig());
+        NetworkHelper.unregisterServerReceiver(channels.clientOverride());
+        NetworkHelper.unregisterServerReceiver(channels.clientInform());
     }
 
     /**
@@ -117,7 +111,7 @@ final class ConfigNetworkHandler<T> {
 
         String json = ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
         if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, "player " + player.getName().getString())) {
-            NetworkHelper.sendToClient(player, s2cPacket, ConfigNetworkPayload.encode(json));
+            NetworkHelper.sendToClient(player, channels.serverConfig(), ConfigNetworkPayload.encode(json));
         }
     }
 
@@ -128,7 +122,7 @@ final class ConfigNetworkHandler<T> {
      * @return false if the payload is over the server-bound limit and nothing was sent.
      */
     boolean sendOverridesToServer(List<OptionChange> overrides) {
-        return sendToServer(c2sPacket, ConfigNetworkPayload.changes(overrides, manager.serializer()));
+        return sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(overrides, manager.serializer()));
     }
 
     /**
@@ -136,14 +130,14 @@ final class ConfigNetworkHandler<T> {
      * The host shares its config instance with the integrated server, so the payload carries no options.
      */
     void requestOverrideBroadcast() {
-        sendToServer(c2sPacket, ConfigNetworkPayload.changes(List.of(), manager.serializer()));
+        sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(List.of(), manager.serializer()));
     }
 
     /**
      * Sends a C2S packet to inform the server of local preferences.
      */
     void sendInformToServer() {
-        sendToServer(informC2sPacket, ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.INFORM_SERVER, manager.serializer()));
+        sendToServer(channels.clientInform(), ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.INFORM_SERVER, manager.serializer()));
     }
 
     private boolean sendToServer(ResourceLocation packet, String json) {

@@ -20,17 +20,27 @@ public final class ConfigRegistry {
 
     private ConfigRegistry() {}
 
-    static void claimFile(LocalConfigManager<?> manager) {
-        claim(FILES, manager.getConfigPath().toAbsolutePath().normalize(), manager, "Config file");
+    static synchronized void claimFile(LocalConfigManager<?> manager) {
+        Path file = fileOf(manager);
+        requireFree(FILES, file, manager, "Config file");
+        FILES.put(file, manager);
     }
 
-    static void claimChannel(SyncedConfigManager<?> manager) {
-        claim(CHANNELS, manager.getSyncChannel(), manager, "Sync channel");
+    static synchronized void claimFileAndChannel(SyncedConfigManager<?> manager) {
+        Path file = fileOf(manager);
+        requireFree(FILES, file, manager, "Config file");
+        requireFree(CHANNELS, manager.getSyncChannel(), manager, "Sync channel");
+        FILES.put(file, manager);
+        CHANNELS.put(manager.getSyncChannel(), manager);
     }
 
-    private static <K, M extends LocalConfigManager<?>> void claim(Map<K, M> claims, K key, M manager, String kind) {
-        M owner = claims.putIfAbsent(key, manager);
-        if (owner != null && owner != manager) {
+    private static Path fileOf(LocalConfigManager<?> manager) {
+        return manager.getConfigPath().toAbsolutePath().normalize();
+    }
+
+    private static <K> void requireFree(Map<K, ? extends LocalConfigManager<?>> claims, K key, LocalConfigManager<?> manager, String kind) {
+        LocalConfigManager<?> owner = claims.get(key);
+        if (owner != null) {
             throw new IllegalStateException(kind + " " + key + " of " + describe(manager) + " is already used by " + describe(owner));
         }
     }
@@ -40,9 +50,11 @@ public final class ConfigRegistry {
     }
 
     /**
-     * Releases every claimed file and channel. Meant for tests that register the same config more than once.
+     * Releases every claimed file and channel, and the network receivers of the synced configs.
+     * Meant for tests that register the same config more than once.
      */
-    public static void clear() {
+    public static synchronized void clear() {
+        CHANNELS.values().forEach(manager -> manager.networkHandler().unregisterReceivers());
         FILES.clear();
         CHANNELS.clear();
     }
