@@ -15,37 +15,37 @@ import static com.stalemated.lib.SLib.LOGGER;
  */
 public final class ConfigRegistry {
 
-    private static final Map<Path, LocalConfigManager<?>> FILES = new ConcurrentHashMap<>();
+    private static final Map<Path, ConfigManager<?>> FILES = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, SyncedConfigManager<?>> CHANNELS = new ConcurrentHashMap<>();
 
     private ConfigRegistry() {}
 
     static synchronized void claimFile(LocalConfigManager<?> manager) {
-        Path file = fileOf(manager);
+        Path file = fileOf(manager.getConfigPath());
         requireFree(FILES, file, manager, "Config file");
         FILES.put(file, manager);
     }
 
     static synchronized void claimFileAndChannel(SyncedConfigManager<?> manager) {
-        Path file = fileOf(manager);
+        Path file = fileOf(manager.getConfigPath());
         requireFree(FILES, file, manager, "Config file");
         requireFree(CHANNELS, manager.getSyncChannel(), manager, "Sync channel");
         FILES.put(file, manager);
         CHANNELS.put(manager.getSyncChannel(), manager);
     }
 
-    private static Path fileOf(LocalConfigManager<?> manager) {
-        return manager.getConfigPath().toAbsolutePath().normalize();
+    private static Path fileOf(Path configPath) {
+        return configPath.toAbsolutePath().normalize();
     }
 
-    private static <K> void requireFree(Map<K, ? extends LocalConfigManager<?>> claims, K key, LocalConfigManager<?> manager, String kind) {
-        LocalConfigManager<?> owner = claims.get(key);
+    private static <K> void requireFree(Map<K, ? extends ConfigManager<?>> claims, K key, ConfigManager<?> manager, String kind) {
+        ConfigManager<?> owner = claims.get(key);
         if (owner != null) {
             throw new IllegalStateException(kind + " " + key + " of " + describe(manager) + " is already used by " + describe(owner));
         }
     }
 
-    private static String describe(LocalConfigManager<?> manager) {
+    private static String describe(ConfigManager<?> manager) {
         return manager.getOptionTree().getRootClass().getSimpleName() + " ('" + manager.getName() + "')";
     }
 

@@ -1,19 +1,14 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
-import org.slf4j.Logger;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Builder for {@link SyncedConfigManager}.
@@ -51,10 +46,15 @@ public final class SyncedConfigBuilder<T> extends ConfigBuilder<T, SyncedConfigM
     }
 
     @Override
-    SyncedConfigManager<T> create(ConfigProvider<T> provider, Path path, Logger logger, OptionTree tree, Supplier<T> factory) {
-        SyncedConfigManager<T> manager = new SyncedConfigManager<>(provider, path, logger, resolveChannel(), serverPermissionCheck, factory, tree);
+    SyncedConfigManager<T> create(LocalConfigManager<T> localManager) {
+        SyncedConfigManager<T> manager = new SyncedConfigManager<>(localManager, resolveChannel(), serverPermissionCheck);
         informListeners.forEach(manager::addInformListener);
         return manager;
+    }
+
+    @Override
+    void register(SyncedConfigManager<T> manager) {
+        manager.register();
     }
 
     private ResourceLocation resolveChannel() {

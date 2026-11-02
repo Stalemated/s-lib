@@ -1,6 +1,6 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.io.ConfigProvider;
+import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -8,7 +8,6 @@ import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
-import org.slf4j.Logger;
 
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
@@ -17,20 +16,22 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * A specialized ConfigManager that handles network sync between client and server.
  * <p>
  * This manager automates Server-To-Client (S2C) and Client-To-Server (C2S) syncing. It evaluates customizable
  * permission checks to decide if a client is allowed to change the config, with fallback logic to avoid desyncs.
+ * The config file itself is loaded and saved by a {@link LocalConfigManager}.
  *
  * @param <T> The config data model class.
  */
-public class SyncedConfigManager<T> extends LocalConfigManager<T> {
+public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
+    private final LocalConfigManager<T> localManager;
     private final ResourceLocation syncChannel;
     private final Predicate<ServerPlayer> serverPermissionCheck;
+    private final Listeners<Consumer<T>> changeListeners = new Listeners<>(this::getName);
     private final Listeners<BiConsumer<ServerPlayer, T>> informListeners = new Listeners<>(this::getName);
 
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
@@ -38,27 +39,34 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
 
     private final ConfigNetworkHandler<T> networkHandler;
 
-    SyncedConfigManager(
-            ConfigProvider<T> provider,
-            Path configPath,
-            Logger logger,
-            ResourceLocation syncChannel,
-            Predicate<ServerPlayer> serverPermissionCheck,
-            Supplier<T> defaultFactory,
-            OptionTree optionTree) {
-        super(provider, configPath, logger, optionTree, defaultFactory);
-        if (provider.getSerializer() == null) {
-            throw new IllegalArgumentException("Synced config '" + getName() + "' needs a provider with a serializer to sync over the network");
+    SyncedConfigManager(LocalConfigManager<T> localManager, ResourceLocation syncChannel, Predicate<ServerPlayer> serverPermissionCheck) {
+        if (!localManager.hasSerializer()) {
+            throw new IllegalArgumentException("Synced config '" + localManager.getName() + "' needs a provider with a serializer to sync over the network");
         }
+        this.localManager = localManager;
         this.syncChannel = syncChannel;
         this.serverPermissionCheck = serverPermissionCheck;
         this.networkHandler = new ConfigNetworkHandler<>(this, SyncChannels.of(syncChannel));
     }
 
+    /**
+     * Registers the config.
+     * This claims the config file and sync channel, registers the network receivers, loads the file
+     * (creating it with defaults when it is new), and invokes the load, load failure, and change listeners.
+     *
+     * @throws IllegalStateException If another registered config already uses the same file or sync channel.
+     */
+    public void register() {
+        localManager.registerClaimedBy(() -> {
+            ConfigRegistry.claimFileAndChannel(this);
+            networkHandler.registerReceivers();
+        });
+        fireChanged();
+    }
+
     @Override
-    void onRegister() {
-        ConfigRegistry.claimFileAndChannel(this);
-        networkHandler.registerReceivers();
+    public Subscription onChange(Consumer<T> listener) {
+        return changeListeners.add(listener);
     }
 
     void addInformListener(BiConsumer<ServerPlayer, T> listener) {
@@ -90,7 +98,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     }
 
     T createDefaultOrClone() {
-        return defaultFactory != null ? defaultFactory.get() : cloneConfig(local());
+        return localManager.createDefaultOrClone();
     }
 
     void notifyInformListeners(ServerPlayer player, T config) {
@@ -109,7 +117,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             T unmoddedConfig = cloneConfig(local());
             T defaultValues = createDefaultOrClone();
 
-            for (OptionInfo option : optionTree.all()) {
+            for (OptionInfo option : getOptionTree().all()) {
                 if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
                     option.setValue(unmoddedConfig, option.getValue(defaultValues));
                 }
@@ -138,7 +146,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     @Override
     public T get() {
-        T local = super.get();
+        T local = local();
         ConnectionState currentState = this.state;
         T currentServer = this.serverConfig;
 
@@ -149,7 +157,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
     }
 
     public T local() {
-        return super.get();
+        return localManager.get();
     }
 
     void clearServerConfig() {
@@ -166,6 +174,26 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     public void sendConfigToPlayer(ServerPlayer player) {
         networkHandler.sendConfigToPlayer(player);
+    }
+
+    /**
+     * Clamps the local config, writes it to disk, and invokes the save and change listeners.
+     * Fields mutated directly are only clamped here and never sent over the network;
+     * use {@link #modify(Consumer)} for both.
+     *
+     * @throws UncheckedIOException If the file could not be written. Change listeners still run, save listeners do not.
+     */
+    public void save() {
+        try {
+            localManager.save();
+        } finally {
+            fireChanged();
+        }
+    }
+
+    void fireChanged() {
+        T current = get();
+        changeListeners.fire(listener -> listener.accept(current));
     }
 
     /**
@@ -189,12 +217,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      */
     @Override
     public void modify(Consumer<T> mutator) {
-        T active = get();
-
-        T workingCopy = cloneConfig(active);
-        mutator.accept(workingCopy);
-
-        List<OptionChange> changes = optionTree.findChanges(active, workingCopy);
+        List<OptionChange> changes = LocalConfigManager.changesMadeBy(this, get(), mutator);
         if (changes.isEmpty()) return;
 
         SyncBatch batch = new SyncBatch();
@@ -231,7 +254,7 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
         if (this.state == ConnectionState.MULTIPLAYER_MODDED && this.serverConfig != null) {
             batch.serverOverrides.add(change);
         } else if (this.state == ConnectionState.MULTIPLAYER_UNMODDED) {
-            logger.warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
+            localManager.logger().warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
             batch.rejected = true;
         } else {
             applyLocalChange(change.option(), change.clampedValue(), batch);
@@ -267,6 +290,29 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
             override.option().setValue(this.serverConfig, override.clampedValue());
         }
         return true;
+    }
+
+    @Override
+    public T cloneConfig(T source) {
+        return localManager.cloneConfig(source);
+    }
+
+    @Override
+    public OptionTree getOptionTree() {
+        return localManager.getOptionTree();
+    }
+
+    @Override
+    public String getName() {
+        return localManager.getName();
+    }
+
+    public Path getConfigPath() {
+        return localManager.getConfigPath();
+    }
+
+    ConfigSerializer<T> serializer() {
+        return localManager.serializer();
     }
 
     private static class SyncBatch {

@@ -19,7 +19,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public abstract class ConfigBuilder<T, M extends LocalConfigManager<T>, B extends ConfigBuilder<T, M, B>> {
+public abstract class ConfigBuilder<T, M extends ConfigManager<T>, B extends ConfigBuilder<T, M, B>> {
 
     final String modId;
     final Class<T> configClass;
@@ -40,7 +40,9 @@ public abstract class ConfigBuilder<T, M extends LocalConfigManager<T>, B extend
 
     abstract B self();
 
-    abstract M create(ConfigProvider<T> provider, Path path, Logger logger, OptionTree tree, Supplier<T> factory);
+    abstract M create(LocalConfigManager<T> localManager);
+
+    abstract void register(M manager);
 
     public B configPath(Path path) {
         this.configPath = Objects.requireNonNull(path, "path cannot be null");
@@ -104,22 +106,24 @@ public abstract class ConfigBuilder<T, M extends LocalConfigManager<T>, B extend
                 ? provider
                 : new FileConfigProvider<>(path, factory, resolvedLogger, new Json5Serializer<>(tree));
 
-        M manager = create(resolvedProvider, path, resolvedLogger, tree, factory);
-        loadListeners.forEach(manager::addLoadListener);
-        saveListeners.forEach(manager::addSaveListener);
+        LocalConfigManager<T> localManager = new LocalConfigManager<>(resolvedProvider, path, resolvedLogger, tree, factory);
+        loadListeners.forEach(localManager::addLoadListener);
+        saveListeners.forEach(localManager::addSaveListener);
+        loadFailedListeners.forEach(localManager::addLoadFailedListener);
+
+        M manager = create(localManager);
         changeListeners.forEach(manager::onChange);
-        loadFailedListeners.forEach(manager::addLoadFailedListener);
         return manager;
     }
 
     /**
-     * Builds the manager and invokes {@link LocalConfigManager#register()} to perform initial disk loading/creation.
+     * Builds the manager and registers it to perform initial disk loading/creation.
      *
      * @return The fully initialized and registered manager.
      */
     public M register() {
         M manager = build();
-        manager.register();
+        register(manager);
         return manager;
     }
 }

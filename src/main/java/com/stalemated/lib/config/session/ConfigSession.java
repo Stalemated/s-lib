@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.session;
 
-import com.stalemated.lib.config.LocalConfigManager;
+import com.stalemated.lib.config.ConfigManager;
 import com.stalemated.lib.config.model.OptionChange;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
@@ -16,7 +16,7 @@ import java.util.function.Consumer;
  * @param <T> The config model type.
  */
 public class ConfigSession<T> {
-    private final LocalConfigManager<T> manager;
+    private final ConfigManager<T> manager;
     private final OptionTree optionTree;
     private T base;
     private T draft;
@@ -25,7 +25,7 @@ public class ConfigSession<T> {
     private boolean applyingToPreview = false;
     private boolean committed = false;
 
-    public ConfigSession(LocalConfigManager<T> manager) {
+    public ConfigSession(ConfigManager<T> manager) {
         this.manager = Objects.requireNonNull(manager, "manager cannot be null");
         this.optionTree = Objects.requireNonNull(manager.getOptionTree(), "optionTree cannot be null");
         rebase();
@@ -83,7 +83,7 @@ public class ConfigSession<T> {
         }
     }
 
-    public LocalConfigManager<T> getManager() {
+    public ConfigManager<T> getManager() {
         return manager;
     }
 

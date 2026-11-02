@@ -5,7 +5,7 @@ import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
-import com.stalemated.lib.config.LocalConfigManager;
+import com.stalemated.lib.config.ConfigManager;
 import com.stalemated.lib.config.session.ConfigSession;
 import com.stalemated.lib.config.session.ConfigSessionCoordinator;
 import dev.isxander.yacl3.api.ConfigCategory;
@@ -73,7 +73,7 @@ public class YaclScreenBuilder {
      * @return This screen builder.
      */
     public <T> YaclScreenBuilder livePreview(
-            LocalConfigManager<T> manager,
+            ConfigManager<T> manager,
             T previewInstance,
             Consumer<T> onPreviewUpdate
     ) {
@@ -82,13 +82,13 @@ public class YaclScreenBuilder {
         return this;
     }
 
-    private <T> YaclCategoryBuilder<T> createCategoryBuilder(LocalConfigManager<T> manager) {
+    private <T> YaclCategoryBuilder<T> createCategoryBuilder(ConfigManager<T> manager) {
         ConfigSession<T> session = coordinator.getOrCreate(manager);
         YaclBindingSynchronizer synchronizer = synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new);
         return new YaclCategoryBuilder<>(new YaclContext<>(session, synchronizer, translationPrefix, namingStrategy, controllerRegistry, availabilityRule));
     }
 
-    public <T> YaclScreenBuilder category(LocalConfigManager<T> manager, String tabKey, Consumer<YaclCategoryBuilder<T>> contents) {
+    public <T> YaclScreenBuilder category(ConfigManager<T> manager, String tabKey, Consumer<YaclCategoryBuilder<T>> contents) {
         YaclCategoryBuilder<T> builder = createCategoryBuilder(manager)
                 .name(namingStrategy.resolveCategoryName(translationPrefix, tabKey))
                 .description(namingStrategy.resolveCategoryDescription(translationPrefix, tabKey));

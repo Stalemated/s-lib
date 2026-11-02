@@ -1,6 +1,6 @@
 package com.stalemated.lib.config.session;
 
-import com.stalemated.lib.config.LocalConfigManager;
+import com.stalemated.lib.config.ConfigManager;
 
 import java.io.UncheckedIOException;
 import java.util.Collections;
@@ -15,10 +15,10 @@ import static com.stalemated.lib.SLib.LOGGER;
  * Consolidates the commit pipeline into a single runnable for any {@code .save(Runnable)} hook.
  */
 public class ConfigSessionCoordinator {
-    private final Map<LocalConfigManager<?>, ConfigSession<?>> sessions = new LinkedHashMap<>();
+    private final Map<ConfigManager<?>, ConfigSession<?>> sessions = new LinkedHashMap<>();
 
     @SuppressWarnings("unchecked")
-    public <T> ConfigSession<T> getOrCreate(LocalConfigManager<T> manager) {
+    public <T> ConfigSession<T> getOrCreate(ConfigManager<T> manager) {
         Objects.requireNonNull(manager, "manager cannot be null");
         return (ConfigSession<T>) sessions.computeIfAbsent(manager, ConfigSession::new);
     }
@@ -52,7 +52,7 @@ public class ConfigSessionCoordinator {
         }
     }
 
-    public Map<LocalConfigManager<?>, ConfigSession<?>> getSessions() {
+    public Map<ConfigManager<?>, ConfigSession<?>> getSessions() {
         return Collections.unmodifiableMap(sessions);
     }
 }

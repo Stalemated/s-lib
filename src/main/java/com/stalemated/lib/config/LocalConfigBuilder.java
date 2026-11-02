@@ -1,12 +1,5 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.model.OptionTree;
-import org.slf4j.Logger;
-
-import java.nio.file.Path;
-import java.util.function.Supplier;
-
 /**
  * Builder for {@link LocalConfigManager}.
  *
@@ -24,7 +17,12 @@ public final class LocalConfigBuilder<T> extends ConfigBuilder<T, LocalConfigMan
     }
 
     @Override
-    LocalConfigManager<T> create(ConfigProvider<T> provider, Path path, Logger logger, OptionTree tree, Supplier<T> factory) {
-        return new LocalConfigManager<>(provider, path, logger, tree, factory);
+    LocalConfigManager<T> create(LocalConfigManager<T> localManager) {
+        return localManager;
+    }
+
+    @Override
+    void register(LocalConfigManager<T> manager) {
+        manager.register();
     }
 }

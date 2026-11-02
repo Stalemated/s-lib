@@ -12,24 +12,22 @@ import org.slf4j.Logger;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Base config manager for handling local configs.
- * Provides default disk read/write strategies via a {@link ConfigProvider}.
+ * Config manager that loads and saves a config through a {@link ConfigProvider}.
  *
  * @param <T> The config data model class.
  */
-public class LocalConfigManager<T> {
+public final class LocalConfigManager<T> implements ConfigManager<T> {
 
-    protected final ConfigProvider<T> provider;
-    protected final Path configPath;
-    protected final Logger logger;
-    protected final OptionTree optionTree;
-    protected final Supplier<T> defaultFactory;
+    private final ConfigProvider<T> provider;
+    private final Path configPath;
+    private final Logger logger;
+    private final OptionTree optionTree;
+    private final Supplier<T> defaultFactory;
 
     private final Listeners<Consumer<T>> loadListeners = new Listeners<>(this::getName);
     private final Listeners<Consumer<T>> saveListeners = new Listeners<>(this::getName);
@@ -46,57 +44,8 @@ public class LocalConfigManager<T> {
         this.defaultFactory = defaultFactory;
     }
 
-    /**
-     * Creates a lightweight, in-memory {@link LocalConfigManager} wrapping a single POJO instance
-     * so it can participate in transactional {@code ConfigSession} buffers and YACL screens.
-     *
-     * @param instance The POJO instance to manage.
-     * @param onSave   Optional callback executed when changes are committed and saved.
-     * @param <T>      The POJO model type.
-     * @return An in-memory {@link LocalConfigManager} for the given instance.
-     */
-    public static <T> LocalConfigManager<T> forInstance(T instance, Consumer<T> onSave) {
-        return forInstance(instance, null, onSave);
-    }
-
-    /**
-     * Creates a lightweight, {@link LocalConfigManager} in memory, wrapping a single POJO instance
-     * with an explicit default instance factory.
-     *
-     * @param instance       The POJO instance to manage.
-     * @param defaultFactory Optional supplier providing default instances for cloning and defaults.
-     * @param onSave         Optional callback executed when changes are committed and saved.
-     * @param <T>            The POJO model type.
-     * @return An in-memory {@link LocalConfigManager} for the given instance.
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> LocalConfigManager<T> forInstance(T instance, Supplier<T> defaultFactory, Consumer<T> onSave) {
-        Objects.requireNonNull(instance, "instance cannot be null");
-        Class<T> clazz = (Class<T>) instance.getClass();
-        if (defaultFactory != null) {
-            requireFreshInstances(clazz.getSimpleName(), clazz, defaultFactory);
-        }
-        OptionTree tree = OptionTree.of(clazz, defaultFactory);
-
-        ConfigProvider<T> provider = new ConfigProvider<>() {
-            @Override
-            public T instance() {
-                return instance;
-            }
-
-            @Override
-            public Optional<ConfigLoadFailure> load() {
-                return Optional.empty();
-            }
-
-            @Override
-            public void save() {
-                if (onSave != null) {
-                    onSave.accept(instance);
-                }
-            }
-        };
-        LocalConfigManager<T> manager = new LocalConfigManager<>(provider, null, null, tree, defaultFactory);
+    static <T> LocalConfigManager<T> inMemory(ConfigProvider<T> provider, OptionTree optionTree, Supplier<T> defaultFactory) {
+        LocalConfigManager<T> manager = new LocalConfigManager<>(provider, null, null, optionTree, defaultFactory);
         manager.registered = true;
         return manager;
     }
@@ -111,6 +60,13 @@ public class LocalConfigManager<T> {
         }
     }
 
+    static <T> List<OptionChange> changesMadeBy(ConfigManager<T> manager, T current, Consumer<T> mutator) {
+        T workingCopy = manager.cloneConfig(current);
+        mutator.accept(workingCopy);
+        return manager.getOptionTree().findChanges(current, workingCopy);
+    }
+
+    @Override
     public Subscription onChange(Consumer<T> listener) {
         return changeListeners.add(listener);
     }
@@ -132,10 +88,17 @@ public class LocalConfigManager<T> {
      * This claims the config file, loads it (creating it with defaults when it is new),
      * and invokes the load, load failure, and change listeners.
      *
-     * @throws IllegalStateException If another registered config already uses the same file or sync channel.
+     * @throws IllegalStateException If another registered config already uses the same file.
      */
-    public final void register() {
-        claimOnce();
+    public void register() {
+        registerClaimedBy(() -> ConfigRegistry.claimFile(this));
+    }
+
+    void registerClaimedBy(Runnable claim) {
+        if (!registered) {
+            claim.run();
+            registered = true;
+        }
 
         Optional<ConfigLoadFailure> failure = provider.load();
         failure.ifPresent(f -> loadFailedListeners.fire(listener -> listener.accept(f)));
@@ -145,22 +108,13 @@ public class LocalConfigManager<T> {
         fireChanged();
     }
 
-    private void claimOnce() {
-        if (registered) return;
-        onRegister();
-        registered = true;
-    }
-
-    void onRegister() {
-        ConfigRegistry.claimFile(this);
-    }
-
     /**
      * Creates a deep clone of the provided config instance based on the {@link OptionTree} schema.
      *
      * @param source The config object to clone.
      * @return A fresh instance with all option values copied, or {@code null} if source is null.
      */
+    @Override
     @SuppressWarnings("unchecked")
     public T cloneConfig(T source) {
         if (source == null) return null;
@@ -169,6 +123,10 @@ public class LocalConfigManager<T> {
                 : ReflectionUtils.tryInstantiate((Class<T>) optionTree.getRootClass());
         optionTree.copyAllValues(source, copy);
         return copy;
+    }
+
+    T createDefaultOrClone() {
+        return defaultFactory != null ? defaultFactory.get() : cloneConfig(get());
     }
 
     /**
@@ -182,13 +140,10 @@ public class LocalConfigManager<T> {
      * @param mutator The consumer performing strongly typed property updates on the working copy.
      * @throws UncheckedIOException If the changed config could not be written, the new values stay in memory.
      */
+    @Override
     public void modify(Consumer<T> mutator) {
         T current = get();
-
-        T workingCopy = cloneConfig(current);
-        mutator.accept(workingCopy);
-
-        List<OptionChange> changes = optionTree.findChanges(current, workingCopy);
+        List<OptionChange> changes = changesMadeBy(this, current, mutator);
         if (changes.isEmpty()) return;
 
         for (OptionChange change : changes) {
@@ -204,7 +159,7 @@ public class LocalConfigManager<T> {
      *
      * @throws UncheckedIOException If the file could not be written. Change listeners still run, save listeners do not.
      */
-    public final void save() {
+    public void save() {
         requireRegistered();
         T stored = provider.instance();
         for (OptionInfo option : optionTree.all()) {
@@ -219,12 +174,12 @@ public class LocalConfigManager<T> {
         }
     }
 
-    final void fireChanged() {
+    void fireChanged() {
         T current = get();
         changeListeners.fire(listener -> listener.accept(current));
     }
 
-    final void requireRegistered() {
+    private void requireRegistered() {
         if (!registered) {
             throw new IllegalStateException("Config '" + getName() + "' was used before register() loaded it; call register() first");
         }
@@ -236,18 +191,14 @@ public class LocalConfigManager<T> {
      * @return The config object.
      * @throws IllegalStateException If called before {@link #register()}.
      */
+    @Override
     public T get() {
         requireRegistered();
         return provider.instance();
     }
 
-    public String toJson(Object value) {
-        return serializer().serializeOption(value);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <V> V fromJson(String json, Class<V> type) {
-        return (V) serializer().deserializeOption(json, type);
+    boolean hasSerializer() {
+        return provider.getSerializer() != null;
     }
 
     ConfigSerializer<T> serializer() {
@@ -258,11 +209,16 @@ public class LocalConfigManager<T> {
         return serializer;
     }
 
+    Logger logger() {
+        return logger;
+    }
+
     /**
      * Retrieves the option tree schema descriptor.
      *
      * @return The option tree.
      */
+    @Override
     public OptionTree getOptionTree() {
         return optionTree;
     }
@@ -270,7 +226,7 @@ public class LocalConfigManager<T> {
     /**
      * Retrieves the path to the config file.
      *
-     * @return The config path, or null for managers created with {@code forInstance}.
+     * @return The config path.
      */
     public Path getConfigPath() {
         return configPath;
@@ -282,6 +238,7 @@ public class LocalConfigManager<T> {
      *
      * @return The config name.
      */
+    @Override
     public String getName() {
         if (configPath != null && configPath.getFileName() != null) {
             String fileName = configPath.getFileName().toString();
