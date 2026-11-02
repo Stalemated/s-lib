@@ -7,6 +7,7 @@ import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.model.Constraint;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.TypeCoercionUtils;
+import com.stalemated.lib.util.codec.RegexText;
 import com.stalemated.lib.util.color.ColorUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.controller.*;
@@ -144,8 +145,8 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 Pattern.class,
-                p -> p != null ? p.pattern() : ".*",
-                str -> parseOrWarn("regex", str, Pattern::compile),
+                p -> p != null ? RegexText.format(p) : ".*",
+                str -> parseOrWarn("regex", str, RegexText::parse),
                 ".*",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );

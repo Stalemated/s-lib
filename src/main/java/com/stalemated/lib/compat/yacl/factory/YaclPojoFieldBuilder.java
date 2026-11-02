@@ -136,7 +136,7 @@ public final class YaclPojoFieldBuilder {
             boolean available
     ) {
         Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
-        OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
+        OptionInfo fieldInfo = resolveFieldOptionInfo(context, containerInfo, field, defaultFieldVal);
         String optionKey = containerInfo.getKey() + "." + field.getName();
         YaclOptionMetadata meta = context.metadata(name, desc, available, optionKey);
         ValueAccessor<Object> value = ValueAccessor.entryProperty(
@@ -170,7 +170,7 @@ public final class YaclPojoFieldBuilder {
         return initialFieldVal;
     }
 
-    private static OptionInfo resolveFieldOptionInfo(OptionInfo containerInfo, Field field, Object defaultFieldVal) {
+    private static OptionInfo resolveFieldOptionInfo(YaclContext<?> context, OptionInfo containerInfo, Field field, Object defaultFieldVal) {
         if (containerInfo.getElementTemplate() instanceof CategoryNode categoryNode) {
             ConfigNode child = categoryNode.getChild(field.getName());
             if (child instanceof OptionInfo childInfo) {
@@ -186,7 +186,8 @@ public final class YaclPojoFieldBuilder {
                 field.getType(),
                 field.getGenericType(),
                 true,
-                null
+                null,
+                context.session().getOptionTree().deepCopy()
         );
     }
 

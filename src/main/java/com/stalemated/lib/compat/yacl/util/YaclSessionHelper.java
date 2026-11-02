@@ -1,6 +1,5 @@
 package com.stalemated.lib.compat.yacl.util;
 
-import com.stalemated.lib.config.io.json5.DeepCopy;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 
@@ -48,7 +47,7 @@ public final class YaclSessionHelper {
         N item = newMap.get(entryKey);
 
         if (item != null) {
-            N clonedItem = DeepCopy.of(item, item.getClass());
+            N clonedItem = session.getOptionTree().deepCopy().of(item, item.getClass());
             updater.accept(clonedItem);
             newMap.put(entryKey, clonedItem);
             if (mapInfo.isSortedMap()) {
@@ -81,7 +80,7 @@ public final class YaclSessionHelper {
         if (index >= 0 && index < newList.size()) {
             N item = newList.get(index);
             if (item != null) {
-                N clonedItem = DeepCopy.of(item, item.getClass());
+                N clonedItem = session.getOptionTree().deepCopy().of(item, item.getClass());
                 updater.accept(clonedItem);
                 newList.set(index, clonedItem);
                 session.set(listInfo, newList);

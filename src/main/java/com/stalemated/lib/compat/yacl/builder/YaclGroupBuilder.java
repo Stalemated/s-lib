@@ -202,7 +202,8 @@ public class YaclGroupBuilder<T> {
                 elemClass,
                 elemClass,
                 true,
-                null
+                null,
+                context.session().getOptionTree().deepCopy()
         );
 
         OptionAssembler assembler = context.assembler();
