@@ -23,14 +23,14 @@ public class MathUtils {
     }
 
     public static float clamp(float value, float min, float max) {
-        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
+        if (!(min <= max)) throw new IllegalArgumentException("min (" + min + ") must not be NaN or greater than max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
     }
 
     public static double clamp(double value, double min, double max) {
-        if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");
+        if (!(min <= max)) throw new IllegalArgumentException("min (" + min + ") must not be NaN or greater than max (" + max + ")");
 
         if (value < min) return min;
         return Math.min(value, max);
@@ -56,5 +56,9 @@ public class MathUtils {
 
     public static double easeOutExpo(double t) {
         return t == 1.0 ? 1.0 : 1.0 - Math.pow(2.0, -10.0 * t);
+    }
+
+    public static boolean isFinite(Number value) {
+        return Double.isFinite(value.doubleValue());
     }
 }

@@ -33,8 +33,10 @@ public final class OptionAssembler {
         return Optional.of(enumLens(type, meta));
     }
 
-    public <E, G> G initialElement(Class<?> elementType, TypeLens<E, G> lens) {
-        return lens.guiOf(registry.resolveInitialValue(elementType), lens.fallback());
+    @SuppressWarnings("unchecked")
+    public <E, G> G initialElement(OptionInfo elementInfo, Class<?> elementType, TypeLens<E, G> lens) {
+        E initial = (E) elementInfo.clampValue(registry.resolveInitialValue(elementType));
+        return lens.guiOf(initial, lens.fallback());
     }
 
     public <M, G> Option<G> option(

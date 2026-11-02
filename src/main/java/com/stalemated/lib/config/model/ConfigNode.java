@@ -12,4 +12,9 @@ public interface ConfigNode {
      * Gets the generic type represented by this node.
      */
     Type genericType();
+
+    /**
+     * Gets the constraint represented by this node.
+     */
+    Constraint constraint();
 }

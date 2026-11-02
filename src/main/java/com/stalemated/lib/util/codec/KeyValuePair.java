@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Immutable representation of a parsed key-value string pair.
@@ -60,12 +61,16 @@ public record KeyValuePair(String key, String value) {
      * @return A list of formatted string pairs, never null.
      */
     public static List<String> toLines(Map<String, ?> map) {
+        return toLines(map, String::valueOf);
+    }
+
+    public static <V> List<String> toLines(Map<String, ? extends V> map, Function<? super V, String> formatValue) {
         if (map == null || map.isEmpty()) return new ArrayList<>();
         List<String> result = new ArrayList<>(map.size());
 
-        for (Map.Entry<String, ?> entry : map.entrySet()) {
+        for (Map.Entry<String, ? extends V> entry : map.entrySet()) {
             if (entry == null || entry.getKey() == null) continue;
-            String valStr = entry.getValue() != null ? String.valueOf(entry.getValue()) : "";
+            String valStr = entry.getValue() != null ? formatValue.apply(entry.getValue()) : "";
             result.add(new KeyValuePair(entry.getKey(), valStr).format());
         }
         return result;

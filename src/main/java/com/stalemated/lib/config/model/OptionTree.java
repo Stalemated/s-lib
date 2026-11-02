@@ -77,6 +77,7 @@ public class OptionTree {
 
         if (isTemplateRoot) {
             if (isNativeLeaf(type)) {
+                requireNoRangedFields(key, type);
                 return buildOptionLeaf(key, field, genericType, type, path, syncMode, parentInstance, true);
             }
             if (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type)) {
@@ -125,11 +126,14 @@ public class OptionTree {
     private CategoryNode buildCategoryNode(String key, Field field, Type genericType, Class<?> type, List<Field> path, SyncMode syncMode, Object parentInstance, boolean isTemplate) {
         Object currentInstance = resolveCategoryInstance(field, parentInstance, isTemplate);
         List<Field> childrenPath = resolveCategoryPath(path, field, isTemplate);
-        Map<String, ConfigNode> children = scanCategoryChildren(key, type, currentInstance, childrenPath, syncMode, isTemplate);
+        Map<Field, ConfigNode> fields = scanCategoryFields(key, type, currentInstance, childrenPath, syncMode, isTemplate);
+        Map<String, ConfigNode> children = new LinkedHashMap<>();
+        fields.forEach((child, node) -> children.put(child.getName(), node));
         String title = field != null && field.isAnnotationPresent(Title.class)
                 ? field.getAnnotation(Title.class).value()
                 : null;
-        return new CategoryNode(type, genericType, children, title);
+        Constraint constraint = isTemplate ? Constraints.ofFields(key, type, fields) : Constraint.NONE;
+        return new CategoryNode(type, genericType, children, title, constraint);
     }
 
     private List<Field> resolveCategoryPath(List<Field> path, Field field, boolean isTemplate) {
@@ -148,8 +152,8 @@ public class OptionTree {
         return parentInstance;
     }
 
-    private Map<String, ConfigNode> scanCategoryChildren(String key, Class<?> type, Object currentInstance, List<Field> path, SyncMode syncMode, boolean isTemplate) {
-        Map<String, ConfigNode> children = new LinkedHashMap<>();
+    private Map<Field, ConfigNode> scanCategoryFields(String key, Class<?> type, Object currentInstance, List<Field> path, SyncMode syncMode, boolean isTemplate) {
+        Map<Field, ConfigNode> fields = new LinkedHashMap<>();
         Class<?> current = type;
 
         while (current != null && current != Object.class) {
@@ -160,12 +164,12 @@ public class OptionTree {
                 SyncMode childSyncMode = resolveSyncMode(f, syncMode);
 
                 ConfigNode childNode = buildNode(childKey, f, f.getGenericType(), path, childSyncMode, currentInstance, isTemplate, false);
-                children.put(f.getName(), childNode);
+                fields.put(f, childNode);
             }
             current = current.getSuperclass();
         }
 
-        return children;
+        return fields;
     }
 
     public static boolean isIgnored(Field field) {
@@ -201,6 +205,16 @@ public class OptionTree {
             if (typeArgs.length >= 2) return typeArgs[1];
         }
         return Object.class;
+    }
+
+    private void requireNoRangedFields(String key, Class<?> type) {
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field f : current.getDeclaredFields()) {
+                if (!isIgnored(f) && Constraints.isRanged(f)) {
+                    throw new IllegalArgumentException(type.getSimpleName() + " in '" + key + "' needs a public no-argument constructor to clamp its ranged fields");
+                }
+            }
+        }
     }
 
     private boolean isNativeLeaf(Class<?> type) {

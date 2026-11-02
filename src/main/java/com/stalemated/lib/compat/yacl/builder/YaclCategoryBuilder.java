@@ -348,10 +348,7 @@ public class YaclCategoryBuilder<T> {
                         groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.translationPrefix(), titleVal)));
                     }
                 }
-                Option<?> opt = this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem, available);
-                if (opt != null) {
-                    groupOptions.add(opt);
-                }
+                groupOptions.add(this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem, available));
             }
         }
 

@@ -41,14 +41,14 @@ public record YaclListOptionFactory<T>(YaclContext<T> context) {
                 new UnsupportedOperationException("No YACL controller or adapter registered for list element type: "
                         + elemClass.getName() + " on config option: " + info.getKey()));
 
-        E initialElement = assembler.initialElement(elemClass, lens);
+        OptionInfo elementInfo = info.getElementTemplate() instanceof OptionInfo template ? template : info;
+        E initialElement = assembler.initialElement(elementInfo, elemClass, lens);
         if (initialElement == null) {
             throw new UnsupportedOperationException("Cannot create ListOption for option '" + info.getKey()
                     + "' with element type " + elemClass.getName()
                     + ": No initial value supplier registered. Register one via controllerRegistry.registerInitialSupplier.");
         }
 
-        OptionInfo elementInfo = info.getElementTemplate() instanceof OptionInfo template ? template : info;
         Collection<Object> modelDefault = (Collection<Object>) info.defaultCopy();
         return assembler.list(meta, elementInfo, ValueAccessor.collection(context.session(), info), lens, modelDefault, initialElement, customizer);
     }

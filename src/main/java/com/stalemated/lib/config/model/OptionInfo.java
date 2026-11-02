@@ -61,7 +61,7 @@ public class OptionInfo implements ConfigNode {
             f.setAccessible(true);
         }
 
-        this.constraint = RangeConstraints.of(key, field, type, template);
+        this.constraint = Constraints.of(key, field, type, genericType, template);
         this.comment = annotation(Comment.class).map(Comment::value).orElse(null);
         this.title = annotation(Title.class).map(Title::value).orElse(null);
     }
@@ -80,7 +80,8 @@ public class OptionInfo implements ConfigNode {
 
     public SyncMode getSyncMode() { return syncMode; }
 
-    public Constraint getConstraint() { return constraint; }
+    @Override
+    public Constraint constraint() { return constraint; }
 
     public <A extends Annotation> Optional<A> annotation(Class<A> annotationType) {
         return field == null ? Optional.empty() : Optional.ofNullable(field.getAnnotation(annotationType));
@@ -210,13 +211,19 @@ public class OptionInfo implements ConfigNode {
 
     /**
      * Applies this option's {@link Constraint} to a candidate value.
-     * Ranged floats and doubles are also rounded to their significant digits to drop slider step noise.
+     * Ranged floats and doubles are also rounded to their significant digits to drop slider step noise,
+     * and collections and maps are converted to the type of the option.
      *
      * @param value The candidate value.
      * @return The clamped value if applicable, or the original value.
+     * @throws IllegalArgumentException If the value can never be valid for this option, such as NaN.
      */
     public Object clampValue(Object value) {
-        return constraint.apply(value);
+        try {
+            return constraint.apply(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid value for config option '" + key + "': " + e.getMessage(), e);
+        }
     }
 
     private Object resolveTargetObject(Object rootInstance, boolean createIfNull) throws Exception {

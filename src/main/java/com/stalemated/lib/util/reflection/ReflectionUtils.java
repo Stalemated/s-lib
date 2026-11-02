@@ -98,6 +98,18 @@ public final class ReflectionUtils {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> T shallowCopy(T source) {
+        T copy = (T) tryInstantiate(source.getClass());
+        for (Class<?> current = source.getClass(); current != null && current != Object.class; current = current.getSuperclass()) {
+            for (Field field : current.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())) continue;
+                setFieldValue(field, copy, getFieldValue(field, source));
+            }
+        }
+        return copy;
+    }
+
     private static String describe(Field field) {
         return field.getDeclaringClass().getSimpleName() + "." + field.getName() + " (" + field.getType().getSimpleName() + ")";
     }

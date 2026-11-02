@@ -4,15 +4,21 @@ import com.stalemated.lib.config.annotation.RangeDouble;
 import com.stalemated.lib.config.annotation.RangeFloat;
 import com.stalemated.lib.config.annotation.RangeInt;
 import com.stalemated.lib.config.annotation.RangeLong;
+import com.stalemated.lib.util.reflection.ReflectionUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 
-final class RangeConstraints {
+import static com.stalemated.lib.util.math.MathUtils.isFinite;
+
+final class Constraints {
 
     private static final List<Class<? extends Annotation>> RANGE_ANNOTATIONS =
             List.of(RangeInt.class, RangeLong.class, RangeFloat.class, RangeDouble.class);
@@ -29,30 +35,54 @@ final class RangeConstraints {
     );
 
     private static final Map<Class<? extends Annotation>, BiFunction<String, Field, Constraint>> READERS = Map.of(
-            RangeInt.class, RangeConstraints::intRange,
-            RangeLong.class, RangeConstraints::longRange,
-            RangeFloat.class, RangeConstraints::floatRange,
-            RangeDouble.class, RangeConstraints::doubleRange
+            RangeInt.class, Constraints::intRange,
+            RangeLong.class, Constraints::longRange,
+            RangeFloat.class, Constraints::floatRange,
+            RangeDouble.class, Constraints::doubleRange
     );
 
-    private RangeConstraints() {}
+    private static final Set<Class<?>> FLOATING_TYPES = Set.of(float.class, Float.class, double.class, Double.class);
 
-    static Constraint of(String key, Field field, Class<?> type, ConfigNode elementTemplate) {
+    private Constraints() {}
+
+    static Constraint of(String key, Field field, Class<?> type, Type genericType, ConfigNode contentTemplate) {
         List<Class<? extends Annotation>> present = rangesOn(field);
-        if (present.isEmpty()) return Constraint.NONE;
-
         if (present.size() > 1) {
             throw new IllegalArgumentException("'" + key + "' has more than one range annotation: " + names(present));
         }
-        Class<? extends Annotation> range = present.get(0);
         if (isContainer(type)) {
-            requireRangedContents(key, range, type, elementTemplate);
-            return Constraint.NONE;
+            if (!present.isEmpty()) {
+                requireRangedContents(key, present.get(0), type, contentTemplate);
+            }
+            return containerOf(type, genericType, contentTemplate);
         }
+        if (present.isEmpty()) return unranged(type);
+
+        Class<? extends Annotation> range = present.get(0);
         if (range != RANGE_BY_TYPE.get(type)) {
             throw new IllegalArgumentException("@" + range.getSimpleName() + " on '" + key + "' does not apply to a " + type.getSimpleName() + " option");
         }
         return READERS.get(range).apply(key, field);
+    }
+
+    static Constraint ofFields(String key, Class<?> type, Map<Field, ConfigNode> children) {
+        Map<Field, Constraint> constrained = new LinkedHashMap<>();
+        children.forEach((field, child) -> {
+            if (!(child.constraint() instanceof Constraint.None)) {
+                constrained.put(field, child.constraint());
+            }
+        });
+        if (constrained.isEmpty()) return Constraint.NONE;
+
+        Constraint.Fields fields = new Constraint.Fields(constrained);
+        if (fields.clamps() && !ReflectionUtils.hasNoArgsConstructor(type)) {
+            throw new IllegalArgumentException(type.getSimpleName() + " in '" + key + "' needs a no-argument constructor to clamp its ranged fields");
+        }
+        return fields;
+    }
+
+    static boolean isRanged(Field field) {
+        return !rangesOn(field).isEmpty();
     }
 
     private static List<Class<? extends Annotation>> rangesOn(Field field) {
@@ -64,13 +94,32 @@ final class RangeConstraints {
         return Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type);
     }
 
-    private static void requireRangedContents(String key, Class<? extends Annotation> range, Class<?> type, ConfigNode elementTemplate) {
+    private static Constraint unranged(Class<?> type) {
+        return FLOATING_TYPES.contains(type) ? Constraint.FINITE : Constraint.NONE;
+    }
+
+    private static Constraint containerOf(Class<?> type, Type genericType, ConfigNode contentTemplate) {
+        boolean isMap = Map.class.isAssignableFrom(type);
+        Class<?> firstTypeArgument = typeArgument(genericType, 0);
+        Constraint contents = contentTemplate != null
+                ? contentTemplate.constraint()
+                : unranged(isMap ? typeArgument(genericType, 1) : firstTypeArgument);
+        return isMap
+                ? new Constraint.MapValues(type, firstTypeArgument, contents)
+                : new Constraint.Elements(type, firstTypeArgument, contents);
+    }
+
+    private static Class<?> typeArgument(Type genericType, int index) {
+        return ReflectionUtils.resolveGenericTypeArgument(genericType, index, Object.class);
+    }
+
+    private static void requireRangedContents(String key, Class<? extends Annotation> range, Class<?> type, ConfigNode contentTemplate) {
         String annotation = "@" + range.getSimpleName() + " on '" + key + "'";
-        if (elementTemplate == null) {
+        if (contentTemplate == null) {
             throw new IllegalArgumentException(annotation + " needs @Nest to apply to the contents of a " + type.getSimpleName());
         }
-        if (!(elementTemplate instanceof OptionInfo)) {
-            throw new IllegalArgumentException(annotation + " does not apply to a " + type.getSimpleName() + " of " + elementTemplate.type().getSimpleName());
+        if (!(contentTemplate instanceof OptionInfo)) {
+            throw new IllegalArgumentException(annotation + " does not apply to a " + type.getSimpleName() + " of " + contentTemplate.type().getSimpleName());
         }
     }
 
@@ -103,6 +152,9 @@ final class RangeConstraints {
     }
 
     private static <N extends Number & Comparable<N>> void requireValid(String annotation, String key, N min, N max, N step, N zero) {
+        if (!isFinite(min) || !isFinite(max) || !isFinite(step)) {
+            throw new IllegalArgumentException(annotation + " on '" + key + "' needs finite values, got min=" + min + ", max=" + max + ", step=" + step);
+        }
         if (min.compareTo(max) > 0) {
             throw new IllegalArgumentException(annotation + " on '" + key + "': min (" + min + ") > max (" + max + ")");
         }

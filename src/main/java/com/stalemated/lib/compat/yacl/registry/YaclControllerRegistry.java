@@ -6,6 +6,7 @@ import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
 import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.model.Constraint;
 import com.stalemated.lib.config.model.OptionInfo;
+import com.stalemated.lib.util.TypeCoercionUtils;
 import com.stalemated.lib.util.color.ColorUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.controller.*;
@@ -96,7 +97,7 @@ public class YaclControllerRegistry {
     }
 
     private static Constraint constraintOf(OptionInfo info) {
-        return info != null ? info.getConstraint() : Constraint.NONE;
+        return info != null ? info.constraint() : Constraint.NONE;
     }
 
     private static Optional<ItemDropdown> itemDropdownOf(OptionInfo info) {
@@ -241,5 +242,26 @@ public class YaclControllerRegistry {
             return Optional.of((TypeLens<M, G>) TypeLens.identity(resolveInitialValue(type), (ControllerFactory<Object>) direct));
         }
         return Optional.empty();
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Optional<TypeLens<Object, String>> findTextLens(Class<?> type) {
+        Optional<TypeLens<Object, Object>> lens = findLens(type);
+        if (lens.isPresent() && lens.get().fallback() instanceof String) {
+            return Optional.of((TypeLens) lens.get());
+        }
+        if (!TypeCoercionUtils.canCoerce(type)) {
+            return Optional.empty();
+        }
+        return Optional.of(new TypeLens<>(
+                YaclControllerRegistry::toText,
+                text -> TypeCoercionUtils.coerce(text, type),
+                "",
+                (info, opt) -> StringControllerBuilder.create(opt)
+        ));
+    }
+
+    private static String toText(Object value) {
+        return value instanceof Enum<?> constant ? constant.name() : String.valueOf(value);
     }
 }

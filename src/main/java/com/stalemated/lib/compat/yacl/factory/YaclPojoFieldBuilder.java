@@ -11,7 +11,6 @@ import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.StringUtils;
-import com.stalemated.lib.util.TypeCoercionUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
@@ -20,10 +19,10 @@ import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 
 /**
  * Internal factory collaborator responsible for reflectively building YACL options
@@ -46,7 +45,8 @@ public final class YaclPojoFieldBuilder {
      * @param sampleItem A sample or current instance of the POJO.
      * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
-     * @return The built {@link Option}, or null if the field type is unsupported.
+     * @return The built {@link Option}.
+     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
      */
     public static <T> Option<?> buildPojoFieldOption(
             YaclContext<T> context,
@@ -69,7 +69,8 @@ public final class YaclPojoFieldBuilder {
      * @param sampleItem A sample or current instance of the POJO.
      * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
-     * @return The built {@link Option}, or null if the field type is unsupported.
+     * @return The built {@link Option}.
+     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
      */
     public static <T> Option<?> buildPojoFieldOption(
             YaclContext<T> context,
@@ -93,7 +94,8 @@ public final class YaclPojoFieldBuilder {
      * @param sampleItem A sample or current instance of the POJO.
      * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
-     * @return The built {@link Option}, or null if the field type is unsupported.
+     * @return The built {@link Option}.
+     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
      */
     public static <T> Option<?> buildPojoFieldOption(
             YaclContext<T> context,
@@ -120,7 +122,8 @@ public final class YaclPojoFieldBuilder {
      * @param desc The description or tooltip.
      * @param available Whether the option should be interactively editable.
      * @param <T> The configuration model type.
-     * @return The built {@link Option}, or null if the field type is unsupported.
+     * @return The built {@link Option}.
+     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
      */
     public static <T> Option<?> buildPojoFieldOption(
             YaclContext<T> context,
@@ -134,7 +137,8 @@ public final class YaclPojoFieldBuilder {
     ) {
         Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
         OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
-        YaclOptionMetadata meta = context.metadata(name, desc, available, containerInfo.getKey() + "." + field.getName());
+        String optionKey = containerInfo.getKey() + "." + field.getName();
+        YaclOptionMetadata meta = context.metadata(name, desc, available, optionKey);
         ValueAccessor<Object> value = ValueAccessor.entryProperty(
                 context.session(),
                 containerInfo,
@@ -148,11 +152,12 @@ public final class YaclPojoFieldBuilder {
         if (lens.isPresent()) {
             return assembler.option(meta, fieldInfo, value, lens.get(), defaultFieldVal, null);
         }
-        if (List.class.isAssignableFrom(field.getType())) {
-            TypeLens<Object, String> commaSeparated = commaSeparatedLens(context, fieldInfo.getCollectionElementType());
+        if (Collection.class.isAssignableFrom(field.getType())) {
+            TypeLens<Object, String> commaSeparated = commaSeparatedLens(context, fieldInfo.getCollectionElementType(), optionKey);
             return assembler.option(meta, fieldInfo, value, commaSeparated, defaultFieldVal, null);
         }
-        return null;
+        throw new UnsupportedOperationException("No YACL controller or adapter registered for type: "
+                + field.getType().getName() + " on config option: " + optionKey);
     }
 
     private static Object resolveDefaultFieldValue(NestedAccessor accessor, Field field, Object sampleItem) {
@@ -185,37 +190,34 @@ public final class YaclPojoFieldBuilder {
         );
     }
 
-    private static TypeLens<Object, String> commaSeparatedLens(YaclContext<?> context, Class<?> elemType) {
-        Optional<TypeLens<Object, Object>> elementLens = context.controllerRegistry().findLens(elemType);
-        Function<Object, String> elementToText = element -> String.valueOf(elementLens.map(lens -> lens.toGui().apply(element)).orElse(element));
-        Function<String, Object> textToElement = elementLens
-                .filter(lens -> lens.fallback() instanceof String)
-                .<Function<String, Object>>map(lens -> token -> lens.fromGui().apply(token))
-                .orElse(token -> TypeCoercionUtils.coerce(token, elemType));
+    private static TypeLens<Object, String> commaSeparatedLens(YaclContext<?> context, Class<?> elementType, String optionKey) {
+        TypeLens<Object, String> elementText = context.controllerRegistry().findTextLens(elementType).orElseThrow(() ->
+                new UnsupportedOperationException("No text conversion registered for element type: "
+                        + elementType.getName() + " on config option: " + optionKey));
 
         return new TypeLens<>(
-                list -> list instanceof List<?> elements ? joinNonNull(elements, elementToText) : "",
-                text -> parseTokens(text, textToElement),
+                collection -> collection instanceof Collection<?> elements ? joinNonNull(elements, elementText) : "",
+                text -> parseTokens(text, elementText),
                 "",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );
     }
 
-    private static String joinNonNull(List<?> elements, Function<Object, String> elementToText) {
+    private static String joinNonNull(Collection<?> elements, TypeLens<Object, String> elementText) {
         List<String> tokens = new ArrayList<>(elements.size());
         for (Object element : elements) {
             if (element != null) {
-                tokens.add(elementToText.apply(element));
+                tokens.add(elementText.guiOf(element, ""));
             }
         }
         return StringUtils.joinCommaSeparated(tokens);
     }
 
-    private static List<Object> parseTokens(String text, Function<String, Object> textToElement) {
+    private static List<Object> parseTokens(String text, TypeLens<Object, String> elementText) {
         List<String> tokens = StringUtils.parseCommaSeparated(text);
         List<Object> elements = new ArrayList<>(tokens.size());
         for (String token : tokens) {
-            Object element = textToElement.apply(token);
+            Object element = elementText.fromGui().apply(token);
             if (element != null) {
                 elements.add(element);
             }

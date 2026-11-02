@@ -32,24 +32,29 @@ public final class TypeCoercionUtils {
 
     private TypeCoercionUtils() {}
 
+    public static boolean canCoerce(Class<?> targetType) {
+        return isText(targetType) || parserFor(targetType) != null;
+    }
+
     /**
      * Coerces a string value into an instance of the specified target type.
-     * Supports primitives, boxed types, enums and strings.
+     * Supports primitives, boxed types, enums, and strings.
      *
      * @param valStr The string representation to coerce.
      * @param targetType The target class type.
      * @return The coerced object, {@code null} (after logging a warning) if the value is not valid for the type,
-     *         or the original string if the type is unhandled or targetType is null/Object.
+     * or the original string if targetType is null, String or Object.
+     * @throws IllegalArgumentException If the type cannot be parsed from text.
      */
     public static Object coerce(String valStr, Class<?> targetType) {
-        if (targetType == null || targetType == String.class || targetType == Object.class) {
+        if (isText(targetType)) {
             return valStr;
         }
 
-        Function<String, Object> parser = targetType.isEnum()
-                ? value -> parseEnum(targetType, value)
-                : PARSERS.get(targetType);
-        if (parser == null) return valStr;
+        Function<String, Object> parser = parserFor(targetType);
+        if (parser == null) {
+            throw new IllegalArgumentException("Cannot convert text to " + targetType.getName());
+        }
 
         String trimmed = valStr != null ? valStr.trim() : "";
         try {
@@ -58,6 +63,16 @@ public final class TypeCoercionUtils {
             LOGGER.warn("Ignoring '{}': not a valid {}", trimmed, targetType.getSimpleName());
             return null;
         }
+    }
+
+    private static boolean isText(Class<?> targetType) {
+        return targetType == null || targetType == String.class || targetType == Object.class;
+    }
+
+    private static Function<String, Object> parserFor(Class<?> targetType) {
+        return targetType.isEnum()
+                ? value -> parseEnum(targetType, value)
+                : PARSERS.get(targetType);
     }
 
     private static Object parseBoolean(String value) {

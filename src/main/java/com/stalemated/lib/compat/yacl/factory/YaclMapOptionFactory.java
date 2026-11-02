@@ -8,7 +8,6 @@ import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.util.TypeCoercionUtils;
 import com.stalemated.lib.util.codec.KeyValuePair;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.OptionDescription;
@@ -43,15 +42,22 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             Consumer<ListOption.Builder<String>> customizer
     ) {
         YaclOptionMetadata meta = context.resolveMetadata(info);
-        Class<?> valClass = info.getMapValueType();
+        Class<?> valueType = info.getMapValueType();
+        TypeLens<Object, String> valueText = context.controllerRegistry().findTextLens(valueType).orElseThrow(() ->
+                new UnsupportedOperationException("No text conversion registered for map value type: "
+                        + valueType.getName() + " on config option: " + info.getKey()));
+
+        OptionInfo valueInfo = info.getElementTemplate() instanceof OptionInfo template ? template : info;
+        OptionAssembler assembler = context.assembler();
+        String initialEntry = new KeyValuePair("key", assembler.initialElement(valueInfo, valueType, valueText)).format();
         Map<String, ?> defaultMap = (Map<String, ?>) info.defaultCopy();
 
         ValueAccessor<List<String>> lines = ValueAccessor.of(
                 info.getKey(),
-                () -> KeyValuePair.toLines(context.session().get(info)),
-                guiList -> persistGuiMap(info, guiList, valClass)
+                () -> toLines(context.session().get(info), valueText),
+                guiList -> persistGuiMap(info, guiList, valueText)
         );
-        return context.assembler().list(meta, info, lines, TEXT, KeyValuePair.toLines(defaultMap), resolveInitialEntry(valClass), customizer);
+        return assembler.list(meta, info, lines, TEXT, toLines(defaultMap, valueText), initialEntry, customizer);
     }
 
     /**
@@ -106,12 +112,16 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
-    private void persistGuiMap(OptionInfo info, List<String> guiList, Class<?> valClass) {
+    private static List<String> toLines(Map<String, ?> map, TypeLens<Object, String> valueText) {
+        return KeyValuePair.toLines(map, value -> valueText.guiOf(value, ""));
+    }
+
+    private void persistGuiMap(OptionInfo info, List<String> guiList, TypeLens<Object, String> valueText) {
         Map<String, String> stringMap = KeyValuePair.fromLines(guiList);
         Map<String, Object> convertedMap = new LinkedHashMap<>(stringMap.size());
 
         for (Map.Entry<String, String> entry : stringMap.entrySet()) {
-            Object value = TypeCoercionUtils.coerce(entry.getValue(), valClass);
+            Object value = valueText.fromGui().apply(entry.getValue());
             if (value != null) {
                 convertedMap.put(entry.getKey(), value);
             }
@@ -122,19 +132,5 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         } else {
             context.session().set(info, convertedMap);
         }
-    }
-
-    private static String resolveInitialEntry(Class<?> valClass) {
-        if (valClass == int.class || valClass == Integer.class || valClass == long.class || valClass == Long.class
-                || valClass == byte.class || valClass == Byte.class || valClass == short.class || valClass == Short.class) {
-            return "key: 0";
-        }
-        if (valClass == float.class || valClass == Float.class || valClass == double.class || valClass == Double.class) {
-            return "key: 0.0";
-        }
-        if (valClass == boolean.class || valClass == Boolean.class) {
-            return "key: true";
-        }
-        return "key: value";
     }
 }

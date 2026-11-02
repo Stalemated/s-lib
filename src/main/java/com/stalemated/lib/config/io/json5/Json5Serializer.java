@@ -12,7 +12,6 @@ import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.io.ConfigSerializer;
 import com.stalemated.lib.config.io.exception.ConfigSyntaxException;
 import com.stalemated.lib.config.io.DeserializationResult;
-import com.stalemated.lib.config.validation.ConfigValidator;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.model.OptionTree;
 
@@ -117,10 +116,6 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
         layout.reportUnexpectedKeys(rootObject, report);
         for (OptionInfo option : optionTree.all()) {
             readOption(instance, rootObject, option, report);
-        }
-
-        if (ConfigValidator.validate(instance, optionTree.getSchemaRoot())) {
-            report.requireMigration();
         }
         return report.toResult(instance);
     }

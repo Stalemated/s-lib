@@ -6,10 +6,8 @@ import com.stalemated.lib.config.session.ConfigSession;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -36,7 +34,6 @@ public final class ValueAccessor<M> {
     }
 
     public static <E> ValueAccessor<List<E>> collection(ConfigSession<?> session, OptionInfo info) {
-        boolean storedAsSet = Set.class.isAssignableFrom(info.type());
         return of(
                 info.getKey(),
                 () -> {
@@ -45,7 +42,7 @@ public final class ValueAccessor<M> {
                 },
                 list -> {
                     Objects.requireNonNull(list, "collection option " + info.getKey() + " cannot be set to null");
-                    session.set(info, storedAsSet ? new LinkedHashSet<>(list) : new ArrayList<>(list));
+                    session.set(info, new ArrayList<>(list));
                 }
         );
     }
