@@ -7,34 +7,42 @@ import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.config.ConfigManager;
 import com.stalemated.lib.config.session.ConfigSession;
-import com.stalemated.lib.config.session.ConfigSessionCoordinator;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import static com.stalemated.lib.SLib.LOGGER;
+
 /**
  * Top-level fluent builder for creating YACL configuration screens backed by atomic session buffers.
- * Coordinates multi-manager sessions and orchestrates category composition.
+ * Keeps one session per config manager and commits all of them when the screen saves.
+ * Categories are built in {@link #buildLib()}, so the naming strategy, controller registry, and availability rule
+ * apply to every category whatever the order of the calls.
  */
-@SuppressWarnings("UnusedReturnValue")
 public class YaclScreenBuilder {
     private final Screen parent;
     private final Component title;
-    private final ConfigSessionCoordinator coordinator = new ConfigSessionCoordinator();
-    private final Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
-    private final List<ConfigCategory> categories = new ArrayList<>();
     private final String translationPrefix;
+    private final Map<ConfigManager<?>, ConfigSession<?>> sessions = new LinkedHashMap<>();
+    private final List<PendingCategory> categories = new ArrayList<>();
     private YaclNamingStrategy namingStrategy = YaclNamingStrategy.DEFAULT;
     private YaclControllerRegistry controllerRegistry = YaclControllerRegistry.createDefault();
     private OptionAvailabilityRule availabilityRule = OptionAvailabilityRule.DEFAULT;
+
+    @FunctionalInterface
+    private interface PendingCategory {
+        ConfigCategory build(Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers);
+    }
 
     private YaclScreenBuilder(Screen parent, Component title, String translationPrefix) {
         this.parent = parent;
@@ -77,41 +85,62 @@ public class YaclScreenBuilder {
             T previewInstance,
             Consumer<T> onPreviewUpdate
     ) {
-        ConfigSession<T> session = coordinator.getOrCreate(manager);
-        session.bindPreview(previewInstance, onPreviewUpdate);
+        sessionOf(manager).bindPreview(previewInstance, onPreviewUpdate);
         return this;
     }
 
-    private <T> YaclCategoryBuilder<T> createCategoryBuilder(ConfigManager<T> manager) {
-        ConfigSession<T> session = coordinator.getOrCreate(manager);
-        YaclBindingSynchronizer synchronizer = synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new);
-        return new YaclCategoryBuilder<>(new YaclContext<>(session, synchronizer, translationPrefix, namingStrategy, controllerRegistry, availabilityRule));
-    }
-
     public <T> YaclScreenBuilder category(ConfigManager<T> manager, String tabKey, Consumer<YaclCategoryBuilder<T>> contents) {
-        YaclCategoryBuilder<T> builder = createCategoryBuilder(manager)
-                .name(namingStrategy.resolveCategoryName(translationPrefix, tabKey))
-                .description(namingStrategy.resolveCategoryDescription(translationPrefix, tabKey));
-        contents.accept(builder);
-        categories.add(builder.build());
+        ConfigSession<T> session = sessionOf(manager);
+        categories.add(synchronizers -> buildCategory(session, synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new), tabKey, contents));
         return this;
     }
 
     public YaclScreenBuilder category(ConfigCategory customCategory) {
-        this.categories.add(customCategory);
+        categories.add(synchronizers -> customCategory);
         return this;
     }
 
-    public ConfigSessionCoordinator getCoordinator() {
-        return coordinator;
+    @SuppressWarnings("unchecked")
+    private <T> ConfigSession<T> sessionOf(ConfigManager<T> manager) {
+        Objects.requireNonNull(manager, "manager cannot be null");
+        return (ConfigSession<T>) sessions.computeIfAbsent(manager, ConfigSession::new);
+    }
+
+    private <T> ConfigCategory buildCategory(
+            ConfigSession<T> session,
+            YaclBindingSynchronizer synchronizer,
+            String tabKey,
+            Consumer<YaclCategoryBuilder<T>> contents
+    ) {
+        YaclContext<T> context = new YaclContext<>(session, synchronizer, translationPrefix, namingStrategy, controllerRegistry, availabilityRule);
+        YaclCategoryBuilder<T> builder = new YaclCategoryBuilder<>(context)
+                .name(namingStrategy.categoryName(translationPrefix, tabKey))
+                .description(namingStrategy.categoryDescription(translationPrefix, tabKey));
+        contents.accept(builder);
+        return builder.build();
     }
 
     public YetAnotherConfigLib buildLib() {
+        Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
+        List<ConfigCategory> builtCategories = new ArrayList<>(categories.size());
+        for (PendingCategory category : categories) {
+            builtCategories.add(category.build(synchronizers));
+        }
         return YetAnotherConfigLib.createBuilder()
                 .title(title)
-                .categories(categories)
-                .save(coordinator::commitAll)
+                .categories(builtCategories)
+                .save(this::commitSessions)
                 .build();
+    }
+
+    private void commitSessions() {
+        for (ConfigSession<?> session : sessions.values()) {
+            try {
+                session.commit();
+            } catch (UncheckedIOException e) {
+                LOGGER.error("Kept the screen changes of '{}' pending because they could not be saved: {}", session.getManager().getName(), e.getMessage());
+            }
+        }
     }
 
     public Screen generateScreen() {

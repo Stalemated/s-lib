@@ -1,11 +1,9 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
-import com.stalemated.lib.compat.yacl.factory.YaclListOptionFactory;
 import com.stalemated.lib.compat.yacl.factory.YaclMapOptionFactory;
-import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
-import com.stalemated.lib.compat.yacl.util.NestedAccessor;
-import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
+import com.stalemated.lib.compat.yacl.factory.YaclPojoFieldBuilder;
 import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
@@ -31,9 +29,9 @@ import java.util.function.Consumer;
  */
 @SuppressWarnings("UnusedReturnValue")
 public class YaclCategoryBuilder<T> {
+    private static final String NO_ENTRIES = "s_lib.config_screen.no_entries";
+
     private final YaclContext<T> context;
-    private final YaclOptionFactory<T> optionFactory;
-    private final YaclListOptionFactory<T> listOptionFactory;
     private final YaclMapOptionFactory<T> mapOptionFactory;
 
     private Component name;
@@ -42,14 +40,8 @@ public class YaclCategoryBuilder<T> {
 
     public YaclCategoryBuilder(YaclContext<T> context) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
-        this.optionFactory = new YaclOptionFactory<>(context);
-        this.listOptionFactory = new YaclListOptionFactory<>(context);
         this.mapOptionFactory = new YaclMapOptionFactory<>(context);
         this.name = Component.literal(context.session().getManager().getName());
-    }
-
-    public YaclContext<T> context() {
-        return context;
     }
 
     public YaclCategoryBuilder<T> name(Component name) {
@@ -68,9 +60,9 @@ public class YaclCategoryBuilder<T> {
     }
 
     public YaclCategoryBuilder<T> group(String groupKey, Consumer<YaclGroupBuilder<T>> consumer) {
-        Component groupName = context.namingStrategy().resolveGroupName(context.translationPrefix(), groupKey);
+        Component groupName = context.namingStrategy().groupName(context.translationPrefix(), groupKey);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
-        builder.description(context.namingStrategy().resolveGroupDescription(context.translationPrefix(), groupKey));
+        builder.description(context.namingStrategy().groupDescription(context.translationPrefix(), groupKey));
         consumer.accept(builder);
         groups.add(builder.build());
         return this;
@@ -95,7 +87,7 @@ public class YaclCategoryBuilder<T> {
      * @return This category builder.
      */
     public YaclCategoryBuilder<T> label(String titleKey) {
-        return label(context.namingStrategy().resolveTitle(context.translationPrefix(), titleKey));
+        return label(context.namingStrategy().groupName(context.translationPrefix(), titleKey));
     }
 
     public YaclCategoryBuilder<T> listOption(String key) {
@@ -108,7 +100,7 @@ public class YaclCategoryBuilder<T> {
         if (info.hasTitle()) {
             label(info.getTitle());
         }
-        ListOption<?> listOpt = listOptionFactory.buildListOption(info, (Consumer) customizer);
+        ListOption<?> listOpt = context.assembler().list(context.resolveMetadata(info), info, (Consumer) customizer);
         groups.add(listOpt);
         return this;
     }
@@ -133,16 +125,10 @@ public class YaclCategoryBuilder<T> {
 
     public YaclCategoryBuilder<T> nested(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
         CategoryNode catNode = resolveCategoryNode(nestPrefix);
-        Component groupName = (catNode != null && catNode.hasTitle())
-                ? context.namingStrategy().resolveTitle(context.translationPrefix(), catNode.title())
-                : context.namingStrategy().resolveGroupName(context.translationPrefix(), nestPrefix);
-        YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
+        String groupKey = catNode != null && catNode.hasTitle() ? catNode.title() : nestPrefix;
+        YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, context.namingStrategy().groupName(context.translationPrefix(), groupKey));
         builder.collapsed(false);
-        if (catNode != null && catNode.hasTitle()) {
-            builder.description(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), catNode.title()));
-        } else {
-            builder.description(context.namingStrategy().resolveGroupDescription(context.translationPrefix(), nestPrefix));
-        }
+        builder.description(context.namingStrategy().groupDescription(context.translationPrefix(), groupKey));
         builder.includePrefix(nestPrefix);
         if (customizer != null) {
             customizer.accept(builder);
@@ -175,7 +161,7 @@ public class YaclCategoryBuilder<T> {
             label(info.getTitle());
         }
 
-        Map<?, ?> defaults = YaclSessionHelper.defaultMapOf(info);
+        Map<?, ?> defaults = ValueAccessor.defaultMapOf(info);
         Map<String, ?> currentMap = context.session().get(info);
         if (currentMap == null) {
             currentMap = (Map<String, ?>) defaults;
@@ -184,8 +170,8 @@ public class YaclCategoryBuilder<T> {
 
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
-            Object sampleItem = entry.getValue();
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forMap(entryKey, defaults), Component.literal(entryKey), sampleItem));
+            ValueAccessor<Object> storedEntry = ValueAccessor.mapEntry(context.session(), info, entryKey);
+            groups.add(buildPojoEntryGroup(info, storedEntry, defaults.get(entryKey), Component.literal(entryKey), entry.getValue()));
         }
         return this;
     }
@@ -202,7 +188,7 @@ public class YaclCategoryBuilder<T> {
             label(info.getTitle());
         }
 
-        List<?> defaults = YaclSessionHelper.defaultListOf(info);
+        List<?> defaults = ValueAccessor.defaultListOf(info);
         List<?> currentList = context.session().get(info);
         if (currentList == null) {
             currentList = defaults;
@@ -211,8 +197,9 @@ public class YaclCategoryBuilder<T> {
 
         for (int i = 0; i < currentList.size(); i++) {
             Object sampleItem = currentList.get(i);
-            Component groupName = resolveListEntryGroupName(i, sampleItem);
-            groups.add(buildPojoEntryGroup(info, NestedAccessor.forList(i, defaults), groupName, sampleItem));
+            ValueAccessor<Object> storedEntry = ValueAccessor.listEntry(context.session(), info, i);
+            Object defaultItem = i < defaults.size() ? defaults.get(i) : null;
+            groups.add(buildPojoEntryGroup(info, storedEntry, defaultItem, resolveListEntryGroupName(i, sampleItem), sampleItem));
         }
         return this;
     }
@@ -239,7 +226,7 @@ public class YaclCategoryBuilder<T> {
     }
 
     private YaclCategoryBuilder<T> emptyEntriesLabel() {
-        return label(context.namingStrategy().resolveEmptyEntries());
+        return label(Component.translatable(NO_ENTRIES));
     }
 
     /**
@@ -296,12 +283,12 @@ public class YaclCategoryBuilder<T> {
         if (pendingLeaves.isEmpty()) return;
         boolean hasSectionTitle = sectionTitleKey != null && !sectionTitleKey.isBlank();
         Component groupName = hasSectionTitle
-                ? context.namingStrategy().resolveTitle(context.translationPrefix(), sectionTitleKey)
+                ? context.namingStrategy().groupName(context.translationPrefix(), sectionTitleKey)
                 : Component.empty();
 
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
         if (hasSectionTitle) {
-            builder.description(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), sectionTitleKey));
+            builder.description(context.namingStrategy().groupDescription(context.translationPrefix(), sectionTitleKey));
         }
 
         builder.include(pendingLeaves.toArray(String[]::new));
@@ -328,7 +315,8 @@ public class YaclCategoryBuilder<T> {
 
     private OptionGroup buildPojoEntryGroup(
             OptionInfo containerInfo,
-            NestedAccessor accessor,
+            ValueAccessor<Object> storedEntry,
+            Object defaultItem,
             Component groupName,
             Object sampleItem
     ) {
@@ -342,10 +330,10 @@ public class YaclCategoryBuilder<T> {
                 if (field.isAnnotationPresent(Title.class)) {
                     String titleVal = field.getAnnotation(Title.class).value();
                     if (titleVal != null && !titleVal.isBlank()) {
-                        groupOptions.add(LabelOption.create(context.namingStrategy().resolveTitle(context.translationPrefix(), titleVal)));
+                        groupOptions.add(LabelOption.create(context.namingStrategy().groupName(context.translationPrefix(), titleVal)));
                     }
                 }
-                groupOptions.add(this.optionFactory.buildPojoFieldOption(containerInfo, accessor, field, sampleItem));
+                groupOptions.add(YaclPojoFieldBuilder.buildPojoFieldOption(context, containerInfo, storedEntry, defaultItem, field));
             }
         }
 

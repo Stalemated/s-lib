@@ -94,28 +94,4 @@ public final class TypeCoercionUtils {
         }
         throw new IllegalArgumentException(value);
     }
-
-    /**
-     * Resolves a sensible default initial value for the given type.
-     *
-     * @param targetType The class type.
-     * @return A default value for primitives/enums, or null if unknown.
-     */
-    public static Object resolveDefaultInitial(Class<?> targetType) {
-        if (targetType == null) return null;
-        if (targetType == boolean.class || targetType == Boolean.class) return false;
-        if (targetType == byte.class || targetType == Byte.class) return (byte) 0;
-        if (targetType == short.class || targetType == Short.class) return (short) 0;
-        if (targetType == int.class || targetType == Integer.class) return 0;
-        if (targetType == long.class || targetType == Long.class) return 0L;
-        if (targetType == float.class || targetType == Float.class) return 0.0f;
-        if (targetType == double.class || targetType == Double.class) return 0.0;
-        if (targetType == char.class || targetType == Character.class) return '\0';
-        if (targetType == String.class) return "";
-        if (targetType.isEnum()) {
-            Object[] constants = targetType.getEnumConstants();
-            return (constants != null && constants.length > 0) ? constants[0] : null;
-        }
-        return null;
-    }
 }

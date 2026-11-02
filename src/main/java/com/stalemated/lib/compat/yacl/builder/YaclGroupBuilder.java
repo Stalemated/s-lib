@@ -4,7 +4,6 @@ import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
 import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.controller.builder.SelectDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
-import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
 import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -27,7 +26,6 @@ import java.util.function.Consumer;
 @SuppressWarnings("UnusedReturnValue")
 public class YaclGroupBuilder<T> {
     private final YaclContext<T> context;
-    private final YaclOptionFactory<T> optionFactory;
     private Component name;
     private OptionDescription description;
     private boolean collapsed = false;
@@ -36,12 +34,7 @@ public class YaclGroupBuilder<T> {
 
     public YaclGroupBuilder(YaclContext<T> context, Component defaultName) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
-        this.optionFactory = new YaclOptionFactory<>(context);
         this.name = defaultName;
-    }
-
-    public YaclContext<T> context() {
-        return context;
     }
 
     public YaclGroupBuilder<T> name(Component name) {
@@ -87,7 +80,7 @@ public class YaclGroupBuilder<T> {
      * @return This group builder.
      */
     public YaclGroupBuilder<T> label(String titleKey) {
-        Component resolved = context.namingStrategy().resolveTitle(context.translationPrefix(), titleKey);
+        Component resolved = context.namingStrategy().groupName(context.translationPrefix(), titleKey);
         return label(resolved);
     }
 
@@ -186,8 +179,8 @@ public class YaclGroupBuilder<T> {
 
         Class<?> elemClass = defaultElement != null ? defaultElement.getClass() : listInfo.getCollectionElementType();
         YaclOptionMetadata meta = context.metadata(
-                context.namingStrategy().resolveName(context.translationPrefix(), optionKey),
-                context.namingStrategy().resolveDescription(context.translationPrefix(), optionKey),
+                context.namingStrategy().optionName(context.translationPrefix(), optionKey),
+                context.namingStrategy().optionDescription(context.translationPrefix(), optionKey),
                 listInfo,
                 optionKey
         );
@@ -222,18 +215,17 @@ public class YaclGroupBuilder<T> {
         if (info.hasTitle()) {
             appendTitle(list, info.getTitle());
         }
-        Consumer<Option.Builder<?>> customizer = overrides.get(info.getKey());
-        list.add(optionFactory.buildOption(info, customizer));
+        list.add(context.assembler().option(context.resolveMetadata(info), info, overrides.get(info.getKey())));
     }
 
     private void appendTitle(List<Option<?>> list, String title) {
-        Component titleText = context.namingStrategy().resolveTitle(context.translationPrefix(), title);
+        Component titleText = context.namingStrategy().groupName(context.translationPrefix(), title);
         if (!list.isEmpty()) {
             list.add(LabelOption.create(titleText));
         } else if (!hasGroupTitle()) {
             this.name = titleText;
             if (description == null) {
-                this.description = OptionDescription.of(context.namingStrategy().resolveTitleDescription(context.translationPrefix(), title));
+                this.description = OptionDescription.of(context.namingStrategy().groupDescription(context.translationPrefix(), title));
             }
         } else if (!titleText.equals(name)) {
             list.add(LabelOption.create(titleText));

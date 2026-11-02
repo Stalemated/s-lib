@@ -7,7 +7,6 @@ final class TranslationKeys {
 
     static final String NO_PERMISSION = "s_lib.config_screen.no_permission";
     static final String SERVER_WITHOUT_MOD = "s_lib.config_screen.server_without_mod";
-    static final String NO_ENTRIES = "s_lib.config_screen.no_entries";
 
     private static final Pattern ACRONYM_END = Pattern.compile("([A-Z]+)([A-Z][a-z])");
     private static final Pattern CAMEL_HUMP = Pattern.compile("([a-z0-9])([A-Z])");

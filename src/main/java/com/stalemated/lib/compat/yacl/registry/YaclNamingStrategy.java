@@ -1,139 +1,19 @@
 package com.stalemated.lib.compat.yacl.registry;
 
-import com.stalemated.lib.config.annotation.SharedDescription;
-import com.stalemated.lib.config.model.OptionInfo;
 import net.minecraft.network.chat.Component;
-
-import java.lang.reflect.Field;
 
 import static com.stalemated.lib.compat.yacl.registry.TranslationKeys.normalize;
 
 /**
- * Strategy interface for resolving localized names, descriptions, and category/group titles for YACL.
+ * Strategy interface for resolving localized names and descriptions of categories, groups, and options for YACL.
  * <p>
  * Every generated key is {@code <prefix>.<family>.<path>}, where each segment of the path is converted to snake_case
  * and the dots between segments are kept: option {@code visualSettings.displayScale} becomes
  * {@code <prefix>.option.visual_settings.display_scale}.
  * Descriptions append {@code .desc} and show nothing when the key is missing.
+ * {@code @Title} sections use the group family, so a {@code @Title("x")} and a {@code group("x")} share their keys.
  */
 public interface YaclNamingStrategy {
-
-    /**
-     * Resolves the display title for a config option.
-     *
-     * @param prefix The translation prefix.
-     * @param option The option metadata.
-     * @return The localized name component.
-     */
-    default Component resolveName(String prefix, OptionInfo option) {
-        return resolveName(prefix, option.getKey());
-    }
-
-    /**
-     * Resolves the display title for an option key (such as a projected list element option).
-     *
-     * @param prefix The translation prefix.
-     * @param optionKey The option key.
-     * @return The localized name component.
-     */
-    default Component resolveName(String prefix, String optionKey) {
-        return Component.translatable(resolveBaseKey(prefix, optionKey));
-    }
-
-    /**
-     * Resolves the description or tooltip for a config option.
-     *
-     * @param prefix The translation prefix.
-     * @param option The option metadata.
-     * @return The option description.
-     */
-    default Component resolveDescription(String prefix, OptionInfo option) {
-        return describe(prefix, option.getKey(), option.field());
-    }
-
-    /**
-     * Resolves the description or tooltip for an option key (such as a projected list element option).
-     *
-     * @param prefix The translation prefix.
-     * @param optionKey The option key.
-     * @return The option description.
-     */
-    default Component resolveDescription(String prefix, String optionKey) {
-        return describe(prefix, optionKey, null);
-    }
-
-    private Component describe(String prefix, String optionKey, Field field) {
-        SharedDescription shared = field != null ? field.getAnnotation(SharedDescription.class) : null;
-        String descriptionKey = shared != null
-                ? prefix + ".description." + normalize(shared.value())
-                : resolveBaseKey(prefix, optionKey) + ".desc";
-        return Component.translatableWithFallback(descriptionKey, "");
-    }
-
-    /**
-     * Resolves the translation base key for a config option.
-     *
-     * @param prefix The translation prefix.
-     * @param option The option metadata.
-     * @return The canonical base key string.
-     */
-    default String resolveBaseKey(String prefix, OptionInfo option) {
-        return resolveBaseKey(prefix, option.getKey());
-    }
-
-    /**
-     * Resolves the translation base key for an option key string.
-     *
-     * @param prefix The translation prefix.
-     * @param optionKey The option key.
-     * @return The canonical base key string.
-     */
-    default String resolveBaseKey(String prefix, String optionKey) {
-        return prefix + ".option." + normalize(optionKey);
-    }
-
-    /**
-     * Resolves the localized display component for an enum constant of a config option.
-     * Uses {@code <baseKey>.value.<constant in snake_case>} with a fallback to {@code value.toString()},
-     * so a constant named {@code DESC} never shares the {@code .desc} key of the option.
-     *
-     * @param prefix The translation prefix.
-     * @param optionKey The dot-separated key of the option.
-     * @param value The enum constant value.
-     * @return The localized or fallback enum value component.
-     */
-    default Component resolveEnumValue(String prefix, String optionKey, Enum<?> value) {
-        if (value == null) return Component.empty();
-        String key = resolveBaseKey(prefix, optionKey) + ".value." + normalize(value.name());
-        return Component.translatableWithFallback(key, value.toString());
-    }
-
-    default Component resolveEmptyEntries() {
-        return Component.translatable(TranslationKeys.NO_ENTRIES);
-    }
-
-    /**
-     * Resolves the localized display component for a {@code @Title} section header or a label.
-     * Titles share the group family, so a {@code @Title("x")} and a {@code group("x")} use the same key.
-     *
-     * @param prefix The translation prefix.
-     * @param titleValue The raw value declared in {@code @Title}.
-     * @return The localized title component.
-     */
-    default Component resolveTitle(String prefix, String titleValue) {
-        return resolveGroupName(prefix, titleValue);
-    }
-
-    /**
-     * Resolves the localized description component for a {@code @Title} section or group.
-     *
-     * @param prefix The translation prefix.
-     * @param titleValue The raw value declared in {@code @Title}.
-     * @return The localized title description component.
-     */
-    default Component resolveTitleDescription(String prefix, String titleValue) {
-        return resolveGroupDescription(prefix, titleValue);
-    }
 
     /**
      * Resolves the localized display title for a category tab.
@@ -142,7 +22,7 @@ public interface YaclNamingStrategy {
      * @param categoryKey The category key or identifier.
      * @return The localized category title component.
      */
-    default Component resolveCategoryName(String prefix, String categoryKey) {
+    default Component categoryName(String prefix, String categoryKey) {
         return Component.translatable(prefix + ".category." + normalize(categoryKey));
     }
 
@@ -153,54 +33,78 @@ public interface YaclNamingStrategy {
      * @param categoryKey The category key or identifier.
      * @return The localized category description component.
      */
-    default Component resolveCategoryDescription(String prefix, String categoryKey) {
+    default Component categoryDescription(String prefix, String categoryKey) {
         return Component.translatableWithFallback(prefix + ".category." + normalize(categoryKey) + ".desc", "");
     }
 
     /**
-     * Resolves the localized display title for an option group.
+     * Resolves the localized display title for an option group or a {@code @Title} section.
      *
      * @param prefix The translation prefix.
-     * @param groupKey The group key or prefix.
+     * @param groupKey The group key, nest prefix or {@code @Title} value.
      * @return The localized group title component.
      */
-    default Component resolveGroupName(String prefix, String groupKey) {
+    default Component groupName(String prefix, String groupKey) {
         return Component.translatable(prefix + ".group." + normalize(groupKey));
     }
 
     /**
-     * Resolves the localized description for an option group.
+     * Resolves the localized description for an option group or a {@code @Title} section.
      *
      * @param prefix The translation prefix.
-     * @param groupKey The group key or prefix.
+     * @param groupKey The group key, nest prefix or {@code @Title} value.
      * @return The localized group description component.
      */
-    default Component resolveGroupDescription(String prefix, String groupKey) {
+    default Component groupDescription(String prefix, String groupKey) {
         return Component.translatableWithFallback(prefix + ".group." + normalize(groupKey) + ".desc", "");
     }
 
     /**
-     * Resolves the localized display title for a field within a nested POJO map entry.
+     * Resolves the display title for an option key, including fields of nested POJO entries
+     * ({@code <container key>.<field name>}) and projected list element options.
      *
      * @param prefix The translation prefix.
-     * @param mapInfo The parent map option metadata.
-     * @param field The reflective field.
-     * @return The localized POJO field title component.
+     * @param optionKey The option key.
+     * @return The localized name component.
      */
-    default Component resolvePojoFieldName(String prefix, OptionInfo mapInfo, Field field) {
-        return resolveName(prefix, mapInfo.getKey() + "." + field.getName());
+    default Component optionName(String prefix, String optionKey) {
+        return Component.translatable(optionBaseKey(prefix, optionKey));
     }
 
     /**
-     * Resolves the localized description or tooltip for a field within a nested POJO map entry.
+     * Resolves the description or tooltip for an option key, including fields of nested POJO entries
+     * and projected list element options.
      *
      * @param prefix The translation prefix.
-     * @param mapInfo The parent map option metadata.
-     * @param field The reflective field.
+     * @param optionKey The option key.
      * @return The option description.
      */
-    default Component resolvePojoFieldDescription(String prefix, OptionInfo mapInfo, Field field) {
-        return describe(prefix, mapInfo.getKey() + "." + field.getName(), field);
+    default Component optionDescription(String prefix, String optionKey) {
+        return Component.translatableWithFallback(optionBaseKey(prefix, optionKey) + ".desc", "");
+    }
+
+    default Component sharedDescription(String prefix, String descriptionKey) {
+        return Component.translatableWithFallback(prefix + ".description." + normalize(descriptionKey), "");
+    }
+
+    /**
+     * Resolves the localized display component for an enum constant of a config option.
+     * Uses {@code <option key>.value.<constant in snake_case>} with a fallback to {@code value.toString()},
+     * so a constant named {@code DESC} never shares the {@code .desc} key of the option.
+     *
+     * @param prefix The translation prefix.
+     * @param optionKey The dot-separated key of the option.
+     * @param value The enum constant value.
+     * @return The localized or fallback enum value component.
+     */
+    default Component enumValueName(String prefix, String optionKey, Enum<?> value) {
+        if (value == null) return Component.empty();
+        String key = optionBaseKey(prefix, optionKey) + ".value." + normalize(value.name());
+        return Component.translatableWithFallback(key, value.toString());
+    }
+
+    private String optionBaseKey(String prefix, String optionKey) {
+        return prefix + ".option." + normalize(optionKey);
     }
 
     YaclNamingStrategy DEFAULT = new YaclNamingStrategy() {};

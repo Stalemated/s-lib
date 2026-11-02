@@ -6,10 +6,12 @@ import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
+import com.stalemated.lib.config.annotation.SharedDescription;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 import net.minecraft.network.chat.Component;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -42,16 +44,16 @@ public record YaclContext<T>(
         Objects.requireNonNull(namingStrategy, "namingStrategy cannot be null");
         Objects.requireNonNull(controllerRegistry, "controllerRegistry cannot be null");
         Objects.requireNonNull(availabilityRule, "availabilityRule cannot be null");
-        requireDistinctTranslationKeys(session, translationPrefix, namingStrategy);
+        requireDistinctOptionNames(session, translationPrefix, namingStrategy);
     }
 
-    private static void requireDistinctTranslationKeys(ConfigSession<?> session, String translationPrefix, YaclNamingStrategy namingStrategy) {
-        Map<String, String> optionByTranslationKey = new HashMap<>();
+    private static void requireDistinctOptionNames(ConfigSession<?> session, String translationPrefix, YaclNamingStrategy namingStrategy) {
+        Map<Component, String> optionByName = new HashMap<>();
         for (OptionInfo option : session.getOptionTree().all()) {
-            String translationKey = namingStrategy.resolveBaseKey(translationPrefix, option);
-            String sharedWith = optionByTranslationKey.putIfAbsent(translationKey, option.getKey());
+            Component name = namingStrategy.optionName(translationPrefix, option.getKey());
+            String sharedWith = optionByName.putIfAbsent(name, option.getKey());
             if (sharedWith != null) {
-                throw new IllegalStateException("Options '" + sharedWith + "' and '" + option.getKey() + "' share the translation key '" + translationKey + "'");
+                throw new IllegalStateException("Options '" + sharedWith + "' and '" + option.getKey() + "' share the name '" + name.getString() + "'");
             }
         }
     }
@@ -73,17 +75,24 @@ public record YaclContext<T>(
      * @return The resolved {@link YaclOptionMetadata}.
      */
     public YaclOptionMetadata resolveMetadata(OptionInfo info) {
-        return metadata(namingStrategy.resolveName(translationPrefix, info), namingStrategy.resolveDescription(translationPrefix, info), info, info.getKey());
+        return metadata(namingStrategy.optionName(translationPrefix, info.getKey()), optionDescription(info.getKey(), info.field()), info, info.getKey());
     }
 
     public YaclOptionMetadata metadata(Component name, Component description, OptionInfo storedOption, String optionKey) {
-        Function<Enum<?>, Component> enumFormatter = value -> namingStrategy.resolveEnumValue(translationPrefix, optionKey, value);
+        Function<Enum<?>, Component> enumFormatter = value -> namingStrategy.enumValueName(translationPrefix, optionKey, value);
         return availabilityRule.unavailableReason(storedOption, session)
                 .map(reason -> YaclOptionMetadata.locked(name, description, reason, enumFormatter))
                 .orElseGet(() -> YaclOptionMetadata.editable(name, description, enumFormatter));
     }
 
+    public Component optionDescription(String optionKey, Field field) {
+        SharedDescription shared = field.getAnnotation(SharedDescription.class);
+        return shared != null
+                ? namingStrategy.sharedDescription(translationPrefix, shared.value())
+                : namingStrategy.optionDescription(translationPrefix, optionKey);
+    }
+
     public OptionAssembler assembler() {
-        return new OptionAssembler(synchronizer, controllerRegistry);
+        return new OptionAssembler(session, synchronizer, controllerRegistry);
     }
 }

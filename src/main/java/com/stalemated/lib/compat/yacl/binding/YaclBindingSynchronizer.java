@@ -47,15 +47,15 @@ public final class YaclBindingSynchronizer {
             Function<B, O> buildStep
     ) {
         AtomicReference<O> optRef = new AtomicReference<>();
+        if (postConfigurer != null) {
+            postConfigurer.accept(builder);
+        }
         bindStep.bind(
                 builder,
                 defaultValue,
                 getter,
                 val -> applySyncedMutation(key, optRef.get(), () -> setter.accept(val))
         );
-        if (postConfigurer != null) {
-            postConfigurer.accept(builder);
-        }
         O built = buildStep.apply(builder);
         optRef.set(built);
         optionsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(built);
@@ -76,7 +76,8 @@ public final class YaclBindingSynchronizer {
      * @param defaultValue   The default GUI value.
      * @param getter         The binding getter reading from the session draft.
      * @param setter         The binding setter writing to the session draft.
-     * @param postConfigurer Callback to configure the controller and apply any user customizer before building.
+     * @param postConfigurer Callback to configure the controller and apply any user customizer before the
+     *                       synced binding is set, so a customizer cannot replace it.
      * @param <V>            The GUI value type of the option.
      * @return The built and registered {@link Option}.
      */
@@ -101,7 +102,8 @@ public final class YaclBindingSynchronizer {
      * @param defaultValue   The default GUI list value.
      * @param getter         The binding getter reading from the session draft.
      * @param setter         The binding setter writing to the session draft.
-     * @param postConfigurer Callback to configure the controller, initial supplier, and user customizer before building.
+     * @param postConfigurer Callback to configure the controller, initial supplier, and user customizer before the
+     *                       synced binding is set, so a customizer cannot replace it.
      * @param <E>            The GUI element type of the list option.
      * @return The built and registered {@link ListOption}.
      */

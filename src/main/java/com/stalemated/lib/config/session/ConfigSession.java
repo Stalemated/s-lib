@@ -18,20 +18,15 @@ import java.util.function.Consumer;
 public class ConfigSession<T> {
     private final ConfigManager<T> manager;
     private final OptionTree optionTree;
-    private T base;
-    private T draft;
+    private final T base;
+    private final T draft;
     private T preview;
     private Consumer<T> previewListener;
     private boolean applyingToPreview = false;
-    private boolean committed = false;
 
     public ConfigSession(ConfigManager<T> manager) {
         this.manager = Objects.requireNonNull(manager, "manager cannot be null");
         this.optionTree = Objects.requireNonNull(manager.getOptionTree(), "optionTree cannot be null");
-        rebase();
-    }
-
-    private void rebase() {
         this.base = manager.cloneConfig(manager.get());
         this.draft = manager.cloneConfig(base);
     }
@@ -42,10 +37,6 @@ public class ConfigSession<T> {
 
     public T getDraft() {
         return draft;
-    }
-
-    public T getPreview() {
-        return preview;
     }
 
     /**
@@ -91,10 +82,6 @@ public class ConfigSession<T> {
         return optionTree;
     }
 
-    public boolean isCommitted() {
-        return committed && !hasChanges();
-    }
-
     @SuppressWarnings("unchecked")
     public <V> V get(OptionInfo option) {
         Objects.requireNonNull(option, "option cannot be null");
@@ -104,34 +91,10 @@ public class ConfigSession<T> {
     public <V> void set(OptionInfo option, V value) {
         Objects.requireNonNull(option, "option cannot be null");
         option.setValue(activeTarget(), value);
-        if (!applyingToPreview) this.committed = false;
-    }
-
-    @SuppressWarnings("unchecked")
-    public <V> V get(String key) {
-        OptionInfo option = optionTree.get(key);
-        if (option == null) {
-            throw new IllegalArgumentException("Unknown config option: " + key);
-        }
-        return (V) option.getValue(activeTarget());
-    }
-
-    public <V> void set(String key, V value) {
-        OptionInfo option = optionTree.get(key);
-        if (option == null) {
-            throw new IllegalArgumentException("Unknown config option: " + key);
-        }
-        option.setValue(activeTarget(), value);
-        if (!applyingToPreview) this.committed = false;
     }
 
     public boolean hasChanges() {
         return !optionTree.findChanges(base, draft).isEmpty();
-    }
-
-    public void reset() {
-        rebase();
-        this.committed = false;
     }
 
     /**
@@ -145,7 +108,6 @@ public class ConfigSession<T> {
             manager.modify(workingCopy -> applyEdits(edits, workingCopy));
             advanceBaseToAppliedEdits(edits);
         }
-        this.committed = true;
     }
 
     private void applyEdits(List<OptionChange> edits, Object workingCopy) {

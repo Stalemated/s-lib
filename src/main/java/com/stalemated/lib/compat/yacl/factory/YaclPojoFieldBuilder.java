@@ -5,8 +5,6 @@ import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.compat.yacl.util.NestedAccessor;
-import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.CategoryNode;
 import com.stalemated.lib.config.model.ConfigNode;
 import com.stalemated.lib.config.model.OptionInfo;
@@ -14,7 +12,6 @@ import com.stalemated.lib.util.StringUtils;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
-import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -35,105 +32,34 @@ public final class YaclPojoFieldBuilder {
     private YaclPojoFieldBuilder() {}
 
     /**
-     * Builds a YACL option for a specific field of a POJO entry within a map option using a key.
-     *
-     * @param context The shared YACL context.
-     * @param mapInfo The option metadata for the parent map.
-     * @param entryKey The key of the entry within the map.
-     * @param field The reflective field in the POJO.
-     * @param sampleItem A sample or current instance of the POJO.
-     * @param <T> The configuration model type.
-     * @return The built {@link Option}.
-     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
-     */
-    public static <T> Option<?> buildPojoFieldOption(
-            YaclContext<T> context,
-            OptionInfo mapInfo,
-            String entryKey,
-            Field field,
-            Object sampleItem
-    ) {
-        return buildPojoFieldOption(context, mapInfo, NestedAccessor.forMap(entryKey, YaclSessionHelper.defaultMapOf(mapInfo)), field, sampleItem);
-    }
-
-    /**
-     * Builds a YACL option for a specific field of a POJO entry within a list option using an index.
-     *
-     * @param context The shared YACL context.
-     * @param listInfo The option metadata for the parent list.
-     * @param index The zero-based index of the entry within the list.
-     * @param field The reflective field in the POJO.
-     * @param sampleItem A sample or current instance of the POJO.
-     * @param <T> The configuration model type.
-     * @return The built {@link Option}.
-     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
-     */
-    public static <T> Option<?> buildPojoFieldOption(
-            YaclContext<T> context,
-            OptionInfo listInfo,
-            int index,
-            Field field,
-            Object sampleItem
-    ) {
-        return buildPojoFieldOption(context, listInfo, NestedAccessor.forList(index, YaclSessionHelper.defaultListOf(listInfo)), field, sampleItem);
-    }
-
-    /**
-     * Builds a YACL option for a specific field of a POJO entry with an explicit {@link NestedAccessor}.
-     * Automatically resolves the localized display title and description using the naming strategy in the context.
+     * Builds a YACL option for one field of a POJO entry inside a map or list option.
+     * Resolves the display title and description with the naming strategy of the context.
      *
      * @param context The shared YACL context.
      * @param containerInfo The option metadata for the parent container (Map or List).
-     * @param accessor The nested entry accessor strategy.
+     * @param entry The accessor of the entry inside the container.
+     * @param defaultItem The default value of the entry, or null if the container defaults do not have it.
      * @param field The reflective field in the POJO.
-     * @param sampleItem A sample or current instance of the POJO.
-     * @param <T> The configuration model type.
      * @return The built {@link Option}.
      * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
      */
-    public static <T> Option<?> buildPojoFieldOption(
-            YaclContext<T> context,
+    public static Option<?> buildPojoFieldOption(
+            YaclContext<?> context,
             OptionInfo containerInfo,
-            NestedAccessor accessor,
-            Field field,
-            Object sampleItem
+            ValueAccessor<Object> entry,
+            Object defaultItem,
+            Field field
     ) {
-        Component name = context.namingStrategy().resolvePojoFieldName(context.translationPrefix(), containerInfo, field);
-        Component desc = context.namingStrategy().resolvePojoFieldDescription(context.translationPrefix(), containerInfo, field);
-        return buildPojoFieldOption(context, containerInfo, accessor, field, sampleItem, name, desc);
-    }
-
-    /**
-     * Builds a YACL option for a specific field of a POJO entry with an explicit name, description, and {@link NestedAccessor}.
-     *
-     * @param context The shared YACL context.
-     * @param containerInfo The option metadata for the parent container (Map or List).
-     * @param accessor The nested entry accessor strategy.
-     * @param field The reflective field in the POJO.
-     * @param sampleItem A sample or current instance of the POJO.
-     * @param name The display title component.
-     * @param desc The description or tooltip.
-     * @param <T> The configuration model type.
-     * @return The built {@link Option}.
-     * @throws UnsupportedOperationException If no controller or text conversion can edit the field type.
-     */
-    public static <T> Option<?> buildPojoFieldOption(
-            YaclContext<T> context,
-            OptionInfo containerInfo,
-            NestedAccessor accessor,
-            Field field,
-            Object sampleItem,
-            Component name,
-            Component desc
-    ) {
-        Object defaultFieldVal = resolveDefaultFieldValue(accessor, field, sampleItem);
-        OptionInfo fieldInfo = resolveFieldOptionInfo(context, containerInfo, field, defaultFieldVal);
         String optionKey = containerInfo.getKey() + "." + field.getName();
-        YaclOptionMetadata meta = context.metadata(name, desc, containerInfo, optionKey);
-        ValueAccessor<Object> value = ValueAccessor.entryProperty(
-                context.session(),
+        Object defaultFieldVal = defaultFieldValue(field, defaultItem, entry.get());
+        OptionInfo fieldInfo = resolveFieldOptionInfo(context, containerInfo, field, defaultFieldVal);
+        YaclOptionMetadata meta = context.metadata(
+                context.namingStrategy().optionName(context.translationPrefix(), optionKey),
+                context.optionDescription(optionKey, field),
                 containerInfo,
-                accessor,
+                optionKey
+        );
+        ValueAccessor<Object> value = entry.property(
                 item -> ReflectionUtils.getFieldValue(field, item),
                 (item, model) -> ReflectionUtils.setFieldValue(field, item, fieldInfo.clampValue(model))
         );
@@ -151,14 +77,9 @@ public final class YaclPojoFieldBuilder {
                 + field.getType().getName() + " on config option: " + optionKey);
     }
 
-    private static Object resolveDefaultFieldValue(NestedAccessor accessor, Field field, Object sampleItem) {
-        Object initialFieldVal = ReflectionUtils.getFieldValue(field, sampleItem);
-        Object defItem = accessor.getDefaultItem();
-        if (defItem != null) {
-            Object defVal = ReflectionUtils.getFieldValue(field, defItem);
-            if (defVal != null) return defVal;
-        }
-        return initialFieldVal;
+    private static Object defaultFieldValue(Field field, Object defaultItem, Object currentItem) {
+        Object fromDefaults = defaultItem != null ? ReflectionUtils.getFieldValue(field, defaultItem) : null;
+        return fromDefaults != null ? fromDefaults : ReflectionUtils.getFieldValue(field, currentItem);
     }
 
     private static OptionInfo resolveFieldOptionInfo(YaclContext<?> context, OptionInfo containerInfo, Field field, Object defaultFieldVal) {

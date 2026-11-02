@@ -1,13 +1,15 @@
 package com.stalemated.lib.compat.yacl.binding;
 
-import com.stalemated.lib.compat.yacl.util.NestedAccessor;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.config.session.ConfigSession;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -47,20 +49,34 @@ public final class ValueAccessor<M> {
         );
     }
 
-    public static <M> ValueAccessor<M> entryProperty(
-            ConfigSession<?> session,
-            OptionInfo containerInfo,
-            NestedAccessor entry,
-            Function<Object, M> read,
-            BiConsumer<Object, M> write
-    ) {
+    public static ValueAccessor<Object> mapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey) {
+        Objects.requireNonNull(entryKey, "entryKey cannot be null");
         return of(
-                containerInfo.getKey(),
+                mapInfo.getKey(),
+                () -> mapOrDefaults(session, mapInfo).get(entryKey),
+                item -> {
+                    Map<Object, Object> updated = new LinkedHashMap<>(mapOrDefaults(session, mapInfo));
+                    updated.put(entryKey, item);
+                    session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
+                }
+        );
+    }
+
+    public static ValueAccessor<Object> listEntry(ConfigSession<?> session, OptionInfo listInfo, int index) {
+        if (index < 0) {
+            throw new IndexOutOfBoundsException("list entry index must be 0 or greater, got " + index);
+        }
+        return of(
+                listInfo.getKey(),
                 () -> {
-                    Object item = entry.getItem(session, containerInfo);
-                    return item != null ? read.apply(item) : null;
+                    List<?> list = listOrDefaults(session, listInfo);
+                    return index < list.size() ? list.get(index) : null;
                 },
-                value -> entry.updateItem(session, containerInfo, item -> write.accept(item, value))
+                item -> {
+                    List<Object> updated = new ArrayList<>(listOrDefaults(session, listInfo));
+                    updated.set(index, item);
+                    session.set(listInfo, updated);
+                }
         );
     }
 
@@ -82,6 +98,41 @@ public final class ValueAccessor<M> {
                     }
                     updated.set(index, value);
                     session.set(listInfo, updated);
+                }
+        );
+    }
+
+    public static Map<?, ?> defaultMapOf(OptionInfo mapInfo) {
+        return mapInfo.defaultCopy() instanceof Map<?, ?> defaults ? defaults : Map.of();
+    }
+
+    public static List<?> defaultListOf(OptionInfo listInfo) {
+        return listInfo.defaultCopy() instanceof List<?> defaults ? defaults : List.of();
+    }
+
+    private static Map<?, ?> mapOrDefaults(ConfigSession<?> session, OptionInfo mapInfo) {
+        Map<?, ?> current = session.get(mapInfo);
+        return current != null ? current : defaultMapOf(mapInfo);
+    }
+
+    private static List<?> listOrDefaults(ConfigSession<?> session, OptionInfo listInfo) {
+        List<?> current = session.get(listInfo);
+        return current != null ? current : defaultListOf(listInfo);
+    }
+
+    public <P> ValueAccessor<P> property(Function<M, P> read, BiConsumer<M, P> write) {
+        return of(
+                key,
+                () -> {
+                    M owner = get();
+                    return owner != null ? read.apply(owner) : null;
+                },
+                value -> {
+                    M owner = get();
+                    if (owner != null) {
+                        write.accept(owner, value);
+                        set(owner);
+                    }
                 }
         );
     }

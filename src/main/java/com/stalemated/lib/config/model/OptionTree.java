@@ -30,18 +30,7 @@ public class OptionTree {
     private final DeepCopy deepCopy;
     private final Map<String, OptionInfo> options = new LinkedHashMap<>();
     private final List<OptionInfo> syncedOptions = new ArrayList<>();
-    private final List<OptionInfo> localOnlyOptions = new ArrayList<>();
     private final CategoryNode schemaRoot;
-
-    /**
-     * Creates an {@link OptionTree} for the specified config class, using its no-arg constructor for defaults.
-     *
-     * @param rootClass The config model class.
-     * @return A new {@link OptionTree} instance.
-     */
-    public static OptionTree of(Class<?> rootClass) {
-        return new OptionTree(rootClass, null);
-    }
 
     /**
      * Creates an {@link OptionTree} for the specified config class using the provided default factory.
@@ -74,8 +63,6 @@ public class OptionTree {
         for (OptionInfo option : options.values()) {
             if (option.getSyncMode().isSynced()) {
                 syncedOptions.add(option);
-            } else {
-                localOnlyOptions.add(option);
             }
         }
     }
@@ -251,25 +238,6 @@ public class OptionTree {
 
     public boolean hasOptionsSyncedAs(SyncMode mode) {
         return syncedOptions.stream().anyMatch(option -> option.getSyncMode() == mode);
-    }
-
-    public List<OptionInfo> getLocalOnlyOptions() { return Collections.unmodifiableList(localOnlyOptions); }
-
-    /**
-     * Copies only options marked with {@link SyncMode#OVERRIDE_CLIENT} from source to target.
-     *
-     * @param source The source config object (e.g., parsed from server).
-     * @param target The target config object (e.g., active config).
-     */
-    public void copySyncedValues(Object source, Object target) {
-        if (source == null || target == null) return;
-
-        for (OptionInfo option : syncedOptions) {
-            if (option.getSyncMode() == SyncMode.OVERRIDE_CLIENT) {
-                Object val = option.getValue(source);
-                option.setValue(target, deepCopy.of(val, option.genericType()));
-            }
-        }
     }
 
     /**

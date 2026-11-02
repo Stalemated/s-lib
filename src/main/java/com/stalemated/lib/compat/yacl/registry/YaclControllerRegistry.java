@@ -29,15 +29,13 @@ import static com.stalemated.lib.SLib.LOGGER;
  */
 public class YaclControllerRegistry {
 
-    private final Map<Class<?>, ControllerFactory<?>> directControllers = new LinkedHashMap<>();
-    private final Map<Class<?>, TypeLens<?, ?>> adaptedLenses = new LinkedHashMap<>();
+    private final Map<Class<?>, TypeLens<?, ?>> lenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
     private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
 
     public YaclControllerRegistry() {
         registerDefaultPrimitives();
         registerDefaultAdaptedTypes();
-        registerDefaultInitialSuppliers();
     }
 
     public static YaclControllerRegistry createDefault() {
@@ -49,9 +47,9 @@ public class YaclControllerRegistry {
     }
 
     private void registerDefaultPrimitives() {
-        registerDirect(boolean.class, Boolean.class, (info, opt) -> TickBoxControllerBuilder.create(opt));
+        registerDirect(boolean.class, Boolean.class, false, (info, opt) -> TickBoxControllerBuilder.create(opt));
 
-        registerDirect(int.class, Integer.class, (info, opt) -> {
+        registerDirect(int.class, Integer.class, 0, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.IntRange range) {
                 return IntegerSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
@@ -60,7 +58,7 @@ public class YaclControllerRegistry {
             return IntegerFieldControllerBuilder.create(opt);
         });
 
-        registerDirect(long.class, Long.class, (info, opt) -> {
+        registerDirect(long.class, Long.class, 0L, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.LongRange range) {
                 return LongSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
@@ -69,7 +67,7 @@ public class YaclControllerRegistry {
             return LongFieldControllerBuilder.create(opt);
         });
 
-        registerDirect(float.class, Float.class, (info, opt) -> {
+        registerDirect(float.class, Float.class, 0.0f, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.FloatRange range) {
                 return FloatSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
@@ -78,7 +76,7 @@ public class YaclControllerRegistry {
             return FloatFieldControllerBuilder.create(opt);
         });
 
-        registerDirect(double.class, Double.class, (info, opt) -> {
+        registerDirect(double.class, Double.class, 0.0, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.DoubleRange range) {
                 return DoubleSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
@@ -87,7 +85,7 @@ public class YaclControllerRegistry {
             return DoubleFieldControllerBuilder.create(opt);
         });
 
-        registerDirect(String.class, (info, opt) -> {
+        registerDirect(String.class, "", (info, opt) -> {
             Optional<ItemDropdown> dropdown = itemDropdownOf(info);
             if (dropdown.isPresent()) {
                 boolean includeTags = dropdown.get().allowTags();
@@ -108,7 +106,7 @@ public class YaclControllerRegistry {
     private void registerDefaultAdaptedTypes() {
         registerAdapted(
                 Color.class,
-                c -> c != null ? ColorUtils.toArgbHex(c) : "#FFFFFF",
+                ColorUtils::toArgbHex,
                 str -> parseOrWarn("color", str, ColorUtils::parseArgbColor),
                 "#FFFFFF",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(true)
@@ -116,7 +114,7 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 TextColor.class,
-                c -> c != null ? c.serialize() : "white",
+                TextColor::serialize,
                 str -> parseOrWarn("text color", str, ColorUtils::parseTextColor),
                 "white",
                 (info, opt) -> AdvancedColorControllerBuilder.create(opt).alpha(false)
@@ -124,7 +122,7 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 ResourceLocation.class,
-                loc -> loc != null ? loc.toString() : "minecraft:air",
+                ResourceLocation::toString,
                 str -> parseOrWarn("id", str, ResourceLocation::tryParse),
                 "minecraft:air",
                 (info, opt) -> {
@@ -137,7 +135,7 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 UUID.class,
-                uuid -> uuid != null ? uuid.toString() : "00000000-0000-0000-0000-000000000000",
+                UUID::toString,
                 str -> parseOrWarn("UUID", str, UUID::fromString),
                 "00000000-0000-0000-0000-000000000000",
                 (info, opt) -> StringControllerBuilder.create(opt)
@@ -145,7 +143,7 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 Pattern.class,
-                p -> p != null ? RegexText.format(p) : ".*",
+                RegexText::format,
                 str -> parseOrWarn("regex", str, RegexText::parse),
                 ".*",
                 (info, opt) -> StringControllerBuilder.create(opt)
@@ -166,34 +164,15 @@ public class YaclControllerRegistry {
         return parsed;
     }
 
-    private void registerDefaultInitialSuppliers() {
-        registerInitialSupplier(boolean.class, () -> false);
-        registerInitialSupplier(Boolean.class, () -> false);
-        registerInitialSupplier(int.class, () -> 0);
-        registerInitialSupplier(Integer.class, () -> 0);
-        registerInitialSupplier(long.class, () -> 0L);
-        registerInitialSupplier(Long.class, () -> 0L);
-        registerInitialSupplier(float.class, () -> 0.0f);
-        registerInitialSupplier(Float.class, () -> 0.0f);
-        registerInitialSupplier(double.class, () -> 0.0);
-        registerInitialSupplier(Double.class, () -> 0.0);
-        registerInitialSupplier(String.class, () -> "");
-        registerInitialSupplier(Color.class, () -> Color.WHITE);
-        registerInitialSupplier(TextColor.class, () -> ColorUtils.parseTextColor("white"));
-        registerInitialSupplier(ResourceLocation.class, () -> ResourceLocation.tryParse("minecraft:air"));
-        registerInitialSupplier(UUID.class, () -> UUID.fromString("00000000-0000-0000-0000-000000000000"));
-        registerInitialSupplier(Pattern.class, () -> Pattern.compile(".*"));
+    public <V> void registerDirect(Class<V> type, V initial, ControllerFactory<V> factory) {
+        registerDirect(type, type, initial, factory);
     }
 
-    public <V> void registerDirect(Class<V> type, ControllerFactory<V> factory) {
-        registerDirect(type, type, factory);
-    }
-
-    public <V> void registerDirect(Class<?> primitiveType, Class<V> boxedType, ControllerFactory<V> factory) {
-        Objects.requireNonNull(factory, "factory cannot be null");
+    public <V> void registerDirect(Class<?> primitiveType, Class<V> boxedType, V initial, ControllerFactory<V> factory) {
+        TypeLens<V, V> lens = TypeLens.identity(initial, factory);
         for (Class<?> type : List.of(primitiveType, boxedType)) {
-            directControllers.put(type, factory);
-            adaptedLenses.remove(type);
+            lenses.put(type, lens);
+            initialSuppliers.put(type, () -> initial);
         }
     }
 
@@ -204,9 +183,8 @@ public class YaclControllerRegistry {
             G fallbackGuiDefault,
             ControllerFactory<G> guiControllerFactory
     ) {
-        adaptedLenses.put(modelType, new TypeLens<>(toGui, fromGui, fallbackGuiDefault, guiControllerFactory));
-        directControllers.remove(modelType);
-        initialSuppliers.putIfAbsent(modelType, () -> fromGui.apply(fallbackGuiDefault));
+        lenses.put(modelType, new TypeLens<>(toGui, fromGui, fallbackGuiDefault, guiControllerFactory));
+        initialSuppliers.put(modelType, () -> fromGui.apply(fallbackGuiDefault));
     }
 
     public <E> void registerInitialSupplier(Class<E> type, Supplier<E> supplier) {
@@ -234,15 +212,7 @@ public class YaclControllerRegistry {
 
     @SuppressWarnings("unchecked")
     public <M, G> Optional<TypeLens<M, G>> findLens(Class<?> type) {
-        TypeLens<?, ?> adapted = ReflectionUtils.findAssignable(adaptedLenses, type);
-        if (adapted != null) {
-            return Optional.of((TypeLens<M, G>) adapted);
-        }
-        ControllerFactory<?> direct = ReflectionUtils.findAssignable(directControllers, type);
-        if (direct != null) {
-            return Optional.of((TypeLens<M, G>) TypeLens.identity(resolveInitialValue(type), (ControllerFactory<Object>) direct));
-        }
-        return Optional.empty();
+        return Optional.ofNullable((TypeLens<M, G>) ReflectionUtils.findAssignable(lenses, type));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

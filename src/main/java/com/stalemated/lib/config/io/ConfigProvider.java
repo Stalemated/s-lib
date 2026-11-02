@@ -26,12 +26,6 @@ public interface ConfigProvider<T> {
     T instance();
 
     /**
-     * Sets the active config instance in memory.
-     * @param instance The new config instance.
-     */
-    default void setInstance(T instance) {}
-
-    /**
      * Gets the associated config serializer if available.
      * @return The serializer, or null if not supported.
      */

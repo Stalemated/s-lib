@@ -5,8 +5,6 @@ import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
 import com.stalemated.lib.compat.yacl.builder.NestListBinding;
 import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.compat.yacl.util.NestedAccessor;
-import com.stalemated.lib.compat.yacl.util.YaclSessionHelper;
 import com.stalemated.lib.config.model.OptionInfo;
 import com.stalemated.lib.util.codec.KeyValuePair;
 import dev.isxander.yacl3.api.ListOption;
@@ -79,7 +77,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             return Collections.emptyList();
         }
 
-        Map<String, N> defaultMap = (Map<String, N>) YaclSessionHelper.defaultMapOf(mapInfo);
+        Map<String, N> defaultMap = (Map<String, N>) ValueAccessor.defaultMapOf(mapInfo);
         Map<String, N> currentMap = context.session().get(mapInfo);
         if (currentMap == null) {
             currentMap = defaultMap;
@@ -89,15 +87,12 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         }
 
         OptionAssembler assembler = context.assembler();
-        Component desc = context.namingStrategy().resolveDescription(context.translationPrefix(), mapInfo);
+        Component desc = context.optionDescription(mapInfo.getKey(), mapInfo.field());
         List<ListOption<String>> options = new ArrayList<>(currentMap.size());
 
         for (String entryKey : currentMap.keySet()) {
             YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, mapInfo, mapInfo.getKey());
-            ValueAccessor<List<String>> projected = ValueAccessor.entryProperty(
-                    context.session(),
-                    mapInfo,
-                    NestedAccessor.forMap(entryKey, defaultMap),
+            ValueAccessor<List<String>> projected = ValueAccessor.mapEntry(context.session(), mapInfo, entryKey).property(
                     item -> copyOf(binding.getter().apply((N) item)),
                     (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list))
             );

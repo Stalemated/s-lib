@@ -5,6 +5,7 @@ import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
 import com.stalemated.lib.config.model.OptionInfo;
+import com.stalemated.lib.config.session.ConfigSession;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 
@@ -17,12 +18,40 @@ import java.util.function.Consumer;
 
 public final class OptionAssembler {
 
+    private final ConfigSession<?> session;
     private final YaclBindingSynchronizer synchronizer;
     private final YaclControllerRegistry registry;
 
-    public OptionAssembler(YaclBindingSynchronizer synchronizer, YaclControllerRegistry registry) {
+    public OptionAssembler(ConfigSession<?> session, YaclBindingSynchronizer synchronizer, YaclControllerRegistry registry) {
+        this.session = Objects.requireNonNull(session, "session cannot be null");
         this.synchronizer = Objects.requireNonNull(synchronizer, "synchronizer cannot be null");
         this.registry = Objects.requireNonNull(registry, "registry cannot be null");
+    }
+
+    public Option<?> option(YaclOptionMetadata meta, OptionInfo info, Consumer<Option.Builder<?>> customizer) {
+        TypeLens<Object, Object> lens = this.lensFor(info.type(), meta).orElseThrow(() ->
+                new UnsupportedOperationException("No YACL controller or adapter registered for type: "
+                        + info.type().getName() + " on config option: " + info.getKey()));
+        return option(meta, info, ValueAccessor.option(session, info), lens, info.defaultCopy(), customizer);
+    }
+
+    @SuppressWarnings("unchecked")
+    public <E> ListOption<E> list(YaclOptionMetadata meta, OptionInfo info, Consumer<ListOption.Builder<E>> customizer) {
+        Class<?> elementType = info.getCollectionElementType();
+        TypeLens<Object, E> lens = this.<Object, E>lensFor(elementType, meta).orElseThrow(() ->
+                new UnsupportedOperationException("No YACL controller or adapter registered for list element type: "
+                        + elementType.getName() + " on config option: " + info.getKey()));
+
+        OptionInfo elementInfo = info.getElementTemplate() instanceof OptionInfo template ? template : info;
+        E initialElement = initialElement(elementInfo, elementType, lens);
+        if (initialElement == null) {
+            throw new UnsupportedOperationException("Cannot create ListOption for option '" + info.getKey()
+                    + "' with element type " + elementType.getName()
+                    + ": No initial value supplier registered. Register one via controllerRegistry.registerInitialSupplier.");
+        }
+
+        Collection<Object> modelDefault = (Collection<Object>) info.defaultCopy();
+        return list(meta, elementInfo, ValueAccessor.collection(session, info), lens, modelDefault, initialElement, customizer);
     }
 
     public <M, G> Optional<TypeLens<M, G>> lensFor(Class<?> type, YaclOptionMetadata meta) {

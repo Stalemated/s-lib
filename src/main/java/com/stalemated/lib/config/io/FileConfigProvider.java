@@ -150,14 +150,6 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     }
 
     @Override
-    public void setInstance(T instance) {
-        if (instance == null) {
-            throw new IllegalArgumentException("Config instance cannot be null");
-        }
-        this.instance = instance;
-    }
-
-    @Override
     public ConfigSerializer<T> getSerializer() {
         return serializer;
     }
