@@ -2,7 +2,7 @@ package com.stalemated.lib.compat.yacl.builder;
 
 import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
 import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
-import com.stalemated.lib.compat.yacl.controller.builder.SimpleStringDropdownControllerBuilder;
+import com.stalemated.lib.compat.yacl.controller.builder.SelectDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.factory.YaclContext;
 import com.stalemated.lib.compat.yacl.factory.YaclOptionFactory;
 import com.stalemated.lib.compat.yacl.registry.TypeLens;
@@ -120,7 +120,7 @@ public class YaclGroupBuilder<T> {
     @SuppressWarnings("unchecked")
     public YaclGroupBuilder<T> dropdown(String key, List<String> values, ValueFormatter<String> formatter) {
         configureOption(key, b -> ((Option.Builder<String>) b).controller(opt ->
-                SimpleStringDropdownControllerBuilder.create(opt)
+                SelectDropdownControllerBuilder.create(opt)
                         .values(values)
                         .formatValue(formatter)
         ));

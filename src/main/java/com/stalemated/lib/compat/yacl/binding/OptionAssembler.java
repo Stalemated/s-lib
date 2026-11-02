@@ -1,6 +1,6 @@
 package com.stalemated.lib.compat.yacl.binding;
 
-import com.stalemated.lib.compat.yacl.controller.builder.SimpleEnumDropdownControllerBuilder;
+import com.stalemated.lib.compat.yacl.controller.builder.SelectDropdownControllerBuilder;
 import com.stalemated.lib.compat.yacl.registry.TypeLens;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
@@ -138,6 +138,6 @@ public final class OptionAssembler {
     private static <E extends Enum<E>> TypeLens<E, E> enumLensOf(Class<E> type, YaclOptionMetadata meta) {
         E[] constants = type.getEnumConstants();
         E first = constants.length > 0 ? constants[0] : null;
-        return TypeLens.identity(first, (info, opt) -> SimpleEnumDropdownControllerBuilder.create(opt).formatValue(meta::formatEnum));
+        return TypeLens.identity(first, (info, opt) -> SelectDropdownControllerBuilder.createEnum(opt).formatValue(meta::formatEnum));
     }
 }
