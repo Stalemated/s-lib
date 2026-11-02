@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -183,6 +184,8 @@ public class SyncedConfigManager<T> extends LocalConfigManager<T> {
      * All disk I/O and network packet transmissions are batched and executed at most once per transaction.
      *
      * @param mutator The consumer performing strongly typed property updates on the working copy.
+     * @throws UncheckedIOException If the changed config could not be written, the new values stay in memory
+     * and no packet is sent.
      */
     @Override
     public void modify(Consumer<T> mutator) {

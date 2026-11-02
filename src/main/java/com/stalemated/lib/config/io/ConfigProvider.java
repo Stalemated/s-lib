@@ -1,5 +1,6 @@
 package com.stalemated.lib.config.io;
 
+import java.io.UncheckedIOException;
 import java.util.Optional;
 
 /**
@@ -14,6 +15,7 @@ public interface ConfigProvider<T> {
 
     /**
      * Saves the config to disk.
+     * @throws UncheckedIOException If the config could not be written.
      */
     void save();
 

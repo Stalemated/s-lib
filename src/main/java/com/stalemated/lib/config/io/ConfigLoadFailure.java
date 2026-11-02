@@ -13,6 +13,10 @@ public record ConfigLoadFailure(Path file, String reason, List<InvalidEntry> rej
         return new ConfigLoadFailure(file, reason, List.of());
     }
 
+    public static ConfigLoadFailure unwritten(Path file, String reason, List<InvalidEntry> rejectedValues) {
+        return new ConfigLoadFailure(file, reason, rejectedValues);
+    }
+
     public static ConfigLoadFailure invalidValues(Path file, List<InvalidEntry> rejectedValues) {
         return new ConfigLoadFailure(file, rejectedValues.size() + " invalid values were replaced by their defaults", rejectedValues);
     }

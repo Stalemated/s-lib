@@ -2,10 +2,13 @@ package com.stalemated.lib.config.session;
 
 import com.stalemated.lib.config.LocalConfigManager;
 
+import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import static com.stalemated.lib.SLib.LOGGER;
 
 /**
  * Manages multiple active sessions in a single GUI screen (e.g., Synced + Local tabs).
@@ -30,8 +33,16 @@ public class ConfigSessionCoordinator {
     public void commitAll() {
         for (ConfigSession<?> session : sessions.values()) {
             if (session.hasChanges()) {
-                session.commit();
+                commitOrKeepPending(session);
             }
+        }
+    }
+
+    private static void commitOrKeepPending(ConfigSession<?> session) {
+        try {
+            session.commit();
+        } catch (UncheckedIOException e) {
+            LOGGER.error("Kept the screen changes of '{}' pending because they could not be saved: {}", session.getManager().getName(), e.getMessage());
         }
     }
 

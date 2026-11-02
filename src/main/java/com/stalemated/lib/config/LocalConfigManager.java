@@ -9,6 +9,7 @@ import com.stalemated.lib.config.model.OptionTree;
 import com.stalemated.lib.util.reflection.ReflectionUtils;
 import org.slf4j.Logger;
 
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
@@ -179,6 +180,7 @@ public class LocalConfigManager<T> {
      * remains unmutated (transaction isolation).
      *
      * @param mutator The consumer performing strongly typed property updates on the working copy.
+     * @throws UncheckedIOException If the changed config could not be written, the new values stay in memory.
      */
     public void modify(Consumer<T> mutator) {
         T current = get();
@@ -199,6 +201,8 @@ public class LocalConfigManager<T> {
      * Clamps the stored config, writes it to disk, and invokes the save and change listeners.
      * Fields mutated directly are only clamped here, and synced configs never send them over the network;
      * use {@link #modify(Consumer)} for both.
+     *
+     * @throws UncheckedIOException If the file could not be written. Change listeners still run, save listeners do not.
      */
     public final void save() {
         requireRegistered();
@@ -207,9 +211,12 @@ public class LocalConfigManager<T> {
             option.enforceLimits(stored);
         }
 
-        provider.save();
-        saveListeners.fire(listener -> listener.accept(stored));
-        fireChanged();
+        try {
+            provider.save();
+            saveListeners.fire(listener -> listener.accept(stored));
+        } finally {
+            fireChanged();
+        }
     }
 
     final void fireChanged() {

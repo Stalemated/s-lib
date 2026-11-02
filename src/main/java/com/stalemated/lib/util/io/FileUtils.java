@@ -1,7 +1,5 @@
 package com.stalemated.lib.util.io;
 
-import org.slf4j.Logger;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,9 +28,10 @@ public final class FileUtils {
      * Existing backups are never overwritten.
      *
      * @param path The path of the original file.
-     * @param logger The logger to report success or failure.
+     * @return The path of the backup.
+     * @throws IOException If the backup could not be written.
      */
-    public static void createTimestampedBackup(Path path, Logger logger) {
+    public static Path createTimestampedBackup(Path path) throws IOException {
         String fileName = path.getFileName().toString();
         int dotIndex = fileName.lastIndexOf('.');
         String baseName = dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
@@ -44,11 +43,7 @@ public final class FileUtils {
             backupPath = path.resolveSibling(backupPrefix + "-" + copy + extension);
         }
 
-        try {
-            Files.copy(path, backupPath);
-            logger.warn("Saved a backup of {} to {}", fileName, backupPath.getFileName());
-        } catch (IOException e) {
-            logger.error("Failed to back up {} to {}", path, backupPath, e);
-        }
+        Files.copy(path, backupPath);
+        return backupPath;
     }
 }

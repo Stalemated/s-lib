@@ -5,10 +5,13 @@ import com.stalemated.lib.util.io.FileUtils;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -43,8 +46,7 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     public Optional<ConfigLoadFailure> load() {
         if (FileUtils.isNewOrEmpty(configPath.toFile())) {
             this.instance = defaultFactory.get();
-            save();
-            return Optional.empty();
+            return saveLoaded(List.of());
         }
 
         DeserializationResult<T> result;
@@ -55,8 +57,10 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
             return Optional.of(ConfigLoadFailure.unreadable(configPath, "could not be read: " + e.getMessage()));
         } catch (ConfigSyntaxException e) {
             logger.error("{} is not valid JSON5 and was not loaded: {}", configPath, e.getMessage());
-            FileUtils.createTimestampedBackup(configPath, logger);
-            return Optional.of(ConfigLoadFailure.unreadable(configPath, "is not valid JSON5: " + e.getMessage()));
+            String reason = backUp()
+                    ? "is not valid JSON5: " + e.getMessage()
+                    : "is not valid JSON5 and could not be backed up: " + e.getMessage();
+            return Optional.of(ConfigLoadFailure.unreadable(configPath, reason));
         }
 
         return applyLoaded(result);
@@ -66,15 +70,37 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
         this.instance = result.instance();
         logDroppedContent(result);
 
-        if (result.dropsFileContent()) {
-            FileUtils.createTimestampedBackup(configPath, logger);
+        if (result.dropsFileContent() && !backUp()) {
+            return Optional.of(ConfigLoadFailure.unwritten(configPath, "was left unchanged because it could not be backed up", result.rejectedValues()));
         }
         if (result.requiresSave()) {
-            save();
+            Optional<ConfigLoadFailure> unsaved = saveLoaded(result.rejectedValues());
+            if (unsaved.isPresent()) return unsaved;
         }
         return result.hasRejectedValues()
                 ? Optional.of(ConfigLoadFailure.invalidValues(configPath, result.rejectedValues()))
                 : Optional.empty();
+    }
+
+    private boolean backUp() {
+        try {
+            Path backup = FileUtils.createTimestampedBackup(configPath);
+            logger.warn("Saved a backup of {} to {}", configPath.getFileName(), backup.getFileName());
+            return true;
+        } catch (IOException e) {
+            logger.error("Could not back up {}: {}", configPath, e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private Optional<ConfigLoadFailure> saveLoaded(List<InvalidEntry> rejectedValues) {
+        try {
+            save();
+            return Optional.empty();
+        } catch (UncheckedIOException e) {
+            logger.error("{}", e.getMessage(), e);
+            return Optional.of(ConfigLoadFailure.unwritten(configPath, "could not be written: " + e.getCause().getMessage(), rejectedValues));
+        }
     }
 
     private void logDroppedContent(DeserializationResult<T> result) {
@@ -95,9 +121,26 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
             }
 
             Files.writeString(tempPath, serializer.serialize(instance()), StandardCharsets.UTF_8);
-            Files.move(tempPath, configPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            replaceWith(tempPath);
         } catch (IOException e) {
-            logger.error("Failed to save config to {}: {}", configPath, e.getMessage(), e);
+            discard(tempPath, e);
+            throw new UncheckedIOException("Could not save config to " + configPath + ": " + e.getMessage(), e);
+        }
+    }
+
+    private void replaceWith(Path tempPath) throws IOException {
+        try {
+            Files.move(tempPath, configPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void discard(Path tempPath, IOException failure) {
+        try {
+            Files.deleteIfExists(tempPath);
+        } catch (IOException cleanup) {
+            failure.addSuppressed(cleanup);
         }
     }
 

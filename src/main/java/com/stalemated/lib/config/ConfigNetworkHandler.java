@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -67,7 +68,7 @@ final class ConfigNetworkHandler<T> {
 
             if (!isHost) {
                 ConfigNetworkPayload.readAndApply(buf, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
-                manager.save();
+                saveRemoteChange(player);
             }
 
             MinecraftServer server = PlatformHelper.getServer(player);
@@ -81,6 +82,14 @@ final class ConfigNetworkHandler<T> {
             if (player != null) {
                 sendConfigToPlayer(player);
             }
+        }
+    }
+
+    private void saveRemoteChange(ServerPlayer player) {
+        try {
+            manager.save();
+        } catch (UncheckedIOException e) {
+            LOGGER.error("Applied the config change from {} to '{}' but could not save it: {}", player.getScoreboardName(), manager.getName(), e.getMessage());
         }
     }
 
