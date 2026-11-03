@@ -1,0 +1,164 @@
+package com.stalemated.lib.config.internal;
+
+import com.google.gson.*;
+import com.stalemated.lib.config.annotation.Ignore;
+import com.stalemated.lib.util.color.ColorUtils;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
+
+import java.awt.Color;
+import java.lang.reflect.Type;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.regex.Pattern;
+
+/**
+ * Default GSON configurations, type adapters, and custom deserializers for S-Lib configs.
+ */
+public final class SLibGsonDefaults {
+
+    private static final ExclusionStrategy IGNORED_FIELDS = new ExclusionStrategy() {
+        @Override
+        public boolean shouldSkipField(FieldAttributes field) {
+            return field.getAnnotation(Ignore.class) != null;
+        }
+
+        @Override
+        public boolean shouldSkipClass(Class<?> type) {
+            return false;
+        }
+    };
+
+    private SLibGsonDefaults() {}
+
+    public static Gson create(Consumer<GsonBuilder> customizer) {
+        GsonBuilder builder = new GsonBuilder();
+        apply(builder);
+        customizer.accept(builder);
+        return builder.create();
+    }
+
+    /**
+     * Applies default GSON adapters and configs, including writing null values
+     * and skipping fields marked with {@link Ignore}.
+     *
+     * @param builder The GsonBuilder to configure.
+     */
+    public static void apply(GsonBuilder builder) {
+        builder.serializeNulls();
+        builder.setExclusionStrategies(IGNORED_FIELDS);
+        registerJavaDefaults(builder);
+        registerMinecraftDefaults(builder);
+    }
+
+    // Registration
+
+    private static void registerJavaDefaults(GsonBuilder builder) {
+        builder.registerTypeAdapter(String.class, stringDeserializer());
+        builder.registerTypeAdapter(Color.class, colorAdapter());
+        builder.registerTypeAdapter(UUID.class, uuidAdapter());
+        builder.registerTypeAdapter(Pattern.class, new PatternAdapter());
+    }
+
+    private static void registerMinecraftDefaults(GsonBuilder builder) {
+        builder.registerTypeAdapter(ResourceLocation.class, resourceLocationAdapter());
+        builder.registerTypeAdapter(TextColor.class, textColorAdapter());
+    }
+
+    // Adapter Definitions
+
+    private static JsonDeserializer<String> stringDeserializer() {
+        return (json, typeOfT, context) -> {
+            if (json.isJsonObject() && json.getAsJsonObject().has("value")) {
+                return json.getAsJsonObject().get("value").getAsString();
+            }
+            return json.getAsString();
+        };
+    }
+
+    private static ColorAdapter colorAdapter() {
+        return new ColorAdapter();
+    }
+
+    private static UuidAdapter uuidAdapter() {
+        return new UuidAdapter();
+    }
+
+    private static ResourceLocationAdapter resourceLocationAdapter() {
+        return new ResourceLocationAdapter();
+    }
+
+    private static TextColorAdapter textColorAdapter() {
+        return new TextColorAdapter();
+    }
+
+    // Adapter Implementations
+
+    private static final class ColorAdapter implements JsonSerializer<Color>, JsonDeserializer<Color> {
+        @Override
+        public JsonElement serialize(Color src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(ColorUtils.toArgbHex(src));
+        }
+
+        @Override
+        public Color deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            if (!json.isJsonPrimitive()) {
+                throw new JsonParseException(json + " is not a color");
+            }
+            JsonPrimitive prim = json.getAsJsonPrimitive();
+            if (prim.isNumber()) {
+                return new Color(prim.getAsInt(), true);
+            }
+            Color color = ColorUtils.parseArgbColor(prim.getAsString());
+            if (color == null) {
+                throw new JsonParseException(json + " is not a color");
+            }
+            return color;
+        }
+    }
+
+    private static final class TextColorAdapter implements JsonSerializer<TextColor>, JsonDeserializer<TextColor> {
+        @Override
+        public JsonElement serialize(TextColor src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(ColorUtils.toHex(src));
+        }
+
+        @Override
+        public TextColor deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            TextColor color = json.isJsonPrimitive() ? ColorUtils.parseTextColor(json.getAsString()) : null;
+            if (color == null) {
+                throw new JsonParseException(json + " is not a text color");
+            }
+            return color;
+        }
+    }
+
+    private static final class ResourceLocationAdapter implements JsonSerializer<ResourceLocation>, JsonDeserializer<ResourceLocation> {
+        @Override
+        public JsonElement serialize(ResourceLocation src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(src.toString());
+        }
+
+        @Override
+        public ResourceLocation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            //? if <1.21 {
+            return new ResourceLocation(json.getAsString());
+            //?} else {
+            /*return ResourceLocation.parse(json.getAsString());
+            *///?}
+        }
+    }
+
+    private static final class UuidAdapter implements JsonSerializer<UUID>, JsonDeserializer<UUID> {
+        @Override
+        public JsonElement serialize(UUID src, Type typeOfSrc, JsonSerializationContext context) {
+            return new JsonPrimitive(src.toString());
+        }
+
+        @Override
+        public UUID deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            return UUID.fromString(json.getAsString());
+        }
+    }
+
+}

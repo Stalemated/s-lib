@@ -1,15 +1,15 @@
 package com.stalemated.lib.compat.yacl.builder;
 
-import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
-import com.stalemated.lib.compat.yacl.factory.YaclContext;
-import com.stalemated.lib.compat.yacl.factory.YaclMapOptionFactory;
-import com.stalemated.lib.compat.yacl.factory.YaclPojoFieldBuilder;
+import com.stalemated.lib.compat.yacl.internal.ValueAccessor;
+import com.stalemated.lib.compat.yacl.internal.YaclContext;
+import com.stalemated.lib.compat.yacl.internal.YaclMapOptionFactory;
+import com.stalemated.lib.compat.yacl.internal.YaclPojoFieldBuilder;
 import com.stalemated.lib.config.annotation.Title;
-import com.stalemated.lib.config.model.CategoryNode;
-import com.stalemated.lib.config.model.ConfigNode;
-import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
+import com.stalemated.lib.config.internal.CategoryNode;
+import com.stalemated.lib.config.internal.ConfigNode;
+import com.stalemated.lib.config.OptionInfo;
+import com.stalemated.lib.config.OptionTree;
+import com.stalemated.lib.util.internal.ReflectionUtils;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.ListOption;
@@ -38,7 +38,7 @@ public class YaclCategoryBuilder<T> {
     private Component description;
     private final List<OptionGroup> groups = new ArrayList<>();
 
-    public YaclCategoryBuilder(YaclContext<T> context) {
+    YaclCategoryBuilder(YaclContext<T> context) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
         this.mapOptionFactory = new YaclMapOptionFactory<>(context);
         this.name = Component.literal(context.session().getManager().getName());

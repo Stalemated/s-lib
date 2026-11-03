@@ -1,5 +1,7 @@
 package com.stalemated.lib.config.io;
 
+import com.stalemated.lib.config.internal.ConfigSerializer;
+
 import java.io.UncheckedIOException;
 import java.util.Optional;
 

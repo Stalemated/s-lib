@@ -1,7 +1,7 @@
 package com.stalemated.lib.compat.yacl.controller.builder;
 
-import com.stalemated.lib.compat.yacl.controller.ItemOrTagController;
-import com.stalemated.lib.compat.yacl.controller.helper.ItemTargetIndex;
+import com.stalemated.lib.compat.yacl.internal.ItemOrTagController;
+import com.stalemated.lib.compat.yacl.internal.ItemTargetIndex;
 import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;

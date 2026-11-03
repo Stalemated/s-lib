@@ -1,6 +1,8 @@
 package com.stalemated.lib.util.color;
 
-public class GradientColorUtils {
+public final class GradientColorUtils {
+
+    private GradientColorUtils() {}
 
     // Static Gradient
     public static int interpolate(int color1, int color2, float ratio) {

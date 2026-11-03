@@ -1,6 +1,6 @@
 package com.stalemated.lib.compat.yacl.controller.builder;
 
-import com.stalemated.lib.compat.yacl.controller.SelectDropdownController;
+import com.stalemated.lib.compat.yacl.internal.SelectDropdownController;
 import dev.isxander.yacl3.api.Controller;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.ControllerBuilder;

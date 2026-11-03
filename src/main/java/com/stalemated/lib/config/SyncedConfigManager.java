@@ -1,9 +1,9 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.io.ConfigSerializer;
-import com.stalemated.lib.config.model.OptionChange;
-import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.config.internal.ConfigRegistry;
+import com.stalemated.lib.config.internal.SyncedConfigHooks;
+import com.stalemated.lib.config.internal.ConfigSerializer;
+import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
 import net.minecraft.server.level.ServerPlayer;
@@ -62,7 +62,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
      */
     public void register() {
         localManager.registerClaimedBy(() -> {
-            ConfigRegistry.claimFileAndChannel(this);
+            ConfigRegistry.claimFileAndChannel(new RegistryHooks(), getConfigPath(), syncChannel);
             networkHandler.registerReceivers();
         });
         fireChanged();
@@ -79,10 +79,6 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     ConfigNetworkHandler<T> networkHandler() {
         return networkHandler;
-    }
-
-    ResourceLocation getSyncChannel() {
-        return syncChannel;
     }
 
     public ConnectionState getConnectionState() {
@@ -321,6 +317,43 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     ConfigSerializer<T> serializer() {
         return localManager.serializer();
+    }
+
+    private final class RegistryHooks implements SyncedConfigHooks {
+
+        @Override
+        public ConfigManager<?> manager() {
+            return SyncedConfigManager.this;
+        }
+
+        @Override
+        public void onPlayerJoin(ServerPlayer player) {
+            sendConfigToPlayer(player);
+        }
+
+        @Override
+        public void onPlayerLeave(UUID playerId) {
+            forgetInformedConfig(playerId);
+        }
+
+        @Override
+        public void onClientJoin(boolean singleplayer) {
+            if (singleplayer) {
+                onClientJoinSingleplayer();
+            } else {
+                onClientJoinMultiplayer();
+            }
+        }
+
+        @Override
+        public void onClientDisconnect() {
+            clearServerConfig();
+        }
+
+        @Override
+        public void unregisterReceivers() {
+            networkHandler.unregisterReceivers();
+        }
     }
 
     private record SyncView<T>(ConnectionState state, T serverConfig, boolean canChangeOverrides) {

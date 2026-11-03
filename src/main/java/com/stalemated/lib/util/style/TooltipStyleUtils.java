@@ -9,7 +9,10 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.util.FormattedCharSequence;
 import java.util.Optional;
 
-public class TooltipStyleUtils {
+public final class TooltipStyleUtils {
+
+    private TooltipStyleUtils() {}
+
     private static class StyleAccumulator {
         private final MutableComponent result = Component.empty();
         private final StringBuilder currentText = new StringBuilder();

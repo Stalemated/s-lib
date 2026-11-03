@@ -1,12 +1,12 @@
 package com.stalemated.lib.compat.yacl.builder;
 
-import com.stalemated.lib.compat.yacl.binding.YaclBindingSynchronizer;
-import com.stalemated.lib.compat.yacl.factory.YaclContext;
+import com.stalemated.lib.compat.yacl.internal.YaclBindingSynchronizer;
+import com.stalemated.lib.compat.yacl.internal.YaclContext;
 import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.config.ConfigManager;
-import com.stalemated.lib.config.session.ConfigSession;
+import com.stalemated.lib.config.internal.ConfigSession;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import net.minecraft.client.gui.screens.Screen;

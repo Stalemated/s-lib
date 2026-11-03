@@ -2,7 +2,6 @@ package com.stalemated.lib.config;
 
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.model.OptionTree;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -39,7 +38,7 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
         if (defaultFactory != null) {
             LocalConfigManager.requireFreshInstances(type.getSimpleName(), type, defaultFactory);
         }
-        this.manager = LocalConfigManager.inMemory(new InstanceProvider<>(instance, onSave), OptionTree.of(type, defaultFactory), defaultFactory);
+        this.manager = LocalConfigManager.inMemory(new InstanceProvider<>(instance, onSave), new OptionTree(type, defaultFactory), defaultFactory);
     }
 
     @Override

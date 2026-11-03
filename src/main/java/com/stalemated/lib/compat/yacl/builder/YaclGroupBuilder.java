@@ -1,12 +1,12 @@
 package com.stalemated.lib.compat.yacl.builder;
 
-import com.stalemated.lib.compat.yacl.binding.OptionAssembler;
-import com.stalemated.lib.compat.yacl.binding.ValueAccessor;
+import com.stalemated.lib.compat.yacl.internal.OptionAssembler;
+import com.stalemated.lib.compat.yacl.internal.ValueAccessor;
 import com.stalemated.lib.compat.yacl.controller.builder.SelectDropdownControllerBuilder;
-import com.stalemated.lib.compat.yacl.factory.YaclContext;
-import com.stalemated.lib.compat.yacl.registry.TypeLens;
-import com.stalemated.lib.compat.yacl.registry.YaclOptionMetadata;
-import com.stalemated.lib.config.model.OptionInfo;
+import com.stalemated.lib.compat.yacl.internal.YaclContext;
+import com.stalemated.lib.compat.yacl.internal.TypeLens;
+import com.stalemated.lib.compat.yacl.internal.YaclOptionMetadata;
+import com.stalemated.lib.config.OptionInfo;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionDescription;
@@ -32,7 +32,7 @@ public class YaclGroupBuilder<T> {
     private final List<Consumer<List<Option<?>>>> actions = new ArrayList<>();
     private final Map<String, Consumer<Option.Builder<?>>> overrides = new HashMap<>();
 
-    public YaclGroupBuilder(YaclContext<T> context, Component defaultName) {
+    YaclGroupBuilder(YaclContext<T> context, Component defaultName) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
         this.name = defaultName;
     }
@@ -185,18 +185,7 @@ public class YaclGroupBuilder<T> {
                 optionKey
         );
 
-        OptionInfo elementInfo = new OptionInfo(
-                listKey + "[" + index + "]",
-                listInfo.field(),
-                Collections.emptyList(),
-                listInfo.getSyncMode(),
-                defaultElement,
-                elemClass,
-                elemClass,
-                true,
-                null,
-                context.session().getOptionTree().deepCopy()
-        );
+        OptionInfo elementInfo = listInfo.childTemplate(listKey + "[" + index + "]", listInfo.field(), defaultElement, elemClass, elemClass);
 
         OptionAssembler assembler = context.assembler();
         TypeLens<E, Object> lens = assembler.<E, Object>lensFor(elemClass, meta).orElseThrow(() ->

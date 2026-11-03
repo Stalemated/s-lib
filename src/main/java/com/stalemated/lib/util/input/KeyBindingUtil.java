@@ -17,7 +17,10 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 *///?}
 //?}
 
-public class KeyBindingUtil {
+public final class KeyBindingUtil {
+
+    private KeyBindingUtil() {}
+
     public static boolean isKeyDownInGui(KeyMapping keyBinding) {
         if (keyBinding == null || keyBinding.isUnbound()) return false;
 

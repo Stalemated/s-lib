@@ -3,12 +3,11 @@ package com.stalemated.lib.config;
 import com.google.gson.GsonBuilder;
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.io.FileConfigProvider;
-import com.stalemated.lib.config.io.json5.Json5Serializer;
-import com.stalemated.lib.config.io.json5.SLibGsonDefaults;
-import com.stalemated.lib.config.model.OptionTree;
+import com.stalemated.lib.config.internal.FileConfigProvider;
+import com.stalemated.lib.config.internal.Json5Serializer;
+import com.stalemated.lib.config.internal.SLibGsonDefaults;
 import com.stalemated.lib.util.io.PathUtils;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
+import com.stalemated.lib.util.internal.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

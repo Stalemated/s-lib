@@ -1,12 +1,11 @@
 package com.stalemated.lib.config;
 
+import com.stalemated.lib.config.internal.ConfigRegistry;
+import com.stalemated.lib.config.internal.ConfigSerializer;
+import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
-import com.stalemated.lib.config.io.ConfigSerializer;
-import com.stalemated.lib.config.model.OptionChange;
-import com.stalemated.lib.config.model.OptionInfo;
-import com.stalemated.lib.config.model.OptionTree;
-import com.stalemated.lib.util.reflection.ReflectionUtils;
+import com.stalemated.lib.util.internal.ReflectionUtils;
 import org.slf4j.Logger;
 
 import java.io.UncheckedIOException;
@@ -91,7 +90,7 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
      * @throws IllegalStateException If another registered config already uses the same file.
      */
     public void register() {
-        registerClaimedBy(() -> ConfigRegistry.claimFile(this));
+        registerClaimedBy(() -> ConfigRegistry.claimFile(this, getConfigPath()));
     }
 
     void registerClaimedBy(Runnable claim) {

@@ -1,6 +1,6 @@
 package com.stalemated.lib;
 
-import com.stalemated.lib.config.ConfigRegistry;
+import com.stalemated.lib.config.internal.ConfigRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,10 +8,10 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.network.internal.WrapperChannel;
 //?} elif forge {
 /*import com.stalemated.lib.client.SLibClient;
-import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.network.internal.WrapperChannel;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -21,7 +21,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.loading.FMLEnvironment;
 *///?} elif neoforge {
 /*import com.stalemated.lib.client.SLibClient;
-import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.network.internal.WrapperChannel;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -58,7 +58,7 @@ implements ModInitializer
     /*public SLib() {
         init();
 
-        NetworkHelper.registerChannel();
+        WrapperChannel.registerChannel();
         MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedIn);
         MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedOut);
         MinecraftForge.EVENT_BUS.addListener(SLib::onServerStarted);
@@ -71,7 +71,7 @@ implements ModInitializer
     /*public SLib(IEventBus modBus, Dist dist) {
         init();
 
-        NetworkHelper.registerModBusListeners(modBus);
+        WrapperChannel.registerModBusListeners(modBus);
         if (dist == Dist.CLIENT) {
             SLibClient.registerModBusListeners(modBus);
         }
@@ -82,7 +82,7 @@ implements ModInitializer
     @Override
     public void onInitialize() {
         init();
-        NetworkHelper.registerPayloads();
+        WrapperChannel.registerPayloads();
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> ConfigRegistry.onPlayerJoinServer(handler.player)));

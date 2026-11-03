@@ -1,285 +1,47 @@
 package com.stalemated.lib.network;
 
 import com.stalemated.lib.helper.PlatformHelper;
-import io.netty.buffer.Unpooled;
+import com.stalemated.lib.network.internal.PacketReceivers;
+import com.stalemated.lib.network.internal.WrapperChannel;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+public final class NetworkHelper {
 
-import static com.stalemated.lib.SLib.LOGGER;
-
-//? if forge || neoforge || <1.20.5
-import static com.stalemated.lib.SLib.MOD_ID;
-
-//? if fabric{
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-//?if >=1.20.5 {
-/*import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-*///?}
-//?}
-
-//? if forge{
-/*import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
-import java.util.function.Supplier;
-*///?}
-
-//? if neoforge{
-/*import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
-import net.neoforged.bus.api.IEventBus;
-
-//? if <=1.20.4 {
-/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
-import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
-^///?} else {
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-//?}
-
-//? if >=1.21.7
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
-*///?}
-public class NetworkHelper {
-
-    private static final Map<ResourceLocation, ServerReceiver> SERVER_RECEIVERS = new ConcurrentHashMap<>();
-    private static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new ConcurrentHashMap<>();
-
-    //? if forge {
-    /*private static final String PROTOCOL_VERSION = "1";
-    private static SimpleChannel channel;
-
-    @SuppressWarnings("removal")
-    public static void registerChannel() {
-        channel = NetworkRegistry.newSimpleChannel(
-                new ResourceLocation(MOD_ID, "network"),
-                () -> PROTOCOL_VERSION,
-                NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
-                NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION)
-        );
-        channel.registerMessage(0, WrapperPacket.class, WrapperPacket::encode, WrapperPacket::new, NetworkHelper::handlePacket);
-    }
-
-    private static SimpleChannel channel() {
-        if (channel == null) {
-            throw new IllegalStateException("S-Lib network channel used before SLib registered it");
-        }
-        return channel;
-    }
-
-    public static class WrapperPacket {
-        public final ResourceLocation id;
-        public final byte[] data;
-
-        public WrapperPacket(ResourceLocation id, byte[] data) {
-            this.id = id;
-            this.data = data;
-        }
-
-        public WrapperPacket(FriendlyByteBuf buf) {
-            this.id = buf.readResourceLocation();
-            this.data = buf.readByteArray();
-        }
-
-        public void encode(FriendlyByteBuf buf) {
-            buf.writeResourceLocation(this.id);
-            buf.writeByteArray(this.data);
-        }
-    }
-
-    public static void handlePacket(WrapperPacket packet, Supplier<NetworkEvent.Context> contextSupplier) {
-        NetworkEvent.Context context = contextSupplier.get();
-
-        context.enqueueWork(() -> {
-            ServerPlayer sender = context.getSender();
-            if (context.getDirection() == NetworkDirection.PLAY_TO_SERVER && sender != null) {
-                dispatchToServer(sender, packet.id, packet.data);
-            } else if (context.getDirection() == NetworkDirection.PLAY_TO_CLIENT) {
-                dispatchToClient(packet.id, packet.data);
-            }
-        });
-        context.setPacketHandled(true);
-    }
-    *///?}
-
-    //? if neoforge && <=1.20.4 {
-    /*public static void registerModBusListeners(IEventBus modBus) {
-        modBus.addListener(RegisterPayloadHandlerEvent.class, NetworkHelper::register);
-    }
-
-    private static void register(RegisterPayloadHandlerEvent event) {
-        IPayloadRegistrar registrar = event.registrar(MOD_ID).optional();
-        registrar.play(
-                WrapperPayload.ID,
-                WrapperPayload::new,
-                NetworkHelper::handlePayload
-        );
-    }
-    *///?} elif neoforge {
-    /*public static void registerModBusListeners(IEventBus modBus) {
-        modBus.addListener(RegisterPayloadHandlersEvent.class, NetworkHelper::register);
-    }
-
-    private static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
-        registrar.playBidirectional(
-                WrapperPayload.ID,
-                WrapperPayload.CODEC,
-                NetworkHelper::handlePayload
-        );
-    }
-    *///?}
-
-    //? if neoforge && <=1.20.4 {
-    /*private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
-        context.workHandler().execute(() -> {
-            if (context.flow().isServerbound()) {
-                if (context.player().orElse(null) instanceof ServerPlayer serverPlayer) {
-                    dispatchToServer(serverPlayer, payload.channelId(), payload.data());
-                }
-            } else {
-                dispatchToClient(payload.channelId(), payload.data());
-            }
-        });
-    }
-    *///?} elif neoforge {
-    /*private static void handlePayload(WrapperPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            if (context.flow().isServerbound()) {
-                if (context.player() instanceof ServerPlayer serverPlayer) {
-                    dispatchToServer(serverPlayer, payload.channelId(), payload.data());
-                }
-            } else {
-                dispatchToClient(payload.channelId(), payload.data());
-            }
-        });
-    }
-    *///?}
-
-    //? if fabric && <1.20.5 {
-    private static final ResourceLocation CHANNEL_ID = new ResourceLocation(MOD_ID, "network");
-
-    public static void registerPayloads() {
-        ServerPlayNetworking.registerGlobalReceiver(CHANNEL_ID, (server, player, handler, buf, responseSender) -> {
-            ResourceLocation channel = buf.readResourceLocation();
-            byte[] data = buf.readByteArray();
-            server.execute(() -> dispatchToServer(player, channel, data));
-        });
-
-        if (!PlatformHelper.isDedicatedServer()) {
-            ClientNetworkHelper.registerClientReceiver(CHANNEL_ID);
-        }
-    }
-
-    private static FriendlyByteBuf wrap(ResourceLocation channel, byte[] data) {
-        FriendlyByteBuf wrapped = new FriendlyByteBuf(Unpooled.buffer());
-        wrapped.writeResourceLocation(channel);
-        wrapped.writeByteArray(data);
-        return wrapped;
-    }
-    //?} elif fabric {
-    /*public static void registerPayloads() {
-
-        //? if <26.1 {
-        PayloadTypeRegistry.playC2S().register(WrapperPayload.ID, WrapperPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(WrapperPayload.ID, WrapperPayload.CODEC);
-        //?} else {
-        /^PayloadTypeRegistry.serverboundPlay().register(WrapperPayload.ID, WrapperPayload.CODEC);
-        PayloadTypeRegistry.clientboundPlay().register(WrapperPayload.ID, WrapperPayload.CODEC);
-        ^///?}
-
-        ServerPlayNetworking.registerGlobalReceiver(WrapperPayload.ID, (payload, context) ->
-                dispatchToServer(context.player(), payload.channelId(), payload.data()));
-
-        if (!PlatformHelper.isDedicatedServer()) {
-            ClientNetworkHelper.registerClientReceiver();
-        }
-    }
-    *///?}
+    private NetworkHelper() {}
 
     public static void sendToClient(ServerPlayer player, ResourceLocation id, FriendlyByteBuf buf) {
-        byte[] data = new byte[buf.readableBytes()];
-        buf.readBytes(data);
-        //? if fabric && <1.20.5
-        ServerPlayNetworking.send(player, CHANNEL_ID, wrap(id, data));
-        //? if fabric && >=1.20.5
-        //ServerPlayNetworking.send(player, new WrapperPayload(id, data));
-        //? if forge
-        //channel().send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
-        //? if neoforge && <=1.20.4
-        //PacketDistributor.PLAYER.with(player).send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4
-        //PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));
+        WrapperChannel.sendToClient(player, id, readableBytes(buf));
     }
 
     public static void sendToServer(ResourceLocation id, FriendlyByteBuf buf) {
         if (PlatformHelper.isDedicatedServer()) {
             throw new IllegalStateException("Cannot send packet " + id + " to the server from a dedicated server");
         }
+        WrapperChannel.sendToServer(id, readableBytes(buf));
+    }
+
+    private static byte[] readableBytes(FriendlyByteBuf buf) {
         byte[] data = new byte[buf.readableBytes()];
         buf.readBytes(data);
-        //? if fabric && <1.20.5
-        ClientNetworkHelper.sendToServer(CHANNEL_ID, wrap(id, data));
-        //? if fabric && >=1.20.5
-        //ClientNetworkHelper.sendToServer(new WrapperPayload(id, data));
-        //? if forge
-        //channel().sendToServer(new WrapperPacket(id, data));
-        //? if neoforge && <=1.20.4
-        //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4 && <1.21.7
-        //PacketDistributor.sendToServer(new WrapperPayload(id, data));
-        //? if neoforge && >=1.21.7
-        //ClientPacketDistributor.sendToServer(new WrapperPayload(id, data));
+        return data;
     }
 
     public static void registerServerReceiver(ResourceLocation id, ServerReceiver receiver) {
-        register(SERVER_RECEIVERS, id, receiver, "Server");
+        PacketReceivers.registerServer(id, receiver);
     }
 
     public static void registerClientReceiver(ResourceLocation id, ClientReceiver receiver) {
-        register(CLIENT_RECEIVERS, id, receiver, "Client");
-    }
-
-    private static <R> void register(Map<ResourceLocation, R> receivers, ResourceLocation id, R receiver, String side) {
-        if (receivers.putIfAbsent(id, receiver) != null) {
-            throw new IllegalStateException(side + " receiver for channel " + id + " is already registered");
-        }
+        PacketReceivers.registerClient(id, receiver);
     }
 
     public static void unregisterServerReceiver(ResourceLocation id) {
-        SERVER_RECEIVERS.remove(id);
+        PacketReceivers.unregisterServer(id);
     }
 
     public static void unregisterClientReceiver(ResourceLocation id) {
-        CLIENT_RECEIVERS.remove(id);
-    }
-
-    static void dispatchToServer(ServerPlayer player, ResourceLocation channel, byte[] data) {
-        ServerReceiver receiver = SERVER_RECEIVERS.get(channel);
-        if (receiver == null) {
-            logUnregisteredChannel(channel);
-            return;
-        }
-        receiver.receive(player, new FriendlyByteBuf(Unpooled.wrappedBuffer(data)));
-    }
-
-    static void dispatchToClient(ResourceLocation channel, byte[] data) {
-        ClientReceiver receiver = CLIENT_RECEIVERS.get(channel);
-        if (receiver == null) {
-            logUnregisteredChannel(channel);
-            return;
-        }
-        receiver.receive(new FriendlyByteBuf(Unpooled.wrappedBuffer(data)));
-    }
-
-    private static void logUnregisteredChannel(ResourceLocation channel) {
-        LOGGER.debug("Ignoring packet for unregistered config channel {}", channel);
+        PacketReceivers.unregisterClient(id);
     }
 
     @FunctionalInterface

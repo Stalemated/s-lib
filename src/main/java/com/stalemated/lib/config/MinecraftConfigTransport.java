@@ -1,6 +1,6 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.network.ConfigNetworkPayload;
+import com.stalemated.lib.config.internal.ConfigRegistry;
 import com.stalemated.lib.helper.PlatformHelper;
 import com.stalemated.lib.network.NetworkHelper;
 import net.minecraft.resources.ResourceLocation;

@@ -1,7 +1,5 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.model.OptionTree;
-
 import java.util.function.Consumer;
 
 public interface ConfigManager<T> {

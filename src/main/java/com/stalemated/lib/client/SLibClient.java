@@ -1,6 +1,6 @@
 package com.stalemated.lib.client;
 
-import com.stalemated.lib.config.ConfigRegistry;
+import com.stalemated.lib.config.internal.ConfigRegistry;
 
 //? if fabric{
 import net.fabricmc.api.ClientModInitializer;

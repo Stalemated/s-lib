@@ -1,10 +1,10 @@
 package com.stalemated.lib.compat.yacl.registry;
 
+import com.stalemated.lib.config.ConfigManager;
 import com.stalemated.lib.config.SyncedConfigManager;
-import com.stalemated.lib.config.model.OptionInfo;
+import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
-import com.stalemated.lib.config.session.ConfigSession;
 import net.minecraft.network.chat.Component;
 
 import java.util.Objects;
@@ -20,10 +20,10 @@ public interface OptionAvailabilityRule {
      * Explains why an option cannot be edited on the screen right now.
      *
      * @param option The configuration option to evaluate.
-     * @param session The active configuration session.
+     * @param manager The config manager the option belongs to.
      * @return The reason shown below the option description, or empty if the option is editable.
      */
-    Optional<Component> unavailableReason(OptionInfo option, ConfigSession<?> session);
+    Optional<Component> unavailableReason(OptionInfo option, ConfigManager<?> manager);
 
     /**
      * Combines this rule with another rule. The option is editable only if both rules allow it,
@@ -34,12 +34,12 @@ public interface OptionAvailabilityRule {
      */
     default OptionAvailabilityRule and(OptionAvailabilityRule other) {
         Objects.requireNonNull(other, "other rule cannot be null");
-        return (option, session) -> unavailableReason(option, session).or(() -> other.unavailableReason(option, session));
+        return (option, manager) -> unavailableReason(option, manager).or(() -> other.unavailableReason(option, manager));
     }
 
-    OptionAvailabilityRule DEFAULT = (option, session) -> {
+    OptionAvailabilityRule DEFAULT = (option, manager) -> {
         if (option.getSyncMode() != SyncMode.OVERRIDE_CLIENT
-                || !(session.getManager() instanceof SyncedConfigManager<?> synced)
+                || !(manager instanceof SyncedConfigManager<?> synced)
                 || synced.canChangeOverrides()) {
             return Optional.empty();
         }
@@ -49,5 +49,5 @@ public interface OptionAvailabilityRule {
         return Optional.of(Component.translatable(reason));
     };
 
-    OptionAvailabilityRule UNRESTRICTED = (option, session) -> Optional.empty();
+    OptionAvailabilityRule UNRESTRICTED = (option, manager) -> Optional.empty();
 }

@@ -8,7 +8,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 
-public class GradientGenerator {
+public final class GradientGenerator {
+
+    private GradientGenerator() {}
 
     public static MutableComponent getStaticGradient(Component text, int color1, int color2) {
         return applyGradient(text, (index, ratio) ->

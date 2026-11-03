@@ -3,10 +3,12 @@ package com.stalemated.lib.util.math;
 import java.math.BigDecimal;
 import java.math.MathContext;
 
-public class MathUtils {
+public final class MathUtils {
 
     private static final MathContext FLOAT_SIGNIFICANT_DIGITS = new MathContext(7);
     private static final MathContext DOUBLE_SIGNIFICANT_DIGITS = new MathContext(15);
+
+    private MathUtils() {}
 
     public static int clamp(int value, int min, int max) {
         if (min > max) throw new IllegalArgumentException("min (" + min + ") > max (" + max + ")");

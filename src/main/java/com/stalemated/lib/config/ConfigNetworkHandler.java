@@ -1,7 +1,6 @@
 package com.stalemated.lib.config;
 
-import com.stalemated.lib.config.model.OptionChange;
-import com.stalemated.lib.config.network.ConfigNetworkPayload;
+import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
 import net.minecraft.network.FriendlyByteBuf;

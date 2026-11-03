@@ -1,6 +1,5 @@
 package com.stalemated.lib.predicate.target;
 
-import com.stalemated.lib.predicate.target.strategies.*;
 
 import java.util.Optional;
 
