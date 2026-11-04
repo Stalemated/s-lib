@@ -5,6 +5,7 @@ import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuil
 import com.stalemated.lib.compat.yacl.internal.ItemTargetIndex;
 import com.stalemated.lib.compat.yacl.internal.TypeLens;
 import com.stalemated.lib.config.OptionInfo;
+import com.stalemated.lib.config.annotation.Format;
 import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.internal.Constraint;
 import com.stalemated.lib.util.color.ColorUtils;
@@ -12,10 +13,12 @@ import com.stalemated.lib.util.internal.ReflectionUtils;
 import com.stalemated.lib.util.internal.RegexText;
 import com.stalemated.lib.util.internal.TypeCoercionUtils;
 import dev.isxander.yacl3.api.controller.*;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 
 import java.awt.Color;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -62,37 +65,41 @@ public class YaclControllerRegistry {
 
         registerDirect(int.class, Integer.class, 0, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.IntRange range) {
-                return IntegerSliderControllerBuilder.create(opt)
+                return formatted(IntegerSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
-                        .step(range.step());
+                        .step(range.step()), info, range.min(), null);
             }
+            requireNoFormat(info);
             return IntegerFieldControllerBuilder.create(opt);
         });
 
         registerDirect(long.class, Long.class, 0L, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.LongRange range) {
-                return LongSliderControllerBuilder.create(opt)
+                return formatted(LongSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
-                        .step(range.step());
+                        .step(range.step()), info, range.min(), null);
             }
+            requireNoFormat(info);
             return LongFieldControllerBuilder.create(opt);
         });
 
         registerDirect(float.class, Float.class, 0.0f, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.FloatRange range) {
-                return FloatSliderControllerBuilder.create(opt)
+                return formatted(FloatSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
-                        .step(range.step());
+                        .step(range.step()), info, range.min(), decimalPattern(Float.toString(range.step())));
             }
+            requireNoFormat(info);
             return FloatFieldControllerBuilder.create(opt);
         });
 
         registerDirect(double.class, Double.class, 0.0, (info, opt) -> {
             if (constraintOf(info) instanceof Constraint.DoubleRange range) {
-                return DoubleSliderControllerBuilder.create(opt)
+                return formatted(DoubleSliderControllerBuilder.create(opt)
                         .range(range.min(), range.max())
-                        .step(range.step());
+                        .step(range.step()), info, range.min(), decimalPattern(Double.toString(range.step())));
             }
+            requireNoFormat(info);
             return DoubleFieldControllerBuilder.create(opt);
         });
 
@@ -108,6 +115,32 @@ public class YaclControllerRegistry {
 
     private static Constraint constraintOf(OptionInfo info) {
         return info != null ? info.constraint() : Constraint.NONE;
+    }
+
+    private static Optional<Format> formatOf(OptionInfo info) {
+        return info != null ? info.annotation(Format.class) : Optional.empty();
+    }
+
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private static <T extends Number, B extends ValueFormattableController<T, B>> B formatted(B slider, OptionInfo info, T min, String defaultPattern) {
+        String pattern = formatOf(info).map(Format::value).orElse(defaultPattern);
+        if (pattern == null) return slider;
+        try {
+            String.format(pattern, min);
+        } catch (IllegalFormatException e) {
+            throw new IllegalArgumentException("@Format on '" + info.getKey() + "' cannot format a " + min.getClass().getSimpleName() + ": '" + pattern + "'", e);
+        }
+        return slider.formatValue(value -> Component.literal(String.format(pattern, value)));
+    }
+
+    private static void requireNoFormat(OptionInfo info) {
+        if (formatOf(info).isPresent()) {
+            throw new IllegalArgumentException("@Format on '" + info.getKey() + "' needs a @Range annotation, it only formats sliders");
+        }
+    }
+
+    private static String decimalPattern(String step) {
+        return "%,." + Math.max(0, new BigDecimal(step).stripTrailingZeros().scale()) + "f";
     }
 
     private static Optional<ItemDropdown> itemDropdownOf(OptionInfo info) {
