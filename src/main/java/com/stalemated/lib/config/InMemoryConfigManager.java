@@ -44,15 +44,31 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
         this.manager = LocalConfigManager.inMemory(new InstanceProvider<>(instance, onSave), new OptionTree(type, defaultFactory), defaultFactory);
     }
 
-    static <P, E> InMemoryConfigManager<E> forListElement(ConfigManager<P> owner, Function<P, List<E>> list, E element, Supplier<E> defaultFactory) {
+    static <P, E> InMemoryConfigManager<E> forListElement(ConfigManager<P> owner, Function<P, List<E>> list, E element, Supplier<E> defaults) {
         Objects.requireNonNull(owner, "owner cannot be null");
         Objects.requireNonNull(list, "list cannot be null");
         Objects.requireNonNull(element, "element cannot be null");
-        Objects.requireNonNull(defaultFactory, "defaultFactory cannot be null");
+        Objects.requireNonNull(defaults, "defaults cannot be null");
 
-        ListElementWriter<P, E> writer = new ListElementWriter<>(owner, list, indexOf(list.apply(owner.get()), element));
-        InMemoryConfigManager<E> elementManager = new InMemoryConfigManager<>(defaultFactory.get(), defaultFactory, writer);
-        elementManager.getOptionTree().copyAllValues(element, elementManager.get());
+        int index = indexOf(list.apply(owner.get()), element);
+        if (index == ListElementWriter.NOT_IN_LIST) {
+            throw new IllegalArgumentException("The element to edit is not in the list of '" + owner.getName()
+                    + "'; take it from get() after the last save, or use addListElement for a new one");
+        }
+        return listElementManager(owner, list, index, element, defaults);
+    }
+
+    static <P, E> InMemoryConfigManager<E> forNewListElement(ConfigManager<P> owner, Function<P, List<E>> list, Supplier<E> defaults) {
+        Objects.requireNonNull(owner, "owner cannot be null");
+        Objects.requireNonNull(list, "list cannot be null");
+        Objects.requireNonNull(defaults, "defaults cannot be null");
+        return listElementManager(owner, list, ListElementWriter.NOT_IN_LIST, defaults.get(), defaults);
+    }
+
+    private static <P, E> InMemoryConfigManager<E> listElementManager(ConfigManager<P> owner, Function<P, List<E>> list, int index, E initial, Supplier<E> defaults) {
+        ListElementWriter<P, E> writer = new ListElementWriter<>(owner, list, index);
+        InMemoryConfigManager<E> elementManager = new InMemoryConfigManager<>(defaults.get(), defaults, writer);
+        elementManager.getOptionTree().copyAllValues(initial, elementManager.get());
         writer.elementManager = elementManager;
         return elementManager;
     }

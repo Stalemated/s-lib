@@ -28,6 +28,10 @@ public interface ConfigManager<T> {
         return InMemoryConfigManager.forListElement(this, list, element, defaults);
     }
 
+    default <E> ConfigManager<E> addListElement(Function<T, List<E>> list, Supplier<E> defaults) {
+        return InMemoryConfigManager.forNewListElement(this, list, defaults);
+    }
+
     default String toJson(Object value) {
         return getOptionTree().gson().toJson(value);
     }
