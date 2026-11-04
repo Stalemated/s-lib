@@ -71,7 +71,6 @@ public class YaclControllerRegistry {
                         .range(range.min(), range.max())
                         .step(range.step()), info, range.min(), null);
             }
-            requireNoFormat(info);
             return IntegerFieldControllerBuilder.create(opt);
         });
 
@@ -81,7 +80,6 @@ public class YaclControllerRegistry {
                         .range(range.min(), range.max())
                         .step(range.step()), info, range.min(), null);
             }
-            requireNoFormat(info);
             return LongFieldControllerBuilder.create(opt);
         });
 
@@ -91,7 +89,6 @@ public class YaclControllerRegistry {
                         .range(range.min(), range.max())
                         .step(range.step()), info, range.min(), decimalPattern(Float.toString(range.step())));
             }
-            requireNoFormat(info);
             return FloatFieldControllerBuilder.create(opt);
         });
 
@@ -101,7 +98,6 @@ public class YaclControllerRegistry {
                         .range(range.min(), range.max())
                         .step(range.step()), info, range.min(), decimalPattern(Double.toString(range.step())));
             }
-            requireNoFormat(info);
             return DoubleFieldControllerBuilder.create(opt);
         });
 
@@ -133,12 +129,6 @@ public class YaclControllerRegistry {
             throw new IllegalArgumentException("@Format on '" + info.getKey() + "' cannot format a " + min.getClass().getSimpleName() + ": '" + pattern + "'", e);
         }
         return slider.formatValue(value -> Component.literal(NO_BREAK_SPACES.matcher(String.format(pattern, value)).replaceAll(" ")));
-    }
-
-    private static void requireNoFormat(OptionInfo info) {
-        if (formatOf(info).isPresent()) {
-            throw new IllegalArgumentException("@Format on '" + info.getKey() + "' needs a @Range annotation, it only formats sliders");
-        }
     }
 
     private static String decimalPattern(String step) {

@@ -1,6 +1,7 @@
 package com.stalemated.lib.config.internal;
 
 import com.stalemated.lib.config.OptionInfo;
+import com.stalemated.lib.config.annotation.Format;
 import com.stalemated.lib.config.annotation.RangeDouble;
 import com.stalemated.lib.config.annotation.RangeFloat;
 import com.stalemated.lib.config.annotation.RangeInt;
@@ -50,6 +51,9 @@ public final class Constraints {
         List<Class<? extends Annotation>> present = rangesOn(field);
         if (present.size() > 1) {
             throw new IllegalArgumentException("'" + key + "' has more than one range annotation: " + names(present));
+        }
+        if (present.isEmpty() && field != null && field.isAnnotationPresent(Format.class)) {
+            throw new IllegalArgumentException("@Format on '" + key + "' needs a @Range annotation, it only formats sliders");
         }
         if (isContainer(type)) {
             if (!present.isEmpty()) {
