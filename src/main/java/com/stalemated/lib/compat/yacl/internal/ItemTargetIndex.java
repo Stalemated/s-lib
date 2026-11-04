@@ -10,6 +10,8 @@ import java.util.TreeSet;
 
 public final class ItemTargetIndex {
 
+    public static final int MAX_MATCHES = 200;
+
     private final List<String> targets;
 
     public ItemTargetIndex(List<String> targets) {
@@ -37,13 +39,29 @@ public final class ItemTargetIndex {
     }
 
     public List<String> matching(String input) {
-        String needle = input.toLowerCase(Locale.ROOT);
-        List<String> matches = new ArrayList<>();
+        String needle = input.strip().toLowerCase(Locale.ROOT);
+        if (needle.isEmpty()) {
+            return targets.subList(0, Math.min(MAX_MATCHES, targets.size()));
+        }
+
+        List<String> prefixed = new ArrayList<>();
+        List<String> contained = new ArrayList<>();
         for (String target : targets) {
-            if (target.contains(needle)) {
-                matches.add(target);
+            if (prefixed.size() == MAX_MATCHES) break;
+            if (startsAtWord(target, needle)) {
+                prefixed.add(target);
+            } else if (contained.size() < MAX_MATCHES && target.contains(needle)) {
+                contained.add(target);
             }
         }
-        return matches;
+        prefixed.addAll(contained.subList(0, Math.min(contained.size(), MAX_MATCHES - prefixed.size())));
+        return prefixed;
+    }
+
+    private static boolean startsAtWord(String target, String needle) {
+        if (target.startsWith(needle)) return true;
+        if (target.startsWith("#") && target.startsWith(needle, 1)) return true;
+        int separator = target.indexOf(':');
+        return separator >= 0 && target.startsWith(needle, separator + 1);
     }
 }

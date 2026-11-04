@@ -121,6 +121,7 @@ public class YaclScreenBuilder {
     }
 
     public YetAnotherConfigLib buildLib() {
+        controllerRegistry.clearItemTargets();
         Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
         List<ConfigCategory> builtCategories = new ArrayList<>(categories.size());
         for (PendingCategory category : categories) {

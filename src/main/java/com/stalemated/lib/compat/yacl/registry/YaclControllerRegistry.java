@@ -33,8 +33,14 @@ public class YaclControllerRegistry {
     private final Map<Class<?>, TypeLens<?, ?>> lenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
     private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
+    private final Function<Boolean, ItemTargetIndex> itemTargetSource;
 
     public YaclControllerRegistry() {
+        this(ItemTargetIndex::fromRegistry);
+    }
+
+    public YaclControllerRegistry(Function<Boolean, ItemTargetIndex> itemTargetSource) {
+        this.itemTargetSource = Objects.requireNonNull(itemTargetSource, "itemTargetSource cannot be null");
         registerDefaultPrimitives();
         registerDefaultAdaptedTypes();
     }
@@ -43,8 +49,12 @@ public class YaclControllerRegistry {
         return new YaclControllerRegistry();
     }
 
+    public void clearItemTargets() {
+        itemTargetsByTagInclusion.clear();
+    }
+
     private ItemTargetIndex itemTargets(boolean includeTags) {
-        return itemTargetsByTagInclusion.computeIfAbsent(includeTags, ItemTargetIndex::fromRegistry);
+        return itemTargetsByTagInclusion.computeIfAbsent(includeTags, itemTargetSource);
     }
 
     private void registerDefaultPrimitives() {

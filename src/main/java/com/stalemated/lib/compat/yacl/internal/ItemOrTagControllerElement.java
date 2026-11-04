@@ -199,8 +199,18 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
     @Override
     public List<String> computeMatchingValues() {
-        this.currentItemIcon = iconFor(this.inputField);
+        if (this.iconsByTarget.size() > ItemTargetIndex.MAX_MATCHES) {
+            this.iconsByTarget.clear();
+        }
+        this.currentItemIcon = cachedIconFor(this.inputField);
+        if (!this.inputFieldFocused) return List.of();
         return this.itemOrTagController.targets().matching(this.inputField);
+    }
+
+    @Override
+    public void createDropdownWidget() {
+        this.matchingValues = computeMatchingValues();
+        super.createDropdownWidget();
     }
 
     //? if yacl: <3.9.0 {
