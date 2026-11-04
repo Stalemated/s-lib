@@ -33,6 +33,8 @@ import static com.stalemated.lib.SLib.LOGGER;
  */
 public class YaclControllerRegistry {
 
+    private static final Pattern NO_BREAK_SPACES = Pattern.compile("[\\u00a0\\u202f]");
+
     private final Map<Class<?>, TypeLens<?, ?>> lenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
     private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
@@ -130,7 +132,7 @@ public class YaclControllerRegistry {
         } catch (IllegalFormatException e) {
             throw new IllegalArgumentException("@Format on '" + info.getKey() + "' cannot format a " + min.getClass().getSimpleName() + ": '" + pattern + "'", e);
         }
-        return slider.formatValue(value -> Component.literal(String.format(pattern, value)));
+        return slider.formatValue(value -> Component.literal(NO_BREAK_SPACES.matcher(String.format(pattern, value)).replaceAll(" ")));
     }
 
     private static void requireNoFormat(OptionInfo info) {
