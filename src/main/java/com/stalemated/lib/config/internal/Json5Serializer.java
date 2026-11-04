@@ -105,7 +105,7 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
     @Override
     public Object deserializeOption(com.google.gson.JsonElement json, Type targetType) {
-        return gson.fromJson(json, targetType);
+        return gson.fromJson(json.toString(), targetType);
     }
 
     private void readOption(T instance, JsonObject rootObject, OptionInfo option, LoadReport report) {
