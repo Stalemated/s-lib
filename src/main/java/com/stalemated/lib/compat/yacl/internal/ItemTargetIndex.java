@@ -3,6 +3,7 @@ package com.stalemated.lib.compat.yacl.internal;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -44,18 +45,22 @@ public final class ItemTargetIndex {
             return targets.subList(0, Math.min(MAX_MATCHES, targets.size()));
         }
 
-        List<String> prefixed = new ArrayList<>();
+        List<String> matches = new ArrayList<>();
+        if (Collections.binarySearch(targets, needle) >= 0) {
+            matches.add(needle);
+        }
         List<String> contained = new ArrayList<>();
         for (String target : targets) {
-            if (prefixed.size() == MAX_MATCHES) break;
+            if (matches.size() == MAX_MATCHES) break;
+            if (target.equals(needle)) continue;
             if (startsAtWord(target, needle)) {
-                prefixed.add(target);
+                matches.add(target);
             } else if (contained.size() < MAX_MATCHES && target.contains(needle)) {
                 contained.add(target);
             }
         }
-        prefixed.addAll(contained.subList(0, Math.min(contained.size(), MAX_MATCHES - prefixed.size())));
-        return prefixed;
+        matches.addAll(contained.subList(0, Math.min(contained.size(), MAX_MATCHES - matches.size())));
+        return matches;
     }
 
     private static boolean startsAtWord(String target, String needle) {

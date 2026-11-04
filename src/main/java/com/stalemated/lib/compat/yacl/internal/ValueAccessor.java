@@ -89,7 +89,7 @@ public final class ValueAccessor<M> {
             throw new IndexOutOfBoundsException("list element index must be 0 or greater, got " + index);
         }
         return of(
-                SyncSlot.of(listInfo.getKey()).withEntry(Integer.toString(index)),
+                SyncSlot.of(listInfo.getKey()),
                 () -> {
                     List<E> list = session.get(listInfo);
                     return list != null && index < list.size() ? list.get(index) : null;
