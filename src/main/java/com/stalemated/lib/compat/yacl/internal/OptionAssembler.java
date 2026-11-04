@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class OptionAssembler {
 
@@ -84,7 +85,7 @@ public final class OptionAssembler {
                 value.slot(),
                 builder,
                 guiDefault,
-                () -> lens.guiOf(value.get(), guiDefault),
+                new LastConversion<>(value::get, lens, guiDefault),
                 gui -> {
                     M model = lens.fromGui().apply(gui);
                     if (model != null) {
@@ -155,6 +156,53 @@ public final class OptionAssembler {
             }
         }
         return models;
+    }
+
+    private static final class LastConversion<M, G> implements Supplier<G> {
+        private final Supplier<M> model;
+        private final TypeLens<M, G> lens;
+        private final G whenAbsent;
+        private boolean converted;
+        private Object lastModel;
+        private G lastGui;
+
+        private LastConversion(Supplier<M> model, TypeLens<M, G> lens, G whenAbsent) {
+            this.model = model;
+            this.lens = lens;
+            this.whenAbsent = whenAbsent;
+        }
+
+        @Override
+        public G get() {
+            M current = model.get();
+            if (converted && sameModel(current, lastModel)) {
+                return lastGui;
+            }
+            lastGui = lens.guiOf(current, whenAbsent);
+            lastModel = current instanceof Collection<?> collection ? new ArrayList<>(collection) : current;
+            converted = true;
+            return lastGui;
+        }
+
+        private static boolean sameModel(Object current, Object last) {
+            if (!(current instanceof Collection<?> collection)) {
+                return Objects.equals(current, last);
+            }
+            if (!(last instanceof List<?> snapshot) || snapshot.size() != collection.size()) {
+                return false;
+            }
+            if (collection instanceof List<?> list) {
+                for (int i = 0; i < list.size(); i++) {
+                    if (!Objects.equals(list.get(i), snapshot.get(i))) return false;
+                }
+                return true;
+            }
+            int index = 0;
+            for (Object element : collection) {
+                if (!Objects.equals(element, snapshot.get(index++))) return false;
+            }
+            return true;
+        }
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

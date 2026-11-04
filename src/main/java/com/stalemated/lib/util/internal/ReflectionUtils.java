@@ -336,7 +336,7 @@ public final class ReflectionUtils {
         return true;
     }
 
-    private static Object readField(Field field, Object instance) {
+    public static Object readField(Field field, Object instance) {
         try {
             return field.get(instance);
         } catch (IllegalAccessException e) {
