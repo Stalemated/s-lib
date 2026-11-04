@@ -125,11 +125,11 @@ public final class WrapperChannel {
 
     private static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
-        registrar.playBidirectional(
-                WrapperPayload.ID,
-                WrapperPayload.CODEC,
-                WrapperChannel::handlePayload
-        );
+        //? if <1.21.7 {
+        /^registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload);
+        ^///?} else {
+        registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload, WrapperChannel::handlePayload);
+        //?}
     }
     *///?}
 
