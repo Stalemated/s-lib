@@ -36,7 +36,7 @@ final class MinecraftConfigTransport implements ConfigTransport {
     }
 
     @Override
-    public void sendToClient(ServerPlayer player, ResourceLocation channel, String json) {
+    public void sendToClient(ServerPlayer player, ResourceLocation channel, byte[] json) {
         NetworkHelper.sendToClient(player, channel, ConfigNetworkPayload.encode(json));
     }
 
@@ -52,7 +52,7 @@ final class MinecraftConfigTransport implements ConfigTransport {
     }
 
     @Override
-    public void sendToServer(ResourceLocation channel, String json) {
+    public void sendToServer(ResourceLocation channel, byte[] json) {
         NetworkHelper.sendToServer(channel, ConfigNetworkPayload.encode(json));
     }
 

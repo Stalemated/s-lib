@@ -16,11 +16,11 @@ interface ConfigTransport {
 
     void unregisterServerReceiver(ResourceLocation channel);
 
-    void sendToClient(ServerPlayer player, ResourceLocation channel, String json);
+    void sendToClient(ServerPlayer player, ResourceLocation channel, byte[] json);
 
     List<ServerPlayer> remotePlayers();
 
-    void sendToServer(ResourceLocation channel, String json);
+    void sendToServer(ResourceLocation channel, byte[] json);
 
     boolean isSingleplayerOwner(ServerPlayer player);
 }

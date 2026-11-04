@@ -99,13 +99,13 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
     }
 
     @Override
-    public String serializeOption(Object value) {
-        return gson.toJson(value);
+    public com.google.gson.JsonElement serializeOption(Object value) {
+        return gson.toJsonTree(value);
     }
 
     @Override
-    public Object deserializeOption(String rawJson, Type targetType) {
-        return gson.fromJson(rawJson, targetType);
+    public Object deserializeOption(com.google.gson.JsonElement json, Type targetType) {
+        return gson.fromJson(json, targetType);
     }
 
     private void readOption(T instance, JsonObject rootObject, OptionInfo option, LoadReport report) {

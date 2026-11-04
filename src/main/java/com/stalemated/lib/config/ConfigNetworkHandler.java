@@ -9,7 +9,9 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import static com.stalemated.lib.SLib.LOGGER;
@@ -116,21 +118,26 @@ final class ConfigNetworkHandler<T> {
     void sendConfigToPlayer(ServerPlayer player) {
         // Prevent local loopback race condition: don't send the S2C sync packet to the integrated server host.
         if (transport.isSingleplayerOwner(player)) return;
-        sendServerConfig(player, serverSnapshot());
+        sendServerConfig(player, serverConfigBytes(serverSnapshot(), canChangeOverrides(player)));
     }
 
     void broadcastServerConfig() {
         String options = serverSnapshot();
+        Map<Boolean, byte[]> messagesByPermission = new HashMap<>(2);
         for (ServerPlayer player : transport.remotePlayers()) {
-            sendServerConfig(player, options);
+            byte[] json = messagesByPermission.computeIfAbsent(canChangeOverrides(player), canChange -> serverConfigBytes(options, canChange));
+            sendServerConfig(player, json);
         }
     }
 
-    private void sendServerConfig(ServerPlayer player, String options) {
-        String json = ConfigNetworkPayload.serverConfig(options, canChangeOverrides(player));
+    private void sendServerConfig(ServerPlayer player, byte[] json) {
         if (fits(json, ConfigNetworkPayload.MAX_PAYLOAD_BYTES, () -> "player " + player.getScoreboardName())) {
             transport.sendToClient(player, channels.serverConfig(), json);
         }
+    }
+
+    private static byte[] serverConfigBytes(String options, boolean canChangeOverrides) {
+        return ConfigNetworkPayload.serverConfig(options, canChangeOverrides).getBytes(StandardCharsets.UTF_8);
     }
 
     private boolean canChangeOverrides(ServerPlayer player) {
@@ -167,16 +174,16 @@ final class ConfigNetworkHandler<T> {
     }
 
     private boolean sendToServer(ResourceLocation packet, String json) {
-        if (!fits(json, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, () -> "the server")) return false;
-        transport.sendToServer(packet, json);
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        if (!fits(bytes, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, () -> "the server")) return false;
+        transport.sendToServer(packet, bytes);
         return true;
     }
 
-    private boolean fits(String json, int maxBytes, Supplier<String> destination) {
-        int bytes = json.getBytes(StandardCharsets.UTF_8).length;
-        if (bytes <= maxBytes) return true;
+    private boolean fits(byte[] json, int maxBytes, Supplier<String> destination) {
+        if (json.length <= maxBytes) return true;
 
-        LOGGER.error("Sync of config '{}' to {} is {} bytes, limit is {}; nothing was sent", manager.getName(), destination.get(), bytes, maxBytes);
+        LOGGER.error("Sync of config '{}' to {} is {} bytes, limit is {}; nothing was sent", manager.getName(), destination.get(), json.length, maxBytes);
         return false;
     }
 }

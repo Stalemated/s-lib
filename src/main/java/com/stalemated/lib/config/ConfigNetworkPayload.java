@@ -87,9 +87,10 @@ final class ConfigNetworkPayload {
         return payload.toString();
     }
 
-    public static FriendlyByteBuf encode(String json) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        buf.writeUtf(json, MAX_PAYLOAD_BYTES);
+    public static FriendlyByteBuf encode(byte[] utf8Json) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(utf8Json.length + 5));
+        buf.writeVarInt(utf8Json.length);
+        buf.writeBytes(utf8Json);
         return buf;
     }
 
@@ -139,7 +140,7 @@ final class ConfigNetworkPayload {
     }
 
     private static void put(JsonObject payload, OptionInfo option, Object value, ConfigSerializer<?> serializer) {
-        payload.add(option.getKey(), JsonParser.parseString(serializer.serializeOption(value)));
+        payload.add(option.getKey(), serializer.serializeOption(value));
     }
 
     private static void applySingleOption(String key, JsonElement elem, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
@@ -156,7 +157,7 @@ final class ConfigNetworkPayload {
         }
 
         try {
-            Object rawValue = serializer.deserializeOption(elem.toString(), option.genericType());
+            Object rawValue = serializer.deserializeOption(elem, option.genericType());
             Object clampedValue = option.clampValue(rawValue);
             option.setValue(targetInstance, clampedValue);
         } catch (RuntimeException e) {

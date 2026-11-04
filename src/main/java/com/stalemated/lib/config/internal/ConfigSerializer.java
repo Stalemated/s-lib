@@ -1,6 +1,8 @@
 package com.stalemated.lib.config.internal;
 
 
+import com.google.gson.JsonElement;
+
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 
@@ -32,21 +34,21 @@ public interface ConfigSerializer<T> {
     DeserializationResult<T> deserialize(String content, Supplier<T> defaultFactory);
 
     /**
-     * Serializes a specific option value into a raw JSON string.
+     * Serializes a specific option value into a JSON tree.
      * Useful for network synchronization where only specific fields are transmitted.
      *
      * @param value The value to serialize
-     * @return The serialized JSON string
+     * @return The serialized JSON tree
      */
-    String serializeOption(Object value);
+    JsonElement serializeOption(Object value);
 
     /**
-     * Deserializes a specific option value from a raw JSON string.
+     * Deserializes a specific option value from a JSON tree.
      * Useful for network synchronization where only specific fields are transmitted.
      *
-     * @param rawJson The raw JSON string representing the field's value
+     * @param json The JSON tree representing the field's value
      * @param targetType The generic type to deserialize into
      * @return The deserialized Java object
      */
-    Object deserializeOption(String rawJson, Type targetType);
+    Object deserializeOption(JsonElement json, Type targetType);
 }
