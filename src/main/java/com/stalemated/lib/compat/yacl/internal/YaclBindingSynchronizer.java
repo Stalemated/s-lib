@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.internal;
 
+import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.internal.ConfigSession;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -26,8 +28,15 @@ public final class YaclBindingSynchronizer {
 
     private final ConfigSession<?> session;
     private final Map<String, List<SlottedOption>> optionsByContainer = new HashMap<>();
+    private final Map<String, List<Dependent>> dependentsByToggle = new HashMap<>();
 
     private record SlottedOption(SyncSlot slot, Option<?> option, Runnable forgetCachedValue) {}
+
+    private record Dependent(Option<?> option, boolean allowed, Set<String> values) {
+        void follow(Object toggleValue) {
+            option.setAvailable(allowed && values.contains(toggleValue instanceof Enum<?> constant ? constant.name() : String.valueOf(toggleValue)));
+        }
+    }
 
     public YaclBindingSynchronizer(ConfigSession<?> session) {
         this.session = Objects.requireNonNull(session, "session cannot be null");
@@ -67,7 +76,25 @@ public final class YaclBindingSynchronizer {
                 session.applyToPreview(() -> setter.accept(opt.pendingValue()));
             }
         });
+        if (isWholeOption(slot)) {
+            built.addEventListener((opt, event) -> dependentsByToggle.getOrDefault(slot.container(), List.of())
+                    .forEach(dependent -> dependent.follow(opt.pendingValue())));
+        }
         return built;
+    }
+
+    public void enableWhen(Option<?> dependent, boolean allowed, OptionInfo toggle, Set<String> values) {
+        Dependent follower = new Dependent(dependent, allowed, values);
+        dependentsByToggle.computeIfAbsent(toggle.getKey(), key -> new ArrayList<>()).add(follower);
+        follower.follow(optionsByContainer.getOrDefault(toggle.getKey(), List.of()).stream()
+                .filter(registered -> isWholeOption(registered.slot()))
+                .findFirst()
+                .<Object>map(registered -> registered.option().pendingValue())
+                .orElseGet(() -> session.get(toggle)));
+    }
+
+    private static boolean isWholeOption(SyncSlot slot) {
+        return slot.entry() == null && slot.field() == null;
     }
 
     /**
