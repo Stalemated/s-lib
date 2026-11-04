@@ -48,7 +48,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         Map<String, ?> defaultMap = (Map<String, ?>) info.defaultCopy();
 
         ValueAccessor<List<String>> lines = ValueAccessor.of(
-                info.getKey(),
+                SyncSlot.of(info.getKey()),
                 () -> toLines(context.session().get(info), valueText),
                 guiList -> persistGuiMap(info, guiList, valueText)
         );
@@ -89,6 +89,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         for (String entryKey : currentMap.keySet()) {
             YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, mapInfo, mapInfo.getKey());
             ValueAccessor<List<String>> projected = ValueAccessor.mapEntry(context.session(), mapInfo, entryKey).property(
+                    null,
                     item -> copyOf(binding.getter().apply((N) item)),
                     (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list))
             );

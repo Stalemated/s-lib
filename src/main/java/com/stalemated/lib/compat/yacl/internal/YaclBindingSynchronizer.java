@@ -25,7 +25,9 @@ import java.util.function.Supplier;
 public final class YaclBindingSynchronizer {
 
     private final ConfigSession<?> session;
-    private final Map<String, List<Option<?>>> optionsByKey = new HashMap<>();
+    private final Map<String, List<SlottedOption>> optionsByContainer = new HashMap<>();
+
+    private record SlottedOption(SyncSlot slot, Option<?> option) {}
 
     public YaclBindingSynchronizer(ConfigSession<?> session) {
         this.session = Objects.requireNonNull(session, "session cannot be null");
@@ -37,7 +39,7 @@ public final class YaclBindingSynchronizer {
     }
 
     private <V, O extends Option<V>, B> O buildSynced(
-            String key,
+            SyncSlot slot,
             B builder,
             V defaultValue,
             Supplier<V> getter,
@@ -54,11 +56,11 @@ public final class YaclBindingSynchronizer {
                 builder,
                 defaultValue,
                 getter,
-                val -> applySyncedMutation(key, optRef.get(), () -> setter.accept(val))
+                val -> applySyncedMutation(slot, optRef.get(), () -> setter.accept(val))
         );
         O built = buildStep.apply(builder);
         optRef.set(built);
-        optionsByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(built);
+        optionsByContainer.computeIfAbsent(slot.container(), container -> new ArrayList<>()).add(new SlottedOption(slot, built));
         built.addEventListener((opt, event) -> {
             if (session.hasPreview()) {
                 session.applyToPreview(() -> setter.accept(opt.pendingValue()));
@@ -71,7 +73,7 @@ public final class YaclBindingSynchronizer {
      * Binds, configures, and builds a standard YACL {@link Option}, registering it for cross-tab
      * sync and post-setter normalization within this screen.
      *
-     * @param key            The key of the stored value; widgets sharing it are kept in sync.
+     * @param slot           The stored value the option shows; widgets with overlapping slots are kept in sync.
      * @param builder        The YACL option builder.
      * @param defaultValue   The default GUI value.
      * @param getter         The binding getter reading from the session draft.
@@ -82,14 +84,14 @@ public final class YaclBindingSynchronizer {
      * @return The built and registered {@link Option}.
      */
     public <V> Option<V> buildSyncedOption(
-            String key,
+            SyncSlot slot,
             Option.Builder<V> builder,
             V defaultValue,
             Supplier<V> getter,
             Consumer<V> setter,
             Consumer<Option.Builder<V>> postConfigurer
     ) {
-        return buildSynced(key, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(slot, builder, defaultValue, getter, setter, postConfigurer,
                 Option.Builder::binding, Option.Builder::build);
     }
 
@@ -97,7 +99,7 @@ public final class YaclBindingSynchronizer {
      * Binds, configures, and builds a YACL {@link ListOption}, registering it for cross-tab
      * sync and post-setter normalization within this screen.
      *
-     * @param key            The key of the stored value; widgets sharing it are kept in sync.
+     * @param slot           The stored value the option shows; widgets with overlapping slots are kept in sync.
      * @param builder        The YACL list option builder.
      * @param defaultValue   The default GUI list value.
      * @param getter         The binding getter reading from the session draft.
@@ -108,22 +110,22 @@ public final class YaclBindingSynchronizer {
      * @return The built and registered {@link ListOption}.
      */
     public <E> ListOption<E> buildSyncedListOption(
-            String key,
+            SyncSlot slot,
             ListOption.Builder<E> builder,
             List<E> defaultValue,
             Supplier<List<E>> getter,
             Consumer<List<E>> setter,
             Consumer<ListOption.Builder<E>> postConfigurer
     ) {
-        return buildSynced(key, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(slot, builder, defaultValue, getter, setter, postConfigurer,
                 ListOption.Builder::binding, ListOption.Builder::build);
     }
 
-    private void applySyncedMutation(String key, Option<?> sourceOption, Runnable mutation) {
+    private void applySyncedMutation(SyncSlot slot, Option<?> sourceOption, Runnable mutation) {
         List<Option<?>> unchangedSiblings = new ArrayList<>();
-        for (Option<?> sibling : optionsByKey.getOrDefault(key, List.of())) {
-            if (sibling != sourceOption && !sibling.changed()) {
-                unchangedSiblings.add(sibling);
+        for (SlottedOption sibling : optionsByContainer.getOrDefault(slot.container(), List.of())) {
+            if (sibling.option() != sourceOption && sibling.slot().overlaps(slot) && !sibling.option().changed()) {
+                unchangedSiblings.add(sibling.option());
             }
         }
 

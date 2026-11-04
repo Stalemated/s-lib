@@ -81,7 +81,7 @@ public final class OptionAssembler {
                 .available(meta.available());
 
         return synchronizer.buildSyncedOption(
-                value.key(),
+                value.slot(),
                 builder,
                 guiDefault,
                 () -> lens.guiOf(value.get(), guiDefault),
@@ -116,7 +116,7 @@ public final class OptionAssembler {
                 .available(meta.available());
 
         return synchronizer.buildSyncedListOption(
-                value.key(),
+                value.slot(),
                 builder,
                 guiDefault,
                 () -> {

@@ -17,27 +17,27 @@ import java.util.function.Supplier;
 
 public final class ValueAccessor<M> {
 
-    private final String key;
+    private final SyncSlot slot;
     private final Supplier<M> reader;
     private final Consumer<M> writer;
 
-    private ValueAccessor(String key, Supplier<M> reader, Consumer<M> writer) {
-        this.key = Objects.requireNonNull(key, "key cannot be null");
+    private ValueAccessor(SyncSlot slot, Supplier<M> reader, Consumer<M> writer) {
+        this.slot = Objects.requireNonNull(slot, "slot cannot be null");
         this.reader = Objects.requireNonNull(reader, "reader cannot be null");
         this.writer = Objects.requireNonNull(writer, "writer cannot be null");
     }
 
-    public static <M> ValueAccessor<M> of(String key, Supplier<M> reader, Consumer<M> writer) {
-        return new ValueAccessor<>(key, reader, writer);
+    public static <M> ValueAccessor<M> of(SyncSlot slot, Supplier<M> reader, Consumer<M> writer) {
+        return new ValueAccessor<>(slot, reader, writer);
     }
 
     public static <M> ValueAccessor<M> option(ConfigSession<?> session, OptionInfo info) {
-        return of(info.getKey(), () -> session.get(info), value -> session.set(info, value));
+        return of(SyncSlot.of(info.getKey()), () -> session.get(info), value -> session.set(info, value));
     }
 
     public static <E> ValueAccessor<List<E>> collection(ConfigSession<?> session, OptionInfo info) {
         return of(
-                info.getKey(),
+                SyncSlot.of(info.getKey()),
                 () -> {
                     Collection<E> current = session.get(info);
                     return current != null ? new ArrayList<>(current) : null;
@@ -52,9 +52,11 @@ public final class ValueAccessor<M> {
     public static ValueAccessor<Object> mapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey) {
         Objects.requireNonNull(entryKey, "entryKey cannot be null");
         return of(
-                mapInfo.getKey(),
+                SyncSlot.of(mapInfo.getKey()).withEntry(entryKey),
                 () -> mapOrDefaults(session, mapInfo).get(entryKey),
                 item -> {
+                    Map<?, ?> stored = session.get(mapInfo);
+                    if (item != null && stored != null && stored.get(entryKey) == item) return;
                     Map<Object, Object> updated = new LinkedHashMap<>(mapOrDefaults(session, mapInfo));
                     updated.put(entryKey, item);
                     session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
@@ -67,12 +69,14 @@ public final class ValueAccessor<M> {
             throw new IndexOutOfBoundsException("list entry index must be 0 or greater, got " + index);
         }
         return of(
-                listInfo.getKey(),
+                SyncSlot.of(listInfo.getKey()).withEntry(Integer.toString(index)),
                 () -> {
                     List<?> list = listOrDefaults(session, listInfo);
                     return index < list.size() ? list.get(index) : null;
                 },
                 item -> {
+                    List<?> stored = session.get(listInfo);
+                    if (item != null && stored != null && index < stored.size() && stored.get(index) == item) return;
                     List<Object> updated = new ArrayList<>(listOrDefaults(session, listInfo));
                     updated.set(index, item);
                     session.set(listInfo, updated);
@@ -85,7 +89,7 @@ public final class ValueAccessor<M> {
             throw new IndexOutOfBoundsException("list element index must be 0 or greater, got " + index);
         }
         return of(
-                listInfo.getKey(),
+                SyncSlot.of(listInfo.getKey()).withEntry(Integer.toString(index)),
                 () -> {
                     List<E> list = session.get(listInfo);
                     return list != null && index < list.size() ? list.get(index) : null;
@@ -120,9 +124,9 @@ public final class ValueAccessor<M> {
         return current != null ? current : defaultListOf(listInfo);
     }
 
-    public <P> ValueAccessor<P> property(Function<M, P> read, BiConsumer<M, P> write) {
+    public <P> ValueAccessor<P> property(String field, Function<M, P> read, BiConsumer<M, P> write) {
         return of(
-                key,
+                slot.withField(field),
                 () -> {
                     M owner = get();
                     return owner != null ? read.apply(owner) : null;
@@ -137,8 +141,8 @@ public final class ValueAccessor<M> {
         );
     }
 
-    public String key() {
-        return key;
+    public SyncSlot slot() {
+        return slot;
     }
 
     public M get() {

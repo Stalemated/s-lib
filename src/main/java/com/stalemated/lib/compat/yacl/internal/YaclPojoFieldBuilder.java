@@ -55,6 +55,7 @@ public final class YaclPojoFieldBuilder {
                 optionKey
         );
         ValueAccessor<Object> value = entry.property(
+                field.getName(),
                 item -> ReflectionUtils.getFieldValue(field, item),
                 (item, model) -> ReflectionUtils.setFieldValue(field, item, fieldInfo.clampValue(model))
         );
