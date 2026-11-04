@@ -3,10 +3,12 @@ package com.stalemated.lib.config;
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -42,6 +44,26 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
         this.manager = LocalConfigManager.inMemory(new InstanceProvider<>(instance, onSave), new OptionTree(type, defaultFactory), defaultFactory);
     }
 
+    static <P, E> InMemoryConfigManager<E> forListElement(ConfigManager<P> owner, Function<P, List<E>> list, E element, Supplier<E> defaultFactory) {
+        Objects.requireNonNull(owner, "owner cannot be null");
+        Objects.requireNonNull(list, "list cannot be null");
+        Objects.requireNonNull(element, "element cannot be null");
+        Objects.requireNonNull(defaultFactory, "defaultFactory cannot be null");
+
+        ListElementWriter<P, E> writer = new ListElementWriter<>(owner, list, indexOf(list.apply(owner.get()), element));
+        InMemoryConfigManager<E> elementManager = new InMemoryConfigManager<>(defaultFactory.get(), defaultFactory, writer);
+        elementManager.getOptionTree().copyAllValues(element, elementManager.get());
+        writer.elementManager = elementManager;
+        return elementManager;
+    }
+
+    private static <E> int indexOf(List<E> elements, E element) {
+        for (int i = 0; i < elements.size(); i++) {
+            if (elements.get(i) == element) return i;
+        }
+        return ListElementWriter.NOT_IN_LIST;
+    }
+
     @Override
     public String getName() {
         return manager.getName();
@@ -75,6 +97,37 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
     @Override
     public Subscription onChange(Consumer<T> listener) {
         return manager.onChange(listener);
+    }
+
+    private static final class ListElementWriter<P, E> implements Consumer<E> {
+        private static final int NOT_IN_LIST = -1;
+
+        private final ConfigManager<P> owner;
+        private final Function<P, List<E>> list;
+        private int index;
+        private InMemoryConfigManager<E> elementManager;
+
+        private ListElementWriter(ConfigManager<P> owner, Function<P, List<E>> list, int index) {
+            this.owner = owner;
+            this.list = list;
+            this.index = index;
+        }
+
+        @Override
+        public void accept(E saved) {
+            E copy = elementManager.cloneConfig(saved);
+            owner.modify(config -> {
+                List<E> elements = list.apply(config);
+                if (index == NOT_IN_LIST) {
+                    index = elements.size();
+                    elements.add(copy);
+                } else if (index < elements.size()) {
+                    elements.set(index, copy);
+                } else {
+                    throw new IllegalStateException("The list of '" + owner.getName() + "' has " + elements.size() + " elements, cannot replace element " + index);
+                }
+            });
+        }
     }
 
     private record InstanceProvider<T>(T instance, Consumer<T> onSave) implements ConfigProvider<T> {

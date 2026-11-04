@@ -1,7 +1,10 @@
 package com.stalemated.lib.config;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 public interface ConfigManager<T> {
 
@@ -20,6 +23,10 @@ public interface ConfigManager<T> {
     }
 
     Subscription onChange(Consumer<T> listener);
+
+    default <E> ConfigManager<E> editListElement(Function<T, List<E>> list, E element, Supplier<E> defaults) {
+        return InMemoryConfigManager.forListElement(this, list, element, defaults);
+    }
 
     default String toJson(Object value) {
         return getOptionTree().gson().toJson(value);
