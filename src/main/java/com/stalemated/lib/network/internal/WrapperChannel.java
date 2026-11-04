@@ -6,8 +6,10 @@ import net.minecraft.server.level.ServerPlayer;
 //? if forge || neoforge || <1.20.5
 import static com.stalemated.lib.SLib.MOD_ID;
 
-//? if forge || fabric && <1.20.5
+//? if forge || fabric && <1.20.5 {
+import com.stalemated.lib.util.ResourceIds;
 import net.minecraft.network.FriendlyByteBuf;
+//?}
 
 //? if fabric{
 import com.stalemated.lib.helper.PlatformHelper;
@@ -52,10 +54,9 @@ public final class WrapperChannel {
     /*private static final String PROTOCOL_VERSION = "1";
     private static SimpleChannel channel;
 
-    @SuppressWarnings("removal")
     public static void registerChannel() {
         channel = NetworkRegistry.newSimpleChannel(
-                new ResourceLocation(MOD_ID, "network"),
+                ResourceIds.of(MOD_ID, "network"),
                 () -> PROTOCOL_VERSION,
                 NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
                 NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION)
@@ -160,7 +161,7 @@ public final class WrapperChannel {
     *///?}
 
     //? if fabric && <1.20.5 {
-    private static final ResourceLocation CHANNEL_ID = new ResourceLocation(MOD_ID, "network");
+    private static final ResourceLocation CHANNEL_ID = ResourceIds.of(MOD_ID, "network");
 
     public static void registerPayloads() {
         ServerPlayNetworking.registerGlobalReceiver(CHANNEL_ID, (server, player, handler, buf, responseSender) -> {

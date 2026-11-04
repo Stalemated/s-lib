@@ -2,6 +2,7 @@ package com.stalemated.lib.config.internal;
 
 import com.google.gson.*;
 import com.stalemated.lib.config.annotation.Ignore;
+import com.stalemated.lib.util.ResourceIds;
 import com.stalemated.lib.util.color.ColorUtils;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
@@ -141,11 +142,7 @@ public final class SLibGsonDefaults {
 
         @Override
         public ResourceLocation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            //? if <1.21 {
-            return new ResourceLocation(json.getAsString());
-            //?} else {
-            /*return ResourceLocation.parse(json.getAsString());
-            *///?}
+            return ResourceIds.parse(json.getAsString());
         }
     }
 

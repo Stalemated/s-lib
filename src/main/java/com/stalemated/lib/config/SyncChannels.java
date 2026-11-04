@@ -1,5 +1,6 @@
 package com.stalemated.lib.config;
 
+import com.stalemated.lib.util.ResourceIds;
 import net.minecraft.resources.ResourceLocation;
 
 record SyncChannels(ResourceLocation serverConfig, ResourceLocation clientOverride, ResourceLocation clientInform) {
@@ -9,11 +10,6 @@ record SyncChannels(ResourceLocation serverConfig, ResourceLocation clientOverri
     }
 
     private static ResourceLocation child(ResourceLocation base, String name) {
-        String path = base.getPath() + "/" + name;
-        //? if <1.21 {
-        return new ResourceLocation(base.getNamespace(), path);
-        //?} else {
-        /*return ResourceLocation.fromNamespaceAndPath(base.getNamespace(), path);
-        *///?}
+        return ResourceIds.of(base.getNamespace(), base.getPath() + "/" + name);
     }
 }

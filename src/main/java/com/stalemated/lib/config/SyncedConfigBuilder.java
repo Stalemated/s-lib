@@ -1,6 +1,7 @@
 package com.stalemated.lib.config;
 
 import com.stalemated.lib.config.permissions.ServerConfigPermissions;
+import com.stalemated.lib.util.ResourceIds;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -65,10 +66,6 @@ public final class SyncedConfigBuilder<T> extends ConfigBuilder<T, SyncedConfigM
 
     private ResourceLocation resolveChannel() {
         if (syncChannel != null) return syncChannel;
-        //? if <1.21 {
-        return new ResourceLocation(modId, "sync_config");
-        //?} else {
-        /*return ResourceLocation.fromNamespaceAndPath(modId, "sync_config");
-        *///?}
+        return ResourceIds.of(modId, "sync_config");
     }
 }
