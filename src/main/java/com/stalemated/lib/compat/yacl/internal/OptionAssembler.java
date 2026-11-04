@@ -80,12 +80,14 @@ public final class OptionAssembler {
                 .name(meta.name())
                 .description(meta.description())
                 .available(meta.available());
+        LastConversion<M, G> stored = new LastConversion<>(value::get, lens, guiDefault);
 
         return synchronizer.buildSyncedOption(
                 value.slot(),
                 builder,
                 guiDefault,
-                new LastConversion<>(value::get, lens, guiDefault),
+                stored,
+                stored::forget,
                 gui -> {
                     M model = lens.fromGui().apply(gui);
                     if (model != null) {
@@ -182,6 +184,10 @@ public final class OptionAssembler {
             lastModel = current instanceof Collection<?> collection ? new ArrayList<>(collection) : current;
             converted = true;
             return lastGui;
+        }
+
+        private void forget() {
+            converted = false;
         }
 
         private static boolean sameModel(Object current, Object last) {

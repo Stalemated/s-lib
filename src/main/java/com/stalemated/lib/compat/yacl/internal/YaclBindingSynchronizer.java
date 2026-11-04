@@ -27,7 +27,7 @@ public final class YaclBindingSynchronizer {
     private final ConfigSession<?> session;
     private final Map<String, List<SlottedOption>> optionsByContainer = new HashMap<>();
 
-    private record SlottedOption(SyncSlot slot, Option<?> option) {}
+    private record SlottedOption(SyncSlot slot, Option<?> option, Runnable forgetCachedValue) {}
 
     public YaclBindingSynchronizer(ConfigSession<?> session) {
         this.session = Objects.requireNonNull(session, "session cannot be null");
@@ -43,6 +43,7 @@ public final class YaclBindingSynchronizer {
             B builder,
             V defaultValue,
             Supplier<V> getter,
+            Runnable forgetCachedValue,
             Consumer<V> setter,
             Consumer<B> postConfigurer,
             BindingStep<B, V> bindStep,
@@ -60,7 +61,7 @@ public final class YaclBindingSynchronizer {
         );
         O built = buildStep.apply(builder);
         optRef.set(built);
-        optionsByContainer.computeIfAbsent(slot.container(), container -> new ArrayList<>()).add(new SlottedOption(slot, built));
+        optionsByContainer.computeIfAbsent(slot.container(), container -> new ArrayList<>()).add(new SlottedOption(slot, built, forgetCachedValue));
         built.addEventListener((opt, event) -> {
             if (session.hasPreview()) {
                 session.applyToPreview(() -> setter.accept(opt.pendingValue()));
@@ -77,6 +78,8 @@ public final class YaclBindingSynchronizer {
      * @param builder        The YACL option builder.
      * @param defaultValue   The default GUI value.
      * @param getter         The binding getter reading from the session draft.
+     * @param forgetCachedValue Drops what the getter cached; run after every write to an overlapping slot,
+     *                       since a write can change the stored value in place.
      * @param setter         The binding setter writing to the session draft.
      * @param postConfigurer Callback to configure the controller and apply any user customizer before the
      *                       synced binding is set, so a customizer cannot replace it.
@@ -88,10 +91,11 @@ public final class YaclBindingSynchronizer {
             Option.Builder<V> builder,
             V defaultValue,
             Supplier<V> getter,
+            Runnable forgetCachedValue,
             Consumer<V> setter,
             Consumer<Option.Builder<V>> postConfigurer
     ) {
-        return buildSynced(slot, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(slot, builder, defaultValue, getter, forgetCachedValue, setter, postConfigurer,
                 Option.Builder::binding, Option.Builder::build);
     }
 
@@ -117,19 +121,23 @@ public final class YaclBindingSynchronizer {
             Consumer<List<E>> setter,
             Consumer<ListOption.Builder<E>> postConfigurer
     ) {
-        return buildSynced(slot, builder, defaultValue, getter, setter, postConfigurer,
+        return buildSynced(slot, builder, defaultValue, getter, () -> {}, setter, postConfigurer,
                 ListOption.Builder::binding, ListOption.Builder::build);
     }
 
     private void applySyncedMutation(SyncSlot slot, Option<?> sourceOption, Runnable mutation) {
+        List<SlottedOption> overlapping = new ArrayList<>();
         List<Option<?>> unchangedSiblings = new ArrayList<>();
         for (SlottedOption sibling : optionsByContainer.getOrDefault(slot.container(), List.of())) {
-            if (sibling.option() != sourceOption && sibling.slot().overlaps(slot) && !sibling.option().changed()) {
+            if (!sibling.slot().overlaps(slot)) continue;
+            overlapping.add(sibling);
+            if (sibling.option() != sourceOption && !sibling.option().changed()) {
                 unchangedSiblings.add(sibling.option());
             }
         }
 
         mutation.run();
+        overlapping.forEach(written -> written.forgetCachedValue().run());
 
         if (sourceOption != null && sourceOption.changed()) {
             sourceOption.forgetPendingValue();
