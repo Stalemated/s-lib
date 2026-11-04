@@ -18,13 +18,7 @@ stonecutter parameters {
         match(loader, "fabric", "neoforge", "forge")
     }
 
-    swaps["mod_version"] = "\"${properties.get<String>("mod.version")}\";"
-    swaps["minecraft"] = "\"${node.metadata.version}\";"
-    constants["release"] = properties.get<String>("mod.id") != "s_lib"
-    dependencies["fapi"] = properties.getOrNull<String>("deps.fabric_api") ?: "0"
-    val yaclVer = properties.getOrNull<String>("deps.yacl")?.substringBefore('+') ?: "0"
-    dependencies["yacl"] = yaclVer
-    dependencies["yet_another_config_lib_v3"] = yaclVer
+    dependencies["yacl"] = properties.getOrNull<String>("deps.yacl")?.substringBefore('+') ?: "0"
 
     replacements {
         string(current.parsed >= "1.21.11") {

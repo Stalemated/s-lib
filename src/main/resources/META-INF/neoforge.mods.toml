@@ -11,7 +11,7 @@ authors = "Stalemated"
 description = '''
 An easy to use general utility and config library.
 '''
-logoFile = "icon.png"
+${icon_key} = "icon.png"
 displayURL = "https://www.curseforge.com/minecraft/mc-mods/s-lib"
 
 [[mixins]]
