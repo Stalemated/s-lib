@@ -3,6 +3,7 @@ package com.stalemated.lib.config;
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -64,6 +65,11 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
     @Override
     public void modify(Consumer<T> mutator) {
         manager.modify(mutator);
+    }
+
+    @Override
+    public void modifyOptions(Map<OptionInfo, ?> values) {
+        manager.modifyOptions(values);
     }
 
     @Override

@@ -211,7 +211,15 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
      */
     @Override
     public void modify(Consumer<T> mutator) {
-        List<OptionChange> changes = LocalConfigManager.changesMadeBy(this, get(), mutator);
+        applyChanges(LocalConfigManager.changesMadeBy(this, get(), mutator));
+    }
+
+    @Override
+    public void modifyOptions(Map<OptionInfo, ?> values) {
+        applyChanges(LocalConfigManager.changesIn(getOptionTree(), get(), values));
+    }
+
+    private void applyChanges(List<OptionChange> changes) {
         if (changes.isEmpty()) return;
 
         SyncBatch batch = new SyncBatch();

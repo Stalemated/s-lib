@@ -103,17 +103,15 @@ public class ConfigSession<T> {
      */
     public void commit() {
         List<OptionChange> edits = optionTree.findChanges(base, draft);
-        if (!edits.isEmpty()) {
-            manager.modify(workingCopy -> applyEdits(edits, workingCopy));
-            advanceBaseToAppliedEdits(edits);
-        }
-    }
+        if (edits.isEmpty()) return;
 
-    private void applyEdits(List<OptionChange> edits, Object workingCopy) {
+        Map<OptionInfo, Object> values = new LinkedHashMap<>();
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
-            option.setValue(workingCopy, optionTree.deepCopy().of(edit.clampedValue(), option.genericType()));
+            values.put(option, optionTree.deepCopy().of(edit.clampedValue(), option.genericType()));
         }
+        manager.modifyOptions(values);
+        advanceBaseToAppliedEdits(edits);
     }
 
     private void advanceBaseToAppliedEdits(List<OptionChange> edits) {

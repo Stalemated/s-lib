@@ -10,7 +10,9 @@ import org.slf4j.Logger;
 
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -63,6 +65,17 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
         T workingCopy = manager.cloneConfig(current);
         mutator.accept(workingCopy);
         return manager.getOptionTree().findChanges(current, workingCopy);
+    }
+
+    static <T> List<OptionChange> changesIn(OptionTree tree, T current, Map<OptionInfo, ?> values) {
+        List<OptionChange> changes = new ArrayList<>();
+        values.forEach((option, value) -> {
+            Object clamped = option.clampValue(value);
+            if (!tree.sameValue(option.getValue(current), clamped)) {
+                changes.add(new OptionChange(option, clamped));
+            }
+        });
+        return changes;
     }
 
     @Override
@@ -141,10 +154,18 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
      */
     @Override
     public void modify(Consumer<T> mutator) {
-        T current = get();
-        List<OptionChange> changes = changesMadeBy(this, current, mutator);
+        applyChanges(changesMadeBy(this, get(), mutator));
+    }
+
+    @Override
+    public void modifyOptions(Map<OptionInfo, ?> values) {
+        applyChanges(changesIn(optionTree, get(), values));
+    }
+
+    private void applyChanges(List<OptionChange> changes) {
         if (changes.isEmpty()) return;
 
+        T current = get();
         for (OptionChange change : changes) {
             change.option().setValue(current, change.clampedValue());
         }

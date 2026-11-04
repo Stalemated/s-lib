@@ -1,5 +1,6 @@
 package com.stalemated.lib.config;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 public interface ConfigManager<T> {
@@ -13,6 +14,10 @@ public interface ConfigManager<T> {
     T cloneConfig(T source);
 
     void modify(Consumer<T> mutator);
+
+    default void modifyOptions(Map<OptionInfo, ?> values) {
+        modify(copy -> values.forEach((option, value) -> option.setValue(copy, value)));
+    }
 
     Subscription onChange(Consumer<T> listener);
 
