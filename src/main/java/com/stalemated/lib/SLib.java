@@ -1,11 +1,13 @@
 package com.stalemated.lib;
 
 import com.stalemated.lib.config.internal.ConfigRegistry;
+import com.stalemated.lib.predicate.target.internal.TagReloads;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 //? if fabric {
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.CommonLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import com.stalemated.lib.network.internal.WrapperChannel;
@@ -13,6 +15,7 @@ import com.stalemated.lib.network.internal.WrapperChannel;
 /*import com.stalemated.lib.client.SLibClient;
 import com.stalemated.lib.network.internal.WrapperChannel;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TagsUpdatedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -31,6 +34,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 //?}
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
@@ -63,6 +67,7 @@ implements ModInitializer
         MinecraftForge.EVENT_BUS.addListener(SLib::onPlayerLoggedOut);
         MinecraftForge.EVENT_BUS.addListener(SLib::onServerStarted);
         MinecraftForge.EVENT_BUS.addListener(SLib::onServerStopped);
+        MinecraftForge.EVENT_BUS.addListener(SLib::onTagsUpdated);
         if (FMLEnvironment.dist == Dist.CLIENT) {
             SLibClient.init();
         }
@@ -89,6 +94,7 @@ implements ModInitializer
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> ConfigRegistry.onPlayerLeaveServer(handler.player));
         ServerLifecycleEvents.SERVER_STARTED.register(ConfigRegistry::onServerStarted);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> ConfigRegistry.onServerStopped());
+        CommonLifecycleEvents.TAGS_LOADED.register((registries, client) -> TagReloads.onTagsReloaded());
     }
     //?}
 
@@ -125,6 +131,14 @@ implements ModInitializer
     //? if forge || neoforge {
     /*private static void onServerStopped(ServerStoppedEvent event) {
         ConfigRegistry.onServerStopped();
+    }
+    *///?}
+
+    //? if neoforge
+    //@SubscribeEvent
+    //? if forge || neoforge {
+    /*private static void onTagsUpdated(TagsUpdatedEvent event) {
+        TagReloads.onTagsReloaded();
     }
     *///?}
 }

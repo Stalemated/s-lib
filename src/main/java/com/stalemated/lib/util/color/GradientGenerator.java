@@ -67,15 +67,29 @@ public final class GradientGenerator {
 
         MutableComponent gradientText = Component.empty();
         float maxIndex = Math.max(1.0f, codePoints.size() - 1.0f);
+        StringBuilder run = new StringBuilder();
+        Style runStyle = Style.EMPTY;
+        int runColor = 0;
 
         for (int i = 0; i < codePoints.size(); i++) {
             StyledCodePoint glyph = codePoints.get(i);
             int color = colorProvider.getColor(i, i / maxIndex);
-
-            gradientText.append(Component.literal(Character.toString(glyph.codePoint()))
-                    .setStyle(glyph.style().withColor(color)));
+            if (!run.isEmpty() && (glyph.style() != runStyle || color != runColor)) {
+                appendRun(gradientText, run, runStyle, runColor);
+            }
+            runStyle = glyph.style();
+            runColor = color;
+            run.appendCodePoint(glyph.codePoint());
+        }
+        if (!run.isEmpty()) {
+            appendRun(gradientText, run, runStyle, runColor);
         }
 
         return gradientText;
+    }
+
+    private static void appendRun(MutableComponent target, StringBuilder run, Style style, int color) {
+        target.append(Component.literal(run.toString()).setStyle(style.withColor(color)));
+        run.setLength(0);
     }
 }
