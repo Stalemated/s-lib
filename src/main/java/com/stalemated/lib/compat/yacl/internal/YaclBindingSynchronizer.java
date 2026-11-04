@@ -32,9 +32,15 @@ public final class YaclBindingSynchronizer {
 
     private record SlottedOption(SyncSlot slot, Option<?> option, Runnable forgetCachedValue) {}
 
-    private record Dependent(Option<?> option, boolean allowed, Set<String> values) {
-        void follow(Object toggleValue) {
-            option.setAvailable(allowed && values.contains(toggleValue instanceof Enum<?> constant ? constant.name() : String.valueOf(toggleValue)));
+    public record ToggleCondition(OptionInfo toggle, Set<String> values) {
+        boolean holdsFor(Object toggleValue) {
+            return values.contains(toggleValue instanceof Enum<?> constant ? constant.name() : String.valueOf(toggleValue));
+        }
+    }
+
+    private record Dependent(Option<?> option, boolean allowed, List<ToggleCondition> conditions) {
+        void follow(Function<OptionInfo, Object> valueOf) {
+            option.setAvailable(allowed && conditions.stream().allMatch(condition -> condition.holdsFor(valueOf.apply(condition.toggle()))));
         }
     }
 
@@ -78,19 +84,23 @@ public final class YaclBindingSynchronizer {
         });
         if (isWholeOption(slot)) {
             built.addEventListener((opt, event) -> dependentsByToggle.getOrDefault(slot.container(), List.of())
-                    .forEach(dependent -> dependent.follow(opt.pendingValue())));
+                    .forEach(dependent -> dependent.follow(toggle -> toggle.getKey().equals(slot.container()) ? opt.pendingValue() : currentValue(toggle))));
         }
         return built;
     }
 
-    public void enableWhen(Option<?> dependent, boolean allowed, OptionInfo toggle, Set<String> values) {
-        Dependent follower = new Dependent(dependent, allowed, values);
-        dependentsByToggle.computeIfAbsent(toggle.getKey(), key -> new ArrayList<>()).add(follower);
-        follower.follow(optionsByContainer.getOrDefault(toggle.getKey(), List.of()).stream()
+    public void enableWhen(Option<?> dependent, boolean allowed, List<ToggleCondition> conditions) {
+        Dependent follower = new Dependent(dependent, allowed, List.copyOf(conditions));
+        conditions.forEach(condition -> dependentsByToggle.computeIfAbsent(condition.toggle().getKey(), key -> new ArrayList<>()).add(follower));
+        follower.follow(this::currentValue);
+    }
+
+    private Object currentValue(OptionInfo toggle) {
+        return optionsByContainer.getOrDefault(toggle.getKey(), List.of()).stream()
                 .filter(registered -> isWholeOption(registered.slot()))
                 .findFirst()
                 .<Object>map(registered -> registered.option().pendingValue())
-                .orElseGet(() -> session.get(toggle)));
+                .orElseGet(() -> session.get(toggle));
     }
 
     private static boolean isWholeOption(SyncSlot slot) {

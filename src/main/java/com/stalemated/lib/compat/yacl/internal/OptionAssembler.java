@@ -1,6 +1,7 @@
 package com.stalemated.lib.compat.yacl.internal;
 
 import com.stalemated.lib.compat.yacl.controller.builder.SelectDropdownControllerBuilder;
+import com.stalemated.lib.compat.yacl.internal.YaclBindingSynchronizer.ToggleCondition;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.annotation.EnabledIf;
@@ -11,6 +12,7 @@ import dev.isxander.yacl3.api.Option;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,7 +37,7 @@ public final class OptionAssembler {
                 new UnsupportedOperationException("No YACL controller or adapter registered for type: "
                         + info.type().getName() + " on config option: " + info.getKey()));
         Option<?> built = option(meta, info, ValueAccessor.option(session, info), lens, info.defaultCopy(), customizer);
-        enableIfAnnotated(meta, info, built);
+        applyEnabledIf(info, built);
         return built;
     }
 
@@ -56,25 +58,45 @@ public final class OptionAssembler {
 
         Collection<Object> modelDefault = (Collection<Object>) info.defaultCopy();
         ListOption<E> built = list(meta, elementInfo, ValueAccessor.collection(session, info), lens, modelDefault, initialElement, customizer);
-        enableIfAnnotated(meta, info, built);
+        applyEnabledIf(info, built);
         return built;
     }
 
-    private void enableIfAnnotated(YaclOptionMetadata meta, OptionInfo info, Option<?> built) {
-        Optional<EnabledIf> enabledIf = info.annotation(EnabledIf.class);
-        if (enabledIf.isEmpty()) return;
+    public void applyEnabledIf(OptionInfo info, Option<?> built) {
+        List<ToggleCondition> conditions = conditionsOf(info);
+        if (conditions.isEmpty()) return;
+        synchronizer.enableWhen(built, built.available(), conditions);
+    }
 
-        OptionInfo toggle = session.getOptionTree().get(enabledIf.get().value());
-        if (toggle == null) {
-            throw new IllegalArgumentException("@EnabledIf on '" + info.getKey() + "' names '" + enabledIf.get().value() + "', which is not an option of this config");
+    private List<ToggleCondition> conditionsOf(OptionInfo info) {
+        List<ToggleCondition> conditions = new ArrayList<>();
+        Set<String> chain = new LinkedHashSet<>(List.of(info.getKey()));
+        OptionInfo dependent = info;
+        Optional<EnabledIf> enabledIf = info.annotation(EnabledIf.class);
+        while (enabledIf.isPresent()) {
+            ToggleCondition condition = conditionOf(dependent, enabledIf.get());
+            if (!chain.add(condition.toggle().getKey())) {
+                throw new IllegalArgumentException("@EnabledIf on '" + info.getKey() + "' forms a cycle: " + String.join(" -> ", chain) + " -> " + condition.toggle().getKey());
+            }
+            conditions.add(condition);
+            dependent = condition.toggle();
+            enabledIf = dependent.annotation(EnabledIf.class);
         }
-        List<String> toggleValues = valuesOf(info, toggle);
-        for (String value : enabledIf.get().equals()) {
+        return conditions;
+    }
+
+    private ToggleCondition conditionOf(OptionInfo dependent, EnabledIf enabledIf) {
+        OptionInfo toggle = session.getOptionTree().get(enabledIf.value());
+        if (toggle == null) {
+            throw new IllegalArgumentException("@EnabledIf on '" + dependent.getKey() + "' names '" + enabledIf.value() + "', which is not an option of this config");
+        }
+        List<String> toggleValues = valuesOf(dependent, toggle);
+        for (String value : enabledIf.equals()) {
             if (!toggleValues.contains(value)) {
-                throw new IllegalArgumentException("@EnabledIf on '" + info.getKey() + "' lists '" + value + "', which is not a value of '" + toggle.getKey() + "': " + toggleValues);
+                throw new IllegalArgumentException("@EnabledIf on '" + dependent.getKey() + "' lists '" + value + "', which is not a value of '" + toggle.getKey() + "': " + toggleValues);
             }
         }
-        synchronizer.enableWhen(built, meta.available(), toggle, Set.copyOf(Arrays.asList(enabledIf.get().equals())));
+        return new ToggleCondition(toggle, Set.copyOf(Arrays.asList(enabledIf.equals())));
     }
 
     private static List<String> valuesOf(OptionInfo dependent, OptionInfo toggle) {

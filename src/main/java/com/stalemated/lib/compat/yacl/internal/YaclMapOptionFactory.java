@@ -52,7 +52,9 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
                 () -> toLines(context.session().get(info), valueText),
                 guiList -> persistGuiMap(info, guiList, valueText)
         );
-        return assembler.list(meta, info, lines, TEXT, toLines(defaultMap, valueText), initialEntry, customizer);
+        ListOption<String> pairs = assembler.list(meta, info, lines, TEXT, toLines(defaultMap, valueText), initialEntry, customizer);
+        assembler.applyEnabledIf(info, pairs);
+        return pairs;
     }
 
     /**
