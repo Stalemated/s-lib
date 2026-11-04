@@ -15,8 +15,7 @@ import java.util.stream.Stream;
 final class RegexStrategy implements TargetMatcher {
     private final Pattern pattern;
     private final boolean canMatchTag;
-    private final Map<Object, Boolean> matchesByItem = new ConcurrentHashMap<>();
-    private volatile int cachedGeneration = TagReloads.generation();
+    private volatile CachedMatches cachedMatches = new CachedMatches(TagReloads.generation());
 
     RegexStrategy(String regex) {
         this.pattern = Pattern.compile(regex);
@@ -31,11 +30,7 @@ final class RegexStrategy implements TargetMatcher {
     }
 
     boolean matches(Object item, Supplier<String> itemId, Supplier<Stream<String>> tagIds) {
-        int generation = TagReloads.generation();
-        if (generation != cachedGeneration) {
-            matchesByItem.clear();
-            cachedGeneration = generation;
-        }
+        Map<Object, Boolean> matchesByItem = matchesForCurrentTags();
         Boolean cached = matchesByItem.get(item);
         if (cached != null) return cached;
 
@@ -45,11 +40,27 @@ final class RegexStrategy implements TargetMatcher {
         return matched;
     }
 
+    private Map<Object, Boolean> matchesForCurrentTags() {
+        int generation = TagReloads.generation();
+        CachedMatches current = cachedMatches;
+        if (current.tagGeneration() != generation) {
+            current = new CachedMatches(generation);
+            cachedMatches = current;
+        }
+        return current.byItem();
+    }
+
     private static Stream<String> tagIds(ItemStack stack) {
         //? if <26.1 {
         return stack.getTags().map(tag -> "#" + tag.location());
         //?} else {
         /*return stack.typeHolder().tags().map(tag -> "#" + tag.location());
         *///?}
+    }
+
+    private record CachedMatches(int tagGeneration, Map<Object, Boolean> byItem) {
+        private CachedMatches(int tagGeneration) {
+            this(tagGeneration, new ConcurrentHashMap<>());
+        }
     }
 }
