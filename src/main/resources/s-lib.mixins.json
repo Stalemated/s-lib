@@ -1,6 +1,6 @@
 {
     "required": true,
-    "package": "com.stalemated.lib.mixin",
+    "package": "com.stalemated.lib.mixin.internal",
     "compatibilityLevel": "${mixin_compatibility}",
     "minVersion": "0.8",
     "client": [

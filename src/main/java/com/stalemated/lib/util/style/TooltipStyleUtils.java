@@ -1,6 +1,6 @@
 package com.stalemated.lib.util.style;
 
-import com.stalemated.lib.mixin.client.accessor.OrderedTextTooltipComponentAccessor;
+import com.stalemated.lib.mixin.internal.client.accessor.OrderedTextTooltipComponentAccessor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
