@@ -1,7 +1,8 @@
 package com.stalemated.lib.network.internal;
 
 //? if >=1.20.5 {
-/*import com.stalemated.lib.util.ResourceIds;
+/*import com.stalemated.lib.network.NetworkHelper;
+import com.stalemated.lib.util.ResourceIds;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -14,7 +15,7 @@ public record WrapperPayload(ResourceLocation channelId, byte[] data) implements
 
     public static final StreamCodec<FriendlyByteBuf, WrapperPayload> CODEC = StreamCodec.composite(
             ResourceLocation.STREAM_CODEC, WrapperPayload::channelId,
-            ByteBufCodecs.BYTE_ARRAY, WrapperPayload::data,
+            ByteBufCodecs.byteArray(NetworkHelper.MAX_PAYLOAD_BYTES), WrapperPayload::data,
             WrapperPayload::new
     );
 
@@ -34,7 +35,7 @@ public record WrapperPayload(ResourceLocation channelId, byte[] data) implements
     public static final ResourceLocation ID = ResourceIds.of(MOD_ID, "network");
 
     public WrapperPayload(FriendlyByteBuf buf) {
-        this(buf.readResourceLocation(), buf.readByteArray());
+        this(buf.readResourceLocation(), PacketReceivers.readData(buf));
     }
 
     @Override

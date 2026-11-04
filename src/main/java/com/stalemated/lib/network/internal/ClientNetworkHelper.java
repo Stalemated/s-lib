@@ -19,7 +19,7 @@ final class ClientNetworkHelper {
     static void registerClientReceiver(ResourceLocation channel) {
         ClientPlayNetworking.registerGlobalReceiver(channel, (client, handler, buf, responseSender) -> {
             ResourceLocation configChannel = buf.readResourceLocation();
-            byte[] data = buf.readByteArray();
+            byte[] data = PacketReceivers.readData(buf);
             client.execute(() -> PacketReceivers.dispatchToClient(configChannel, data));
         });
     }

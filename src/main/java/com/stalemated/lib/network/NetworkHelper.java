@@ -9,21 +9,27 @@ import net.minecraft.server.level.ServerPlayer;
 
 public final class NetworkHelper {
 
+    public static final int MAX_PAYLOAD_BYTES = 1_048_064;
+
     private NetworkHelper() {}
 
     public static void sendToClient(ServerPlayer player, ResourceLocation id, FriendlyByteBuf buf) {
-        WrapperChannel.sendToClient(player, id, readableBytes(buf));
+        WrapperChannel.sendToClient(player, id, readableBytes(id, buf));
     }
 
     public static void sendToServer(ResourceLocation id, FriendlyByteBuf buf) {
         if (PlatformHelper.isDedicatedServer()) {
             throw new IllegalStateException("Cannot send packet " + id + " to the server from a dedicated server");
         }
-        WrapperChannel.sendToServer(id, readableBytes(buf));
+        WrapperChannel.sendToServer(id, readableBytes(id, buf));
     }
 
-    private static byte[] readableBytes(FriendlyByteBuf buf) {
-        byte[] data = new byte[buf.readableBytes()];
+    private static byte[] readableBytes(ResourceLocation id, FriendlyByteBuf buf) {
+        int size = buf.readableBytes();
+        if (size > MAX_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException("Packet " + id + " is " + size + " bytes, limit is " + MAX_PAYLOAD_BYTES);
+        }
+        byte[] data = new byte[size];
         buf.readBytes(data);
         return data;
     }

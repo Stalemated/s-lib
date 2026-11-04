@@ -1,5 +1,6 @@
 package com.stalemated.lib.network.internal;
 
+import com.stalemated.lib.network.NetworkHelper;
 import com.stalemated.lib.network.NetworkHelper.ClientReceiver;
 import com.stalemated.lib.network.NetworkHelper.ServerReceiver;
 import io.netty.buffer.Unpooled;
@@ -18,6 +19,10 @@ public final class PacketReceivers {
     private static final Map<ResourceLocation, ClientReceiver> CLIENT_RECEIVERS = new ConcurrentHashMap<>();
 
     private PacketReceivers() {}
+
+    public static byte[] readData(FriendlyByteBuf buf) {
+        return buf.readByteArray(NetworkHelper.MAX_PAYLOAD_BYTES);
+    }
 
     public static void registerServer(ResourceLocation id, ServerReceiver receiver) {
         register(SERVER_RECEIVERS, id, receiver, "Server");

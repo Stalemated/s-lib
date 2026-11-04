@@ -82,7 +82,7 @@ public final class WrapperChannel {
 
         private WrapperPacket(FriendlyByteBuf buf) {
             this.id = buf.readResourceLocation();
-            this.data = buf.readByteArray();
+            this.data = PacketReceivers.readData(buf);
         }
 
         private void encode(FriendlyByteBuf buf) {
@@ -166,7 +166,7 @@ public final class WrapperChannel {
     public static void registerPayloads() {
         ServerPlayNetworking.registerGlobalReceiver(CHANNEL_ID, (server, player, handler, buf, responseSender) -> {
             ResourceLocation channel = buf.readResourceLocation();
-            byte[] data = buf.readByteArray();
+            byte[] data = PacketReceivers.readData(buf);
             server.execute(() -> PacketReceivers.dispatchToServer(player, channel, data));
         });
 
