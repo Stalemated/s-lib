@@ -8,6 +8,10 @@ plugins {
     id("slib-loader-conventions")
 }
 
+repositories {
+    maven("https://maven.terraformersmc.com/releases") { name = "TerraformersMC" }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:${sc.current.version}")
     // Applies Mojang Mappings on obfuscated versions
@@ -18,6 +22,7 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${property("deps.fabric_api")}")
 
     modCompileOnly("dev.isxander:yet-another-config-lib:${property("deps.yacl")}-fabric")
+    modCompileOnly("com.terraformersmc:modmenu:${property("deps.modmenu")}") { isTransitive = false }
 
     include("blue.endless:jankson:${property("deps.jankson")}")
 

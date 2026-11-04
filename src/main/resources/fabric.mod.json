@@ -21,6 +21,9 @@
         ],
         "client": [
             "com.stalemated.lib.client.SLibClient"
+        ],
+        "modmenu": [
+            "com.stalemated.lib.client.internal.ModMenuScreens"
         ]
     },
     "mixins": [
