@@ -125,6 +125,10 @@ public final class ValueAccessor<M> {
     }
 
     public <P> ValueAccessor<P> property(String field, Function<M, P> read, BiConsumer<M, P> write) {
+        return property(field, read, write, null);
+    }
+
+    public <P> ValueAccessor<P> property(String field, Function<M, P> read, BiConsumer<M, P> write, Supplier<? extends M> whenMissing) {
         return of(
                 slot.withField(field),
                 () -> {
@@ -133,6 +137,9 @@ public final class ValueAccessor<M> {
                 },
                 value -> {
                     M owner = get();
+                    if (owner == null && whenMissing != null) {
+                        owner = whenMissing.get();
+                    }
                     if (owner != null) {
                         write.accept(owner, value);
                         set(owner);

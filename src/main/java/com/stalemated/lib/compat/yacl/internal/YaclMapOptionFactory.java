@@ -78,20 +78,23 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         if (currentMap == null) {
             currentMap = defaultMap;
         }
-        if (currentMap.isEmpty()) {
+        Set<String> keys = new LinkedHashSet<>(binding.keys().get());
+        keys.addAll(currentMap.keySet());
+        if (keys.isEmpty()) {
             return Collections.emptyList();
         }
 
         OptionAssembler assembler = context.assembler();
-        Component desc = context.optionDescription(mapInfo.getKey(), mapInfo.field());
-        List<ListOption<String>> options = new ArrayList<>(currentMap.size());
+        Component desc = binding.description() != null ? binding.description() : context.optionDescription(mapInfo.getKey(), mapInfo.field());
+        List<ListOption<String>> options = new ArrayList<>(keys.size());
 
-        for (String entryKey : currentMap.keySet()) {
-            YaclOptionMetadata meta = context.metadata(Component.literal(entryKey), desc, mapInfo, mapInfo.getKey());
+        for (String entryKey : keys) {
+            YaclOptionMetadata meta = context.metadata(binding.entryName().apply(entryKey), desc, mapInfo, mapInfo.getKey());
             ValueAccessor<List<String>> projected = ValueAccessor.mapEntry(context.session(), mapInfo, entryKey).property(
                     null,
                     item -> copyOf(binding.getter().apply((N) item)),
-                    (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list))
+                    (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list)),
+                    binding.newEntry()
             );
             List<String> defaultList = copyOf(defaultMap.containsKey(entryKey) ? binding.getter().apply(defaultMap.get(entryKey)) : null);
             options.add(assembler.list(meta, mapInfo, projected, TEXT, defaultList, "", null));
