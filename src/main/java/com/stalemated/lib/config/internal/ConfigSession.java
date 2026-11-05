@@ -7,6 +7,8 @@ import com.stalemated.lib.config.OptionTree;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static com.stalemated.lib.SLib.LOGGER;
+
 /**
  * Isolated in-memory transaction buffer for a config model.
  * Buffers all interactive UI changes and commits them in a single atomic modification,
@@ -105,23 +107,62 @@ public class ConfigSession<T> {
         List<OptionChange> edits = optionTree.findChanges(base, draft);
         if (edits.isEmpty()) return;
 
+        T current = manager.get();
         Map<OptionInfo, Object> values = new LinkedHashMap<>();
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
-            values.put(option, optionTree.deepCopy().of(edit.clampedValue(), option.genericType()));
+            Object merged = mergeWithCurrent(option, option.getValue(base), edit.clampedValue(), option.getValue(current));
+            values.put(option, optionTree.deepCopy().of(merged, option.genericType()));
         }
         manager.modifyOptions(values);
-        advanceBaseToAppliedEdits(edits);
+        advanceBaseToAppliedEdits(edits, values);
     }
 
-    private void advanceBaseToAppliedEdits(List<OptionChange> edits) {
+    private Object mergeWithCurrent(OptionInfo option, Object before, Object edited, Object current) {
+        if (optionTree.sameValue(before, current)) return edited;
+        if (before instanceof List<?> beforeList && edited instanceof List<?> editedList && current instanceof List<?> currentList) {
+            return mergeLists(option, beforeList, editedList, currentList);
+        }
+        if (before instanceof Map<?, ?> beforeMap && edited instanceof Map<?, ?> editedMap && current instanceof Map<?, ?> currentMap) {
+            return mergeMaps(beforeMap, editedMap, currentMap);
+        }
+        return edited;
+    }
+
+    private List<?> mergeLists(OptionInfo option, List<?> before, List<?> edited, List<?> current) {
+        if (edited.size() != before.size() || current.size() < before.size()) {
+            LOGGER.warn("Saving '{}' replaced the changes made to it elsewhere while the screen was open: it had {} elements, the screen saved {} and it had become {}",
+                    option.getKey(), before.size(), edited.size(), current.size());
+            return edited;
+        }
+        List<Object> merged = new ArrayList<>(current);
+        for (int i = 0; i < before.size(); i++) {
+            if (!optionTree.sameValue(before.get(i), edited.get(i))) {
+                merged.set(i, edited.get(i));
+            }
+        }
+        return merged;
+    }
+
+    private Map<?, ?> mergeMaps(Map<?, ?> before, Map<?, ?> edited, Map<?, ?> current) {
+        Map<Object, Object> merged = new LinkedHashMap<>(current);
+        before.keySet().stream().filter(key -> !edited.containsKey(key)).forEach(merged::remove);
+        for (Map.Entry<?, ?> entry : edited.entrySet()) {
+            boolean editedHere = !before.containsKey(entry.getKey()) || !optionTree.sameValue(before.get(entry.getKey()), entry.getValue());
+            if (editedHere) {
+                merged.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return merged;
+    }
+
+    private void advanceBaseToAppliedEdits(List<OptionChange> edits, Map<OptionInfo, Object> sent) {
         T active = manager.get();
         for (OptionChange edit : edits) {
             OptionInfo option = edit.option();
-            Object applied = option.getValue(active);
 
-            if (optionTree.sameValue(applied, edit.clampedValue())) {
-                option.setValue(base, optionTree.deepCopy().of(applied, option.genericType()));
+            if (optionTree.sameValue(option.getValue(active), sent.get(option))) {
+                option.setValue(base, optionTree.deepCopy().of(edit.clampedValue(), option.genericType()));
             }
         }
     }
