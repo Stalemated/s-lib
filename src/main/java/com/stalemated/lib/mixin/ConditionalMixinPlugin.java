@@ -6,6 +6,7 @@ import org.objectweb.asm.tree.AnnotationNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
+import org.spongepowered.asm.service.IClassBytecodeProvider;
 import org.spongepowered.asm.service.MixinService;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
     private final Function<String, ClassNode> mixinClasses;
 
     public ConditionalMixinPlugin() {
-        this(PlatformHelper::isModLoadedAtLaunch, ConditionalMixinPlugin::readMixin);
+        this(PlatformHelper::isModLoadedAtLaunch, mixinClassName -> readMixin(MixinService.getService().getBytecodeProvider(), mixinClassName));
     }
 
     ConditionalMixinPlugin(Predicate<String> isModPresent, Function<String, ClassNode> mixinClasses) {
@@ -50,9 +51,9 @@ public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
         return (List<String>) requiresMod.values.get(1);
     }
 
-    private static ClassNode readMixin(String mixinClassName) {
+    static ClassNode readMixin(IClassBytecodeProvider bytecode, String mixinClassName) {
         try {
-            return MixinService.getService().getBytecodeProvider().getClassNode(mixinClassName, false);
+            return bytecode.getClassNode(mixinClassName);
         } catch (ClassNotFoundException | IOException e) {
             throw new IllegalStateException("Cannot read mixin " + mixinClassName + " to check @RequiresMod", e);
         }
