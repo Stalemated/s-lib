@@ -4,6 +4,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.stream.Stream;
@@ -35,13 +36,26 @@ final class ItemRegistryHelper {
         return id != null ? getItem(id) : Items.AIR;
     }
 
+    public static ItemStack getIcon(Item item) {
+        if (item == Items.AIR || !hasComponents(item)) return ItemStack.EMPTY;
+        return new ItemStack(item);
+    }
+
     public static Component getItemName(Item item) {
         //? if <1.21.2 {
         return item.getDescription();
         //?} elif <26.1 {
         /*return item.getName();
         *///?} else {
-        /*return item.getName(item.getDefaultInstance());
+        /*return hasComponents(item) ? item.getName(item.getDefaultInstance()) : Component.translatable(item.getDescriptionId());
+        *///?}
+    }
+
+    private static boolean hasComponents(Item item) {
+        //? if <26.1 {
+        return true;
+        //?} else {
+        /*return item.builtInRegistryHolder().areComponentsBound();
         *///?}
     }
 }

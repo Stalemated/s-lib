@@ -52,8 +52,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
     private static ItemStack iconFor(String target) {
         if (isSpecialTarget(target)) return ItemStack.EMPTY;
-        Item item = ItemRegistryHelper.getItem(target);
-        return item == Items.AIR ? ItemStack.EMPTY : new ItemStack(item);
+        return ItemRegistryHelper.getIcon(ItemRegistryHelper.getItem(target));
     }
 
     private ItemStack cachedIconFor(String target) {
