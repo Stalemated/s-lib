@@ -4,7 +4,8 @@
     "compatibilityLevel": "${mixin_compatibility}",
     "minVersion": "0.8",
     "client": [
-        "client.accessor.OrderedTextTooltipComponentAccessor"
+        "client.accessor.OrderedTextTooltipComponentAccessor",
+        "client.yacl.LegacySelectionListHolderMixin"
     ],
     "mixins": [
     ],
