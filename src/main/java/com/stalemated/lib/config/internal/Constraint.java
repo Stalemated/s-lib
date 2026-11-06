@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public sealed interface Constraint permits Constraint.None, Constraint.Finite, Constraint.IntRange, Constraint.LongRange,
-        Constraint.FloatRange, Constraint.DoubleRange, Constraint.Elements, Constraint.MapValues, Constraint.Fields {
+public sealed interface Constraint permits Constraint.None, Constraint.Finite, Constraint.Writable, Constraint.IntRange,
+        Constraint.LongRange, Constraint.FloatRange, Constraint.DoubleRange, Constraint.Elements, Constraint.MapValues, Constraint.Fields {
 
     Constraint NONE = new None();
     Constraint FINITE = new Finite();
@@ -42,6 +42,20 @@ public sealed interface Constraint permits Constraint.None, Constraint.Finite, C
             if (value instanceof Number number && !MathUtils.isFinite(number)) {
                 throw new IllegalArgumentException("must be a finite number, got " + value);
             }
+            return value;
+        }
+
+        @Override
+        public boolean clamps() {
+            return false;
+        }
+    }
+
+    record Writable(DeepCopy deepCopy, Class<?> type) implements Constraint {
+        @Override
+        public Object apply(Object value) {
+            if (value == null) return null;
+            deepCopy.requireWritable(value, type);
             return value;
         }
 

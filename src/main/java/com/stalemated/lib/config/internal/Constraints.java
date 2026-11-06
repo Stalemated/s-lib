@@ -47,7 +47,7 @@ public final class Constraints {
 
     private Constraints() {}
 
-    public static Constraint of(String key, Field field, Class<?> type, Type genericType, ConfigNode contentTemplate) {
+    public static Constraint of(String key, Field field, Class<?> type, Type genericType, ConfigNode contentTemplate, DeepCopy deepCopy) {
         List<Class<? extends Annotation>> present = rangesOn(field);
         if (present.size() > 1) {
             throw new IllegalArgumentException("'" + key + "' has more than one range annotation: " + names(present));
@@ -59,9 +59,9 @@ public final class Constraints {
             if (!present.isEmpty()) {
                 requireRangedContents(key, present.get(0), type, contentTemplate);
             }
-            return containerOf(type, genericType, contentTemplate);
+            return containerOf(type, genericType, contentTemplate, deepCopy);
         }
-        if (present.isEmpty()) return unranged(type);
+        if (present.isEmpty()) return unranged(type, deepCopy);
 
         Class<? extends Annotation> range = present.get(0);
         if (range != RANGE_BY_TYPE.get(type)) {
@@ -99,16 +99,17 @@ public final class Constraints {
         return Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type);
     }
 
-    private static Constraint unranged(Class<?> type) {
-        return FLOATING_TYPES.contains(type) ? Constraint.FINITE : Constraint.NONE;
+    private static Constraint unranged(Class<?> type, DeepCopy deepCopy) {
+        if (FLOATING_TYPES.contains(type)) return Constraint.FINITE;
+        return DeepCopy.copiesAsIs(type) ? Constraint.NONE : new Constraint.Writable(deepCopy, type);
     }
 
-    private static Constraint containerOf(Class<?> type, Type genericType, ConfigNode contentTemplate) {
+    private static Constraint containerOf(Class<?> type, Type genericType, ConfigNode contentTemplate, DeepCopy deepCopy) {
         boolean isMap = Map.class.isAssignableFrom(type);
         Class<?> firstTypeArgument = typeArgument(genericType, 0);
         Constraint contents = contentTemplate != null
                 ? contentTemplate.constraint()
-                : unranged(isMap ? typeArgument(genericType, 1) : firstTypeArgument);
+                : unranged(isMap ? typeArgument(genericType, 1) : firstTypeArgument, deepCopy);
         return isMap
                 ? new Constraint.MapValues(type, firstTypeArgument, contents)
                 : new Constraint.Elements(type, firstTypeArgument, contents);

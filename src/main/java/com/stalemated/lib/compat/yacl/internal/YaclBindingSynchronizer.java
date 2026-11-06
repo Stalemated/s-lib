@@ -2,6 +2,7 @@ package com.stalemated.lib.compat.yacl.internal;
 
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.internal.ConfigSession;
+import com.stalemated.lib.config.internal.InvalidConfigValueException;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 
@@ -15,6 +16,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import static com.stalemated.lib.SLib.LOGGER;
 
 /**
  * Coordinates reactive state synchronization across YACL {@link Option} and {@link ListOption}
@@ -65,6 +68,13 @@ public final class YaclBindingSynchronizer {
             Function<B, O> buildStep
     ) {
         AtomicReference<O> optRef = new AtomicReference<>();
+        Consumer<V> setOrWarn = value -> {
+            try {
+                setter.accept(value);
+            } catch (InvalidConfigValueException e) {
+                LOGGER.warn("{}; kept the previous value", e.getMessage());
+            }
+        };
         if (postConfigurer != null) {
             postConfigurer.accept(builder);
         }
@@ -72,14 +82,14 @@ public final class YaclBindingSynchronizer {
                 builder,
                 defaultValue,
                 getter,
-                val -> applySyncedMutation(slot, optRef.get(), () -> setter.accept(val))
+                val -> applySyncedMutation(slot, optRef.get(), () -> setOrWarn.accept(val))
         );
         O built = buildStep.apply(builder);
         optRef.set(built);
         optionsByContainer.computeIfAbsent(slot.container(), container -> new ArrayList<>()).add(new SlottedOption(slot, built, forgetCachedValue));
         built.addEventListener((opt, event) -> {
             if (session.hasPreview()) {
-                session.applyToPreview(() -> setter.accept(opt.pendingValue()));
+                session.applyToPreview(() -> setOrWarn.accept(opt.pendingValue()));
             }
         });
         if (isWholeOption(slot)) {

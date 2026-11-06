@@ -6,6 +6,7 @@ import com.stalemated.lib.config.internal.ConfigNode;
 import com.stalemated.lib.config.internal.Constraint;
 import com.stalemated.lib.config.internal.Constraints;
 import com.stalemated.lib.config.internal.DeepCopy;
+import com.stalemated.lib.config.internal.InvalidConfigValueException;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.internal.ReflectionUtils;
 
@@ -62,7 +63,7 @@ public class OptionInfo implements ConfigNode {
             f.setAccessible(true);
         }
 
-        this.constraint = Constraints.of(key, field, type, genericType, template);
+        this.constraint = Constraints.of(key, field, type, genericType, template, deepCopy);
         this.comment = annotation(Comment.class).map(Comment::value).orElse(null);
         this.title = annotation(Title.class).map(Title::value).orElse(null);
     }
@@ -190,9 +191,9 @@ public class OptionInfo implements ConfigNode {
         if (isTemplate) throw new UnsupportedOperationException("Cannot set value directly on an OptionInfo template.");
         if (rootInstance == null) return;
 
+        Object clamped = clampValue(value);
         try {
             Object target = resolveTargetObject(rootInstance, true);
-            Object clamped = clampValue(value);
             field.set(target, clamped);
         } catch (Exception e) {
             throw new RuntimeException("Failed to set config option: " + key, e);
@@ -229,7 +230,7 @@ public class OptionInfo implements ConfigNode {
         try {
             return constraint.apply(value);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid value for config option '" + key + "': " + e.getMessage(), e);
+            throw new InvalidConfigValueException("Invalid value for config option '" + key + "': " + e.getMessage(), e);
         }
     }
 

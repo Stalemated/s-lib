@@ -32,7 +32,19 @@ public final class DeepCopy {
         return gson.fromJson(gson.toJsonTree(value, type), type);
     }
 
+    public void requireWritable(Object value, Type type) {
+        try {
+            gson.toJsonTree(value, type);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("cannot be written to the config file, got " + value, e);
+        }
+    }
+
+    public static boolean copiesAsIs(Class<?> type) {
+        return type.isPrimitive() || Enum.class.isAssignableFrom(type) || IMMUTABLE_TYPES.contains(type);
+    }
+
     private static boolean isImmutable(Object value) {
-        return value == null || value instanceof Enum<?> || IMMUTABLE_TYPES.contains(value.getClass());
+        return value == null || copiesAsIs(value.getClass());
     }
 }
