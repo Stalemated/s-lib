@@ -276,7 +276,11 @@ public class AdvancedColorController implements IStringController<String> {
         *///?}
 
         private boolean click(double mouseX, double mouseY, BooleanSupplier colorPreviewClick) {
-            if (!isAvailable()) return false;
+            if (!isAvailable() || !getDimension().isPointInside((int) mouseX, (int) mouseY)) {
+                unfocus();
+                return false;
+            }
+            setFocused(true);
             if (isMouseOverColorPreview(mouseX, mouseY)) {
                 boolean handled = colorPreviewClick.getAsBoolean();
                 selectionLength = 0;
