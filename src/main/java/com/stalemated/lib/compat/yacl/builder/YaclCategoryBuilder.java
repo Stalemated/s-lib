@@ -3,6 +3,7 @@ package com.stalemated.lib.compat.yacl.builder;
 import com.stalemated.lib.compat.yacl.internal.ValueAccessor;
 import com.stalemated.lib.compat.yacl.internal.YaclContext;
 import com.stalemated.lib.compat.yacl.internal.YaclMapOptionFactory;
+import com.stalemated.lib.compat.yacl.internal.YaclOptionMetadata;
 import com.stalemated.lib.compat.yacl.internal.YaclPojoFieldBuilder;
 import com.stalemated.lib.config.annotation.Title;
 import com.stalemated.lib.config.internal.CategoryNode;
@@ -10,6 +11,7 @@ import com.stalemated.lib.config.internal.ConfigNode;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.OptionTree;
 import com.stalemated.lib.util.internal.ReflectionUtils;
+import dev.isxander.yacl3.api.ButtonOption;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.ListOption;
@@ -30,6 +32,7 @@ import java.util.function.Consumer;
 @SuppressWarnings("UnusedReturnValue")
 public class YaclCategoryBuilder<T> {
     private static final String NO_ENTRIES = "s_lib.config_screen.no_entries";
+    private static final String REMOVE_ENTRY = "s_lib.config_screen.remove_entry";
 
     private final YaclContext<T> context;
     private final YaclMapOptionFactory<T> mapOptionFactory;
@@ -171,7 +174,8 @@ public class YaclCategoryBuilder<T> {
         for (Map.Entry<String, ?> entry : currentMap.entrySet()) {
             String entryKey = entry.getKey();
             ValueAccessor<Object> storedEntry = ValueAccessor.mapEntry(context.session(), info, entryKey);
-            groups.add(buildPojoEntryGroup(info, storedEntry, defaults.get(entryKey), Component.literal(entryKey), entry.getValue()));
+            groups.add(buildPojoEntryGroup(info, storedEntry, defaults.get(entryKey), Component.literal(entryKey), entry.getValue(),
+                    () -> ValueAccessor.removeMapEntry(context.session(), info, entryKey)));
         }
         return this;
     }
@@ -196,10 +200,12 @@ public class YaclCategoryBuilder<T> {
         if (currentList.isEmpty()) return emptyEntriesLabel();
 
         for (int i = 0; i < currentList.size(); i++) {
-            Object sampleItem = currentList.get(i);
-            ValueAccessor<Object> storedEntry = ValueAccessor.listEntry(context.session(), info, i);
-            Object defaultItem = i < defaults.size() ? defaults.get(i) : null;
-            groups.add(buildPojoEntryGroup(info, storedEntry, defaultItem, resolveListEntryGroupName(i, sampleItem), sampleItem));
+            int index = i;
+            Object sampleItem = currentList.get(index);
+            ValueAccessor<Object> storedEntry = ValueAccessor.listEntry(context.session(), info, index);
+            Object defaultItem = index < defaults.size() ? defaults.get(index) : null;
+            groups.add(buildPojoEntryGroup(info, storedEntry, defaultItem, resolveListEntryGroupName(index, sampleItem), sampleItem,
+                    () -> ValueAccessor.removeListEntry(context.session(), info, index)));
         }
         return this;
     }
@@ -318,7 +324,8 @@ public class YaclCategoryBuilder<T> {
             ValueAccessor<Object> storedEntry,
             Object defaultItem,
             Component groupName,
-            Object sampleItem
+            Object sampleItem,
+            Runnable removal
     ) {
         OptionGroup.Builder groupBuilder = OptionGroup.createBuilder()
                 .name(groupName)
@@ -337,6 +344,15 @@ public class YaclCategoryBuilder<T> {
             }
         }
 
+        YaclOptionMetadata removeEntry = context.metadata(Component.translatable(REMOVE_ENTRY),
+                Component.translatable(REMOVE_ENTRY + ".desc"), containerInfo, containerInfo.getKey());
+        groupOptions.add(ButtonOption.createBuilder()
+                .name(removeEntry.name())
+                .description(removeEntry.description())
+                .available(removeEntry.available())
+                .text(Component.empty())
+                .action((screen, button) -> YaclConfigScreen.from(screen).rebuild(removal))
+                .build());
         groupBuilder.options(groupOptions);
         return groupBuilder.build();
     }

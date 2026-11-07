@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Component;
 
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -100,8 +101,10 @@ public class YaclScreenBuilder {
         return this;
     }
 
+    record ScreenBuild(YetAnotherConfigLib lib, Collection<YaclBindingSynchronizer> synchronizers) {}
+
     @SuppressWarnings("unchecked")
-    private <T> ConfigSession<T> sessionOf(ConfigManager<T> manager) {
+    <T> ConfigSession<T> sessionOf(ConfigManager<T> manager) {
         Objects.requireNonNull(manager, "manager cannot be null");
         return (ConfigSession<T>) sessions.computeIfAbsent(manager, ConfigSession::new);
     }
@@ -121,17 +124,45 @@ public class YaclScreenBuilder {
     }
 
     public YetAnotherConfigLib buildLib() {
+        return build().lib();
+    }
+
+    ScreenBuild build() {
         controllerRegistry.clearItemTargets();
         Map<ConfigSession<?>, YaclBindingSynchronizer> synchronizers = new HashMap<>();
         List<ConfigCategory> builtCategories = new ArrayList<>(categories.size());
         for (PendingCategory category : categories) {
             builtCategories.add(category.build(synchronizers));
         }
-        return YetAnotherConfigLib.createBuilder()
+        YetAnotherConfigLib lib = YetAnotherConfigLib.createBuilder()
                 .title(title)
                 .categories(builtCategories)
                 .save(this::commitSessions)
                 .build();
+        return new ScreenBuild(lib, List.copyOf(synchronizers.values()));
+    }
+
+    ScreenBuild rebuild(ScreenBuild current, Runnable change) {
+        current.synchronizers().forEach(YaclBindingSynchronizer::applyPendingValues);
+        change.run();
+        sessions.values().forEach(ConfigSession::syncPreviewWithDraft);
+        return build();
+    }
+
+    boolean sessionsHaveChanges() {
+        return sessions.values().stream().anyMatch(ConfigSession::hasChanges);
+    }
+
+    boolean sessionsBehindManagers() {
+        return sessions.values().stream().anyMatch(ConfigSession::isBehindManager);
+    }
+
+    void catchUpSessions() {
+        sessions.values().forEach(ConfigSession::catchUpWithManager);
+    }
+
+    void discardSessionChanges() {
+        sessions.values().forEach(ConfigSession::discardChanges);
     }
 
     private void commitSessions() {
@@ -145,6 +176,6 @@ public class YaclScreenBuilder {
     }
 
     public Screen generateScreen() {
-        return buildLib().generateScreen(parent);
+        return new YaclConfigScreen(this, build(), parent, 0);
     }
 }

@@ -2,5 +2,7 @@
   "s_lib.config_screen.no_permission": "\n§4§lWarning:§f §cThis server does not let you edit this.§f",
   "s_lib.config_screen.server_without_mod": "\n§4§lWarning:§f §cThis server does not have the mod, so it uses the default value.§f",
   "s_lib.config_screen.no_entries": "No entries",
+  "s_lib.config_screen.remove_entry": "Remove Entry",
+  "s_lib.config_screen.remove_entry.desc": "Removes this entry when you save the screen.",
   "s_lib.config_screen.comma_list": "Separate the entries with commas. Write \\, for a comma inside an entry."
 }

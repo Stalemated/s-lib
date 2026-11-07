@@ -106,6 +106,24 @@ public final class ValueAccessor<M> {
         );
     }
 
+    public static void removeListEntry(ConfigSession<?> session, OptionInfo listInfo, int index) {
+        List<Object> updated = new ArrayList<>(listOrDefaults(session, listInfo));
+        if (index < 0 || index >= updated.size()) {
+            throw new IndexOutOfBoundsException("Cannot remove entry " + index + " of '" + listInfo.getKey() + "', it has " + updated.size() + " entries");
+        }
+        updated.remove(index);
+        session.set(listInfo, updated);
+    }
+
+    public static void removeMapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey) {
+        Map<Object, Object> updated = new LinkedHashMap<>(mapOrDefaults(session, mapInfo));
+        if (!updated.containsKey(entryKey)) {
+            throw new IllegalStateException("Cannot remove entry '" + entryKey + "' of '" + mapInfo.getKey() + "', it has no such key");
+        }
+        updated.remove(entryKey);
+        session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
+    }
+
     public static Map<?, ?> defaultMapOf(OptionInfo mapInfo) {
         return mapInfo.defaultCopy() instanceof Map<?, ?> defaults ? defaults : Map.of();
     }

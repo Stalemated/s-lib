@@ -105,6 +105,11 @@ public final class YaclBindingSynchronizer {
         follower.follow(this::currentValue);
     }
 
+    public void applyPendingValues() {
+        List<SlottedOption> registered = optionsByContainer.values().stream().flatMap(List::stream).toList();
+        registered.forEach(slotted -> slotted.option().applyValue());
+    }
+
     private Object currentValue(OptionInfo toggle) {
         return optionsByContainer.getOrDefault(toggle.getKey(), List.of()).stream()
                 .filter(registered -> isWholeOption(registered.slot()))

@@ -98,6 +98,35 @@ public class ConfigSession<T> {
         return !optionTree.findChanges(base, draft).isEmpty();
     }
 
+    public boolean isBehindManager() {
+        return !optionTree.findChanges(base, manager.get()).isEmpty();
+    }
+
+    public boolean catchUpWithManager() {
+        T current = manager.get();
+        List<OptionChange> moved = optionTree.findChanges(base, current);
+        for (OptionChange change : moved) {
+            OptionInfo option = change.option();
+            Object before = option.getValue(base);
+            Object edited = option.getValue(draft);
+            Object now = option.getValue(current);
+            Object caughtUp = optionTree.sameValue(before, edited) ? now : mergeWithCurrent(option, before, edited, now);
+            option.setValue(draft, optionTree.deepCopy().of(caughtUp, option.genericType()));
+            option.setValue(base, optionTree.deepCopy().of(now, option.genericType()));
+        }
+        return !moved.isEmpty();
+    }
+
+    public void discardChanges() {
+        optionTree.copyAllValues(base, draft);
+    }
+
+    public void syncPreviewWithDraft() {
+        if (preview == null) return;
+        optionTree.copyAllValues(draft, preview);
+        if (previewListener != null) previewListener.accept(preview);
+    }
+
     /**
      * Commits the options edited in this session into the active manager via a single atomic call.
      * Options the session did not touch keep whatever value they have now, even if it changed
@@ -131,7 +160,7 @@ public class ConfigSession<T> {
 
     private List<?> mergeLists(OptionInfo option, List<?> before, List<?> edited, List<?> current) {
         if (edited.size() != before.size() || current.size() < before.size()) {
-            LOGGER.warn("Saving '{}' replaced the changes made to it elsewhere while the screen was open: it had {} elements, the screen saved {} and it had become {}",
+            LOGGER.warn("The screen kept its own '{}' over the changes made to it elsewhere while it was open: it had {} elements, the screen has {} and it had become {}",
                     option.getKey(), before.size(), edited.size(), current.size());
             return edited;
         }
