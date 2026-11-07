@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -28,7 +29,7 @@ public final class SLibConfigScreens {
 
     private SLibConfigScreens() {}
 
-    public static void register(String modId, Function<Screen, Screen> factory) {
+    public static void register(String modId, Supplier<Function<Screen, Screen>> factory) {
         Objects.requireNonNull(modId, "modId cannot be null");
         Objects.requireNonNull(factory, "factory cannot be null");
         if (!SLibYacl.isAvailable()) {
@@ -39,16 +40,17 @@ public final class SLibConfigScreens {
             throw new IllegalArgumentException("Cannot register a config screen for '" + modId + "': no mod with that id is loaded");
         }
 
-        ConfigScreenFactories.add(modId, factory);
+        Function<Screen, Screen> screens = Objects.requireNonNull(factory.get(), "The screen factory of '" + modId + "' is null");
+        ConfigScreenFactories.add(modId, screens);
         //? if forge || neoforge && <=1.20.4 {
         /*ModList.get().getModContainerById(modId).orElseThrow().registerExtensionPoint(ConfigScreenHandler.ConfigScreenFactory.class,
-                () -> new ConfigScreenHandler.ConfigScreenFactory((minecraft, parent) -> factory.apply(parent)));
+                () -> new ConfigScreenHandler.ConfigScreenFactory((minecraft, parent) -> screens.apply(parent)));
         *///?} elif neoforge && <1.21 {
         /*ModList.get().getModContainerById(modId).orElseThrow().registerExtensionPoint(IConfigScreenFactory.class,
-                (IConfigScreenFactory) (minecraft, parent) -> factory.apply(parent));
+                (IConfigScreenFactory) (minecraft, parent) -> screens.apply(parent));
         *///?} elif neoforge {
         /*ModList.get().getModContainerById(modId).orElseThrow().registerExtensionPoint(IConfigScreenFactory.class,
-                (IConfigScreenFactory) (container, parent) -> factory.apply(parent));
+                (IConfigScreenFactory) (container, parent) -> screens.apply(parent));
         *///?}
     }
 }
