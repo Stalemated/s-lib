@@ -8,6 +8,7 @@ import com.stalemated.lib.util.internal.StringUtils;
 import com.stalemated.lib.util.internal.ReflectionUtils;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
+import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -23,6 +24,8 @@ import java.util.Optional;
  * and numeric constraint enforcement to {@link OptionInfo}.
  */
 public final class YaclPojoFieldBuilder {
+
+    private static final Component COMMA_LIST = Component.translatable("s_lib.config_screen.comma_list");
 
     private YaclPojoFieldBuilder() {}
 
@@ -48,12 +51,9 @@ public final class YaclPojoFieldBuilder {
         String optionKey = containerInfo.getKey() + "." + field.getName();
         Object defaultFieldVal = defaultFieldValue(field, defaultItem, entry.get());
         OptionInfo fieldInfo = resolveFieldOptionInfo(containerInfo, field, defaultFieldVal);
-        YaclOptionMetadata meta = context.metadata(
-                context.namingStrategy().optionName(context.translationPrefix(), optionKey),
-                context.optionDescription(optionKey, field),
-                containerInfo,
-                optionKey
-        );
+        Component name = context.namingStrategy().optionName(context.translationPrefix(), optionKey);
+        Component description = context.optionDescription(optionKey, field);
+        YaclOptionMetadata meta = context.metadata(name, description, containerInfo, optionKey);
         field.setAccessible(true);
         ValueAccessor<Object> value = entry.property(
                 field.getName(),
@@ -68,7 +68,8 @@ public final class YaclPojoFieldBuilder {
         }
         if (Collection.class.isAssignableFrom(field.getType())) {
             TypeLens<Object, String> commaSeparated = commaSeparatedLens(context, fieldInfo.getCollectionElementType(), optionKey);
-            return assembler.option(meta, fieldInfo, value, commaSeparated, defaultFieldVal, null);
+            YaclOptionMetadata listMeta = context.metadata(name, description.copy().append("\n").append(COMMA_LIST), containerInfo, optionKey);
+            return assembler.option(listMeta, fieldInfo, value, commaSeparated, defaultFieldVal, null);
         }
         throw new UnsupportedOperationException("No YACL controller or adapter registered for type: "
                 + field.getType().getName() + " on config option: " + optionKey);

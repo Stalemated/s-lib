@@ -1,7 +1,6 @@
 package com.stalemated.lib.util.internal;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,6 +12,7 @@ public final class StringUtils {
 
     private static final String QUOTES = "\"'";
     private static final String ESCAPABLE = "\\\"'";
+    private static final String LIST_ESCAPABLE = ",\\";
 
     private StringUtils() {}
 
@@ -49,13 +49,30 @@ public final class StringUtils {
      * @return A list of trimmed tokens, never null.
      */
     public static List<String> parseCommaSeparated(String val) {
-        if (val == null || val.trim().isEmpty()) {
-            return new ArrayList<>();
+        List<String> entries = new ArrayList<>();
+        if (val == null) return entries;
+
+        StringBuilder entry = new StringBuilder();
+        for (int i = 0; i < val.length(); i++) {
+            char c = val.charAt(i);
+            if (c == '\\' && escapesNext(val, i)) {
+                entry.append(val.charAt(++i));
+            } else if (c == ',') {
+                addEntry(entries, entry);
+            } else {
+                entry.append(c);
+            }
         }
-        return Arrays.stream(val.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toCollection(ArrayList::new));
+        addEntry(entries, entry);
+        return entries;
+    }
+
+    private static void addEntry(List<String> entries, StringBuilder entry) {
+        String trimmed = entry.toString().trim();
+        if (!trimmed.isEmpty()) {
+            entries.add(trimmed);
+        }
+        entry.setLength(0);
     }
 
     /**
@@ -69,7 +86,24 @@ public final class StringUtils {
             return "";
         }
         return items.stream()
-                .map(String::valueOf)
+                .map(item -> escapeEntry(String.valueOf(item)))
                 .collect(Collectors.joining(", "));
+    }
+
+    private static String escapeEntry(String entry) {
+        StringBuilder escaped = new StringBuilder(entry.length());
+        for (int i = 0; i < entry.length(); i++) {
+            char c = entry.charAt(i);
+            boolean endsEntry = i == entry.length() - 1;
+            if (c == ',' || (c == '\\' && (endsEntry || escapesNext(entry, i)))) {
+                escaped.append('\\');
+            }
+            escaped.append(c);
+        }
+        return escaped.toString();
+    }
+
+    private static boolean escapesNext(String text, int backslash) {
+        return backslash + 1 < text.length() && LIST_ESCAPABLE.indexOf(text.charAt(backslash + 1)) >= 0;
     }
 }
