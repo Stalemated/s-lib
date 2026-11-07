@@ -56,7 +56,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     /**
      * Registers the config.
      * This claims the config file and sync channel, registers the network receivers, loads the file
-     * (creating it with defaults when it is new), and invokes the load, load failure, and change listeners.
+     * (creating it with defaults when it is new), and invokes the load and load failure listeners.
      *
      * @throws IllegalStateException If another registered config already uses the same file or sync channel.
      */
@@ -65,7 +65,6 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
             ConfigRegistry.claimFileAndChannel(new RegistryHooks(), getConfigPath(), syncChannel);
             networkHandler.registerReceivers();
         });
-        fireChanged();
     }
 
     @Override

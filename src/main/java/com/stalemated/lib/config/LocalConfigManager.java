@@ -98,7 +98,7 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     /**
      * Registers the config.
      * This claims the config file, loads it (creating it with defaults when it is new),
-     * and invokes the load, load failure, and change listeners.
+     * and invokes the load and load failure listeners.
      *
      * @throws IllegalStateException If another registered config already uses the same file.
      */
@@ -117,7 +117,6 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
 
         T loaded = provider.instance();
         loadListeners.fire(listener -> listener.accept(loaded));
-        fireChanged();
     }
 
     /**
