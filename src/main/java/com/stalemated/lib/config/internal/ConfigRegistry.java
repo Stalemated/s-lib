@@ -4,11 +4,14 @@ import com.stalemated.lib.config.ConfigManager;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.PlayerList;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -93,7 +96,17 @@ public final class ConfigRegistry {
      * @param player The connected player.
      */
     public static void onPlayerJoinServer(ServerPlayer player) {
-        notifySynced(synced -> synced.onPlayerJoin(player), "Failed to sync config to player " + player.getName().getString());
+        notifySynced(synced -> synced.sendConfigTo(player), () -> "Failed to sync config to player " + player.getName().getString());
+    }
+
+    public static void onOperatorStatusChanged(PlayerList players, UUID playerId) {
+        ServerPlayer player = players.getPlayer(playerId);
+        if (player == null) return;
+        onPlayerPermissionChanged(player);
+    }
+
+    public static void onPlayerPermissionChanged(ServerPlayer player) {
+        notifySynced(synced -> synced.sendConfigTo(player), () -> "Failed to resend config to player " + player.getName().getString() + " after a permission change");
     }
 
     public static void onPlayerLeaveServer(ServerPlayer player) {
@@ -107,7 +120,7 @@ public final class ConfigRegistry {
      * @param isSingleplayer true if connected to an integrated singleplayer server, false if multiplayer.
      */
     public static void onClientJoin(boolean isSingleplayer) {
-        notifySynced(synced -> synced.onClientJoin(isSingleplayer), "Failed to handle client connection state update");
+        notifySynced(synced -> synced.onClientJoin(isSingleplayer), () -> "Failed to handle client connection state update");
     }
 
     /**
@@ -115,15 +128,15 @@ public final class ConfigRegistry {
      * Invoked automatically by S-Lib platform hooks on the client logical side.
      */
     public static void onClientDisconnect() {
-        notifySynced(SyncedConfigHooks::onClientDisconnect, "Failed to clear server config on disconnect");
+        notifySynced(SyncedConfigHooks::onClientDisconnect, () -> "Failed to clear server config on disconnect");
     }
 
-    private static void notifySynced(Consumer<SyncedConfigHooks> event, String failure) {
+    private static void notifySynced(Consumer<SyncedConfigHooks> event, Supplier<String> failure) {
         for (SyncedConfigHooks synced : CHANNELS.values()) {
             try {
                 event.accept(synced);
             } catch (Exception e) {
-                LOGGER.error("{}: {}", failure, e.getMessage(), e);
+                LOGGER.error("{}: {}", failure.get(), e.getMessage(), e);
             }
         }
     }

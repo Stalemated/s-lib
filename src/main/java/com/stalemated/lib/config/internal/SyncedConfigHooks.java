@@ -9,7 +9,7 @@ public interface SyncedConfigHooks {
 
     ConfigManager<?> manager();
 
-    void onPlayerJoin(ServerPlayer player);
+    void sendConfigTo(ServerPlayer player);
 
     void onPlayerLeave(UUID playerId);
 
