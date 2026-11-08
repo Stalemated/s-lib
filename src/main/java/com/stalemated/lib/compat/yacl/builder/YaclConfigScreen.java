@@ -58,6 +58,24 @@ final class YaclConfigScreen extends YACLScreen {
         }
     }
 
+    @Override
+    public void finishOrSave() {
+        boolean saving = pendingChanges();
+        super.finishOrSave();
+        if (saving && isShown()) {
+            rebuild(owner::catchUpSessions);
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private boolean isShown() {
+        //? if <26.2 {
+        return minecraft.screen == this;
+        //?} else {
+        /*return minecraft.gui.screen() == this;
+        *///?}
+    }
+
     @SuppressWarnings("ConstantConditions")
     void rebuild(Runnable change) {
         int tab = Math.max(tabNavigationBar.getTabs().indexOf(tabManager.getCurrentTab()), 0);
