@@ -133,7 +133,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     private void switchView(SyncView<T> next) {
         T before = get();
         view = next;
-        if (get() != before) {
+        if (!getOptionTree().findChanges(before, get()).isEmpty()) {
             fireChanged();
         }
     }
@@ -272,13 +272,15 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     private void flush(SyncBatch batch) {
-        if (!batch.serverOverrides.isEmpty() && !sendOverridesToServer(batch.serverOverrides)) {
-            batch.rejected = true;
+        if (!batch.serverOverrides.isEmpty()) {
+            boolean sent = sendOverridesToServer(batch.serverOverrides);
+            batch.overridesApplied = sent;
+            batch.rejected |= !sent;
         }
 
         if (batch.localChanged) {
             save();
-        } else if (batch.rejected) {
+        } else if (batch.overridesApplied || batch.rejected) {
             fireChanged();
         }
 
@@ -377,5 +379,6 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         boolean requestOverrideBroadcast = false;
         boolean broadcastToClients = false;
         boolean rejected = false;
+        boolean overridesApplied = false;
     }
 }
