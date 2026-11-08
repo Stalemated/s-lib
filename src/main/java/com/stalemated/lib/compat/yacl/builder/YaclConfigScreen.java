@@ -42,6 +42,15 @@ final class YaclConfigScreen extends YACLScreen {
     }
 
     @Override
+    public void cancelOrReset() {
+        if (pendingChanges()) {
+            super.cancelOrReset();
+            return;
+        }
+        YaclScreenBuilder.requestDefaultsOfAvailableOptions(config);
+    }
+
+    @Override
     public void undo() {
         super.undo();
         if (owner.sessionsHaveChanges()) {

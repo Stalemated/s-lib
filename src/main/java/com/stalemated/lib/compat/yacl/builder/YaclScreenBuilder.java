@@ -8,7 +8,9 @@ import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.config.ConfigManager;
 import com.stalemated.lib.config.internal.ConfigSession;
 import dev.isxander.yacl3.api.ConfigCategory;
+import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
+import dev.isxander.yacl3.api.utils.OptionUtils;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -159,6 +161,10 @@ public class YaclScreenBuilder {
 
     void catchUpSessions() {
         sessions.values().forEach(ConfigSession::catchUpWithManager);
+    }
+
+    static void requestDefaultsOfAvailableOptions(YetAnotherConfigLib lib) {
+        OptionUtils.getFlatOptions(lib).filter(Option::available).forEach(Option::requestSetDefault);
     }
 
     void discardSessionChanges() {
