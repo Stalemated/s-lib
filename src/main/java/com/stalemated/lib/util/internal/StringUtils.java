@@ -12,7 +12,6 @@ public final class StringUtils {
 
     private static final String QUOTES = "\"'";
     private static final String ESCAPABLE = "\\\"'";
-    private static final String LIST_ESCAPABLE = ",\\";
 
     private StringUtils() {}
 
@@ -21,7 +20,7 @@ public final class StringUtils {
      * The quotes are only removed when the whole trimmed string is one quoted token.
      *
      * @param s The string to strip quotes from.
-     * @return The unquoted string, or the trimmed string if it is not a single quoted token.
+     * @return The unquoted string, or the trimmed string if it is not a single-quoted token.
      */
     public static String stripQuotes(String s) {
         String trimmed = s.trim();
@@ -43,40 +42,59 @@ public final class StringUtils {
     }
 
     /**
-     * Parses a comma-separated string into a list of trimmed, non-empty tokens.
+     * Parses a comma-separated string into a list of entries. Unquoted entries are trimmed and empty ones are dropped.
+     * An entry wrapped in double quotes keeps its commas and edge spaces, and is kept verbatim even when empty.
+     * Inside quotes, {@code \"} is a quote and {@code \\} is a backslash; any other backslash is kept as typed.
      *
      * @param val The comma-separated string.
-     * @return A list of trimmed tokens, never null.
+     * @return A list of entries, never null.
+     * @throws IllegalArgumentException If a quote is not closed or text follows a closing quote before the next comma.
      */
     public static List<String> parseCommaSeparated(String val) {
         List<String> entries = new ArrayList<>();
         if (val == null) return entries;
 
-        StringBuilder entry = new StringBuilder();
-        for (int i = 0; i < val.length(); i++) {
-            char c = val.charAt(i);
-            if (c == '\\' && escapesNext(val, i)) {
-                entry.append(val.charAt(++i));
-            } else if (c == ',') {
-                addEntry(entries, entry);
+        int i = 0;
+        while (i < val.length()) {
+            while (i < val.length() && val.charAt(i) == ' ') i++;
+            if (i < val.length() && val.charAt(i) == '"') {
+                StringBuilder quoted = new StringBuilder();
+                i = readQuoted(val, i + 1, quoted);
+                entries.add(quoted.toString());
+                while (i < val.length() && val.charAt(i) == ' ') i++;
+                if (i < val.length() && val.charAt(i) != ',') {
+                    throw new IllegalArgumentException("list text needs a comma after the quoted entry at position "
+                            + i + ", got '" + val.charAt(i) + "' in '" + val + "'");
+                }
+                i++;
             } else {
-                entry.append(c);
+                int end = val.indexOf(',', i);
+                if (end < 0) end = val.length();
+                String plain = val.substring(i, end).trim();
+                if (!plain.isEmpty()) entries.add(plain);
+                i = end + 1;
             }
         }
-        addEntry(entries, entry);
         return entries;
     }
 
-    private static void addEntry(List<String> entries, StringBuilder entry) {
-        String trimmed = entry.toString().trim();
-        if (!trimmed.isEmpty()) {
-            entries.add(trimmed);
+    private static int readQuoted(String val, int start, StringBuilder into) {
+        for (int i = start; i < val.length(); i++) {
+            char c = val.charAt(i);
+            if (c == '\\' && i + 1 < val.length() && (val.charAt(i + 1) == '\\' || val.charAt(i + 1) == '"')) {
+                into.append(val.charAt(++i));
+            } else if (c == '"') {
+                return i + 1;
+            } else {
+                into.append(c);
+            }
         }
-        entry.setLength(0);
+        throw new IllegalArgumentException("list text has an unclosed quote: '" + val + "'");
     }
 
     /**
-     * Joins a collection of elements into a single string separated by commas.
+     * Joins a collection of elements into a single string separated by commas. An entry is wrapped in double quotes
+     * only when it is empty, contains a comma, starts with a double quote, or has leading or trailing whitespace.
      *
      * @param items The items to join.
      * @return A comma-separated string, or an empty string if null or empty.
@@ -86,67 +104,21 @@ public final class StringUtils {
             return "";
         }
         return items.stream()
-                .map(item -> escapeEntry(String.valueOf(item)))
+                .map(item -> quoteIfNeeded(String.valueOf(item)))
                 .collect(Collectors.joining(", "));
     }
 
-    public static List<String> parseBackslashCommaSeparated(String val) {
-        List<String> entries = new ArrayList<>();
-        if (val == null) return entries;
+    private static String quoteIfNeeded(String entry) {
+        boolean needsQuotes = entry.isEmpty() || entry.indexOf(',') >= 0 || entry.charAt(0) == '"'
+                || !entry.equals(entry.trim());
+        if (!needsQuotes) return entry;
 
-        StringBuilder entry = new StringBuilder();
-        for (int i = 0; i < val.length(); i++) {
-            char c = val.charAt(i);
-            if (c == '\\' && escapesNext(val, i)) {
-                char escaped = val.charAt(++i);
-                if (escaped == ',') {
-                    addEntry(entries, entry);
-                } else {
-                    entry.append(escaped);
-                }
-            } else {
-                entry.append(c);
-            }
-        }
-        addEntry(entries, entry);
-        return entries;
-    }
-
-    public static String joinBackslashCommaSeparated(Collection<?> items) {
-        if (items == null || items.isEmpty()) {
-            return "";
-        }
-        return items.stream()
-                .map(item -> escapeBackslashes(String.valueOf(item)))
-                .collect(Collectors.joining("\\, "));
-    }
-
-    private static String escapeBackslashes(String entry) {
-        StringBuilder escaped = new StringBuilder(entry.length());
+        StringBuilder quoted = new StringBuilder(entry.length() + 2).append('"');
         for (int i = 0; i < entry.length(); i++) {
             char c = entry.charAt(i);
-            if (c == '\\' && (i == entry.length() - 1 || escapesNext(entry, i))) {
-                escaped.append('\\');
-            }
-            escaped.append(c);
+            if (c == '\\' || c == '"') quoted.append('\\');
+            quoted.append(c);
         }
-        return escaped.toString();
-    }
-
-    private static String escapeEntry(String entry) {
-        StringBuilder escaped = new StringBuilder(entry.length());
-        for (int i = 0; i < entry.length(); i++) {
-            char c = entry.charAt(i);
-            boolean endsEntry = i == entry.length() - 1;
-            if (c == ',' || (c == '\\' && (endsEntry || escapesNext(entry, i)))) {
-                escaped.append('\\');
-            }
-            escaped.append(c);
-        }
-        return escaped.toString();
-    }
-
-    private static boolean escapesNext(String text, int backslash) {
-        return backslash + 1 < text.length() && LIST_ESCAPABLE.indexOf(text.charAt(backslash + 1)) >= 0;
+        return quoted.append('"').toString();
     }
 }
