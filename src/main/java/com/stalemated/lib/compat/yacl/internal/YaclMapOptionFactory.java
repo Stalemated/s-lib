@@ -58,7 +58,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
     }
 
     /**
-     * Builds a list of YACL {@link ListOption} widgets projecting a dynamic {@code List<String>} property
+     * Builds a list of YACL {@link ListOption} widgets projecting a list property
      * for each entry inside a nested POJO map using a {@link NestListBinding}.
      *
      * @param mapInfo The option metadata for the parent map.
@@ -89,23 +89,27 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         OptionAssembler assembler = context.assembler();
         Component desc = binding.description() != null ? binding.description() : context.optionDescription(mapInfo.getKey(), mapInfo.field());
         List<ListOption<String>> options = new ArrayList<>(keys.size());
+        TypeLens<Object, String> elementText = context.controllerRegistry().findTextLens(binding.elementType()).orElseThrow(() ->
+                new UnsupportedOperationException("No text conversion registered for list element type: "
+                        + binding.elementType().getName() + " on config option: " + mapInfo.getKey()));
+        String initialElement = elementText.guiOf(context.controllerRegistry().resolveInitialValue(binding.elementType()), elementText.fallback());
 
         for (String entryKey : keys) {
             YaclOptionMetadata meta = context.metadata(binding.entryName().apply(entryKey), desc, mapInfo, mapInfo.getKey());
-            ValueAccessor<List<String>> projected = ValueAccessor.mapEntry(context.session(), mapInfo, entryKey).property(
+            ValueAccessor<List<Object>> projected = ValueAccessor.mapEntry(context.session(), mapInfo, entryKey).property(
                     null,
                     item -> copyOf(binding.getter().apply((N) item)),
                     (item, list) -> binding.setter().accept((N) item, new ArrayList<>(list)),
                     binding.newEntry()
             );
-            List<String> defaultList = copyOf(defaultMap.containsKey(entryKey) ? binding.getter().apply(defaultMap.get(entryKey)) : null);
-            options.add(assembler.list(meta, mapInfo, projected, TEXT, defaultList, "", null));
+            List<Object> defaultList = copyOf(defaultMap.containsKey(entryKey) ? binding.getter().apply(defaultMap.get(entryKey)) : null);
+            options.add(assembler.list(meta, mapInfo, projected, elementText, defaultList, initialElement, null));
         }
 
         return options;
     }
 
-    private static List<String> copyOf(List<String> list) {
+    private static List<Object> copyOf(List<?> list) {
         return list != null ? new ArrayList<>(list) : new ArrayList<>();
     }
 
