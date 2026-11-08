@@ -90,6 +90,49 @@ public final class StringUtils {
                 .collect(Collectors.joining(", "));
     }
 
+    public static List<String> parseBackslashCommaSeparated(String val) {
+        List<String> entries = new ArrayList<>();
+        if (val == null) return entries;
+
+        StringBuilder entry = new StringBuilder();
+        for (int i = 0; i < val.length(); i++) {
+            char c = val.charAt(i);
+            if (c == '\\' && escapesNext(val, i)) {
+                char escaped = val.charAt(++i);
+                if (escaped == ',') {
+                    addEntry(entries, entry);
+                } else {
+                    entry.append(escaped);
+                }
+            } else {
+                entry.append(c);
+            }
+        }
+        addEntry(entries, entry);
+        return entries;
+    }
+
+    public static String joinBackslashCommaSeparated(Collection<?> items) {
+        if (items == null || items.isEmpty()) {
+            return "";
+        }
+        return items.stream()
+                .map(item -> escapeBackslashes(String.valueOf(item)))
+                .collect(Collectors.joining("\\, "));
+    }
+
+    private static String escapeBackslashes(String entry) {
+        StringBuilder escaped = new StringBuilder(entry.length());
+        for (int i = 0; i < entry.length(); i++) {
+            char c = entry.charAt(i);
+            if (c == '\\' && (i == entry.length() - 1 || escapesNext(entry, i))) {
+                escaped.append('\\');
+            }
+            escaped.append(c);
+        }
+        return escaped.toString();
+    }
+
     private static String escapeEntry(String entry) {
         StringBuilder escaped = new StringBuilder(entry.length());
         for (int i = 0; i < entry.length(); i++) {

@@ -4,5 +4,6 @@
   "s_lib.config_screen.no_entries": "No entries",
   "s_lib.config_screen.remove_entry": "Remove Entry",
   "s_lib.config_screen.remove_entry.desc": "Removes this entry when you save the screen.",
-  "s_lib.config_screen.comma_list": "Separate the entries with commas. Write \\, for a comma inside an entry."
+  "s_lib.config_screen.comma_list": "Separate the entries with commas. Write \\, for a comma inside an entry.",
+  "s_lib.config_screen.text_list": "Separate the entries with \\, (backslash and comma). A plain comma stays inside the entry. Write \\\\, for a backslash followed by a comma."
 }

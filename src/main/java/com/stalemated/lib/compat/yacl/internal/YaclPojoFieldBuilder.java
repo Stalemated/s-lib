@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Internal factory collaborator responsible for reflectively building YACL options
@@ -25,7 +26,16 @@ import java.util.Optional;
  */
 public final class YaclPojoFieldBuilder {
 
-    private static final Component COMMA_LIST = Component.translatable("s_lib.config_screen.comma_list");
+    private record ListFormat(Function<String, List<String>> parse, Function<Collection<?>, String> join, Component description) {}
+
+    private static final ListFormat TEXT_LIST = new ListFormat(StringUtils::parseBackslashCommaSeparated,
+            StringUtils::joinBackslashCommaSeparated, Component.translatable("s_lib.config_screen.text_list"));
+    private static final ListFormat COMMA_LIST = new ListFormat(StringUtils::parseCommaSeparated,
+            StringUtils::joinCommaSeparated, Component.translatable("s_lib.config_screen.comma_list"));
+
+    private static ListFormat listFormatOf(Class<?> elementType) {
+        return elementType == String.class ? TEXT_LIST : COMMA_LIST;
+    }
 
     private YaclPojoFieldBuilder() {}
 
@@ -67,9 +77,10 @@ public final class YaclPojoFieldBuilder {
             return assembler.option(meta, fieldInfo, value, lens.get(), defaultFieldVal, null);
         }
         if (Collection.class.isAssignableFrom(field.getType())) {
-            TypeLens<Object, String> commaSeparated = commaSeparatedLens(context, fieldInfo.getCollectionElementType(), optionKey);
-            YaclOptionMetadata listMeta = context.metadata(name, description.copy().append("\n").append(COMMA_LIST), containerInfo, optionKey);
-            return assembler.option(listMeta, fieldInfo, value, commaSeparated, defaultFieldVal, null);
+            ListFormat format = listFormatOf(fieldInfo.getCollectionElementType());
+            TypeLens<Object, String> listText = listTextLens(context, fieldInfo.getCollectionElementType(), optionKey, format);
+            YaclOptionMetadata listMeta = context.metadata(name, description.copy().append("\n").append(format.description()), containerInfo, optionKey);
+            return assembler.option(listMeta, fieldInfo, value, listText, defaultFieldVal, null);
         }
         throw new UnsupportedOperationException("No YACL controller or adapter registered for type: "
                 + field.getType().getName() + " on config option: " + optionKey);
@@ -90,31 +101,31 @@ public final class YaclPojoFieldBuilder {
         return containerInfo.childTemplate(containerInfo.getKey() + "." + field.getName(), field, defaultFieldVal, field.getType(), field.getGenericType());
     }
 
-    private static TypeLens<Object, String> commaSeparatedLens(YaclContext<?> context, Class<?> elementType, String optionKey) {
+    private static TypeLens<Object, String> listTextLens(YaclContext<?> context, Class<?> elementType, String optionKey, ListFormat format) {
         TypeLens<Object, String> elementText = context.controllerRegistry().findTextLens(elementType).orElseThrow(() ->
                 new UnsupportedOperationException("No text conversion registered for element type: "
                         + elementType.getName() + " on config option: " + optionKey));
 
         return new TypeLens<>(
-                collection -> collection instanceof Collection<?> elements ? joinNonNull(elements, elementText) : "",
-                text -> parseTokens(text, elementText),
+                collection -> collection instanceof Collection<?> elements ? joinNonNull(elements, elementText, format) : "",
+                text -> parseTokens(text, elementText, format),
                 "",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );
     }
 
-    private static String joinNonNull(Collection<?> elements, TypeLens<Object, String> elementText) {
+    private static String joinNonNull(Collection<?> elements, TypeLens<Object, String> elementText, ListFormat format) {
         List<String> tokens = new ArrayList<>(elements.size());
         for (Object element : elements) {
             if (element != null) {
                 tokens.add(elementText.guiOf(element, ""));
             }
         }
-        return StringUtils.joinCommaSeparated(tokens);
+        return format.join().apply(tokens);
     }
 
-    private static List<Object> parseTokens(String text, TypeLens<Object, String> elementText) {
-        List<String> tokens = StringUtils.parseCommaSeparated(text);
+    private static List<Object> parseTokens(String text, TypeLens<Object, String> elementText, ListFormat format) {
+        List<String> tokens = format.parse().apply(text);
         List<Object> elements = new ArrayList<>(tokens.size());
         for (String token : tokens) {
             Object element = elementText.fromGui().apply(token);
