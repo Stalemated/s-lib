@@ -198,7 +198,8 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
      *     <li>{@link SyncMode#NONE}: Applied locally and saved to disk.</li>
      *     <li>{@link SyncMode#INFORM_SERVER}: Applied locally, saved, and dispatched via C2S inform packet.</li>
      *     <li>{@link SyncMode#OVERRIDE_CLIENT}: On dedicated/singleplayer, applied locally; on modded multiplayer,
-     * only the changed options are sent to the server via C2S override packet and applied to the active cache
+     * dropped with a warning if the server does not let this player change them; otherwise only the changed
+     * options are sent to the server via C2S override packet and applied to the active cache
      * once sent, without saving locally until server echo; rejected with an error if the packet is over the
      * server-bound size limit; on unmodded multiplayer, rejected with a warning.</li>
      * </ul>
@@ -255,7 +256,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     private void applyOverrideChange(OptionChange change, SyncBatch batch) {
         switch (view.state()) {
-            case MULTIPLAYER_MODDED -> batch.serverOverrides.add(change);
+            case MULTIPLAYER_MODDED -> applyServerOverride(change, batch);
             case MULTIPLAYER_UNMODDED -> {
                 localManager.logger().warn("Cannot modify synced option '{}' while connected to an unmodded server.", change.option().getKey());
                 batch.rejected = true;
@@ -269,6 +270,14 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
                 batch.broadcastToClients = true;
             }
         }
+    }
+
+    private void applyServerOverride(OptionChange change, SyncBatch batch) {
+        if (!view.canChangeOverrides()) {
+            localManager.logger().warn("Dropped the change of synced option '{}' to {}: the server does not let this player change it", change.option().getKey(), change.clampedValue());
+            return;
+        }
+        batch.serverOverrides.add(change);
     }
 
     private void flush(SyncBatch batch) {
