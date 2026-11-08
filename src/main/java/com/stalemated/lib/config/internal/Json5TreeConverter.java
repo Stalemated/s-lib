@@ -33,7 +33,7 @@ final class Json5TreeConverter {
             String key = layout.jsonName(child.field());
             com.google.gson.JsonElement value = fields.get(key);
             if (value != null) {
-                object.put(key, convert(value, child), child.comment());
+                object.put(Json5String.escape(key), convert(value, child), child.comment());
             }
         }
         return object;
@@ -41,7 +41,7 @@ final class Json5TreeConverter {
 
     private JsonObject entries(com.google.gson.JsonObject entries, ConfigNode valueSchema) {
         JsonObject object = new JsonObject();
-        entries.entrySet().forEach(entry -> object.put(entry.getKey(), convert(entry.getValue(), valueSchema)));
+        entries.entrySet().forEach(entry -> object.put(Json5String.escape(entry.getKey()), convert(entry.getValue(), valueSchema)));
         return object;
     }
 
@@ -57,7 +57,7 @@ final class Json5TreeConverter {
 
     private static JsonPrimitive primitive(com.google.gson.JsonPrimitive primitive) {
         if (primitive.isBoolean()) return JsonPrimitive.of(primitive.getAsBoolean());
-        if (primitive.isString()) return JsonPrimitive.of(primitive.getAsString());
+        if (primitive.isString()) return new Json5String(primitive.getAsString());
         return number(primitive.getAsNumber().toString());
     }
 
