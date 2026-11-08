@@ -312,5 +312,20 @@ public class AdvancedColorController implements IStringController<String> {
             return click(event.x(), event.y(), () -> super.mouseClicked(event, doubleClick));
         }
         *///?}
+
+        //? if >=26.3 {
+        /*private final PopupTextFocus popupTextFocus = new PopupTextFocus();
+
+        @Override
+        public void setFocused(boolean focused) {
+            if (popupTextFocus.opening()) return;
+            super.setFocused(focused);
+        }
+
+        @Override
+        public void createOrRemoveColorPicker() {
+            popupTextFocus.open(this, screen, super::createOrRemoveColorPicker);
+        }
+        *///?}
     }
 }

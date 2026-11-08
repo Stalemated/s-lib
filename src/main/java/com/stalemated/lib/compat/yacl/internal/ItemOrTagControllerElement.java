@@ -161,6 +161,16 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
         super.unfocus();
     }
 
+    //? if >=26.3 {
+    /*private final PopupTextFocus popupTextFocus = new PopupTextFocus();
+
+    @Override
+    public void setFocused(boolean focused) {
+        if (popupTextFocus.opening()) return;
+        super.setFocused(focused);
+    }
+    *///?}
+
     //? if yacl: <3.8.0 {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
@@ -209,7 +219,11 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     @Override
     public void createDropdownWidget() {
         this.matchingValues = computeMatchingValues();
+        //? if >=26.3 {
+        /*popupTextFocus.open(this, screen, super::createDropdownWidget);
+        *///?} else {
         super.createDropdownWidget();
+        //?}
     }
 
     //? if yacl: <3.9.0 {
