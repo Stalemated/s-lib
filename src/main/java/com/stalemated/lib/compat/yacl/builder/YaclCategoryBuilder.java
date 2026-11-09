@@ -186,7 +186,7 @@ public class YaclCategoryBuilder<T> {
                         () -> ValueAccessor.addMapEntry(
                                 context.session(), info, key,
                                 newEntry(info, entryType)
-                        )
+                        ).ifPresent(LOGGER::warn)
                     )
                 );
         }));

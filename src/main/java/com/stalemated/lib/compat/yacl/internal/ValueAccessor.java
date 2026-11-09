@@ -142,15 +142,14 @@ public final class ValueAccessor<M> {
         return Optional.empty();
     }
 
-    public static void addMapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey, Object entry) {
+    public static Optional<String> addMapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey, Object entry) {
         Optional<String> error = mapKeyError(session, mapInfo, entryKey);
-        if (error.isPresent()) {
-            throw new IllegalArgumentException(error.get());
-        }
+        if (error.isPresent()) return error;
         Objects.requireNonNull(entry, "new entry '" + entryKey + "' of '" + mapInfo.getKey() + "' cannot be null");
         Map<Object, Object> updated = new LinkedHashMap<>(mapOrDefaults(session, mapInfo));
         updated.put(entryKey, entry);
         session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
+        return Optional.empty();
     }
 
     public static Map<?, ?> defaultMapOf(OptionInfo mapInfo) {
