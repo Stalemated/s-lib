@@ -6,6 +6,7 @@ import com.stalemated.lib.config.OptionTree;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -119,6 +120,14 @@ public class ConfigSession<T> {
 
     public void discardChanges() {
         optionTree.copyAllValues(base, draft);
+    }
+
+    public void discardChanges(Predicate<OptionInfo> options) {
+        for (OptionInfo option : optionTree.all()) {
+            if (options.test(option)) {
+                option.setValue(draft, optionTree.deepCopy().of(option.getValue(base), option.genericType()));
+            }
+        }
     }
 
     public void syncPreviewWithDraft() {

@@ -6,6 +6,8 @@ import com.stalemated.lib.compat.yacl.registry.OptionAvailabilityRule;
 import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.config.ConfigManager;
+import com.stalemated.lib.config.Subscription;
+import com.stalemated.lib.config.SyncedConfigManager;
 import com.stalemated.lib.config.internal.ConfigSession;
 import dev.isxander.yacl3.api.ConfigCategory;
 import dev.isxander.yacl3.api.Option;
@@ -23,6 +25,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.stalemated.lib.SLib.LOGGER;
 
@@ -103,7 +108,7 @@ public class YaclScreenBuilder {
         return this;
     }
 
-    record ScreenBuild(YetAnotherConfigLib lib, Collection<YaclBindingSynchronizer> synchronizers) {}
+    record ScreenBuild(YetAnotherConfigLib lib, Collection<YaclBindingSynchronizer> synchronizers, Map<SyncedConfigManager<?>, Boolean> overridePermissions) {}
 
     @SuppressWarnings("unchecked")
     <T> ConfigSession<T> sessionOf(ConfigManager<T> manager) {
@@ -141,7 +146,7 @@ public class YaclScreenBuilder {
                 .categories(builtCategories)
                 .save(this::commitSessions)
                 .build();
-        return new ScreenBuild(lib, List.copyOf(synchronizers.values()));
+        return new ScreenBuild(lib, List.copyOf(synchronizers.values()), overridePermissions());
     }
 
     ScreenBuild rebuild(ScreenBuild current, Runnable change) {
@@ -160,7 +165,29 @@ public class YaclScreenBuilder {
     }
 
     void catchUpSessions() {
-        sessions.values().forEach(ConfigSession::catchUpWithManager);
+        sessions.values().forEach(session -> {
+            session.catchUpWithManager();
+            session.discardChanges(option -> availabilityRule.unavailableReason(option, session.getManager()).isPresent());
+        });
+    }
+
+    Subscription onViewChange(Runnable listener) {
+        List<Subscription> subscriptions = syncedManagers().map(manager -> manager.onViewChange(listener)).toList();
+        return () -> subscriptions.forEach(Subscription::unsubscribe);
+    }
+
+    boolean overridePermissionsChangedSince(ScreenBuild build) {
+        return !build.overridePermissions().equals(overridePermissions());
+    }
+
+    private Map<SyncedConfigManager<?>, Boolean> overridePermissions() {
+        return syncedManagers().collect(Collectors.toMap(Function.identity(), SyncedConfigManager::canChangeOverrides));
+    }
+
+    private Stream<SyncedConfigManager<?>> syncedManagers() {
+        return sessions.keySet().stream()
+                .filter(SyncedConfigManager.class::isInstance)
+                .map(manager -> (SyncedConfigManager<?>) manager);
     }
 
     static void requestDefaultsOfAvailableOptions(YetAnotherConfigLib lib) {

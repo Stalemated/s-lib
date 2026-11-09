@@ -36,6 +36,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     private final ResourceLocation syncChannel;
     private final Predicate<ServerPlayer> serverPermissionCheck;
     private final Listeners<Consumer<T>> changeListeners = new Listeners<>(this::getName);
+    private final Listeners<Runnable> viewListeners = new Listeners<>(this::getName);
     private final Listeners<BiConsumer<ServerPlayer, T>> informListeners = new Listeners<>(this::getName);
     private final Map<UUID, T> informedConfigs = new ConcurrentHashMap<>();
 
@@ -70,6 +71,10 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     @Override
     public Subscription onChange(Consumer<T> listener) {
         return changeListeners.add(listener);
+    }
+
+    public Subscription onViewChange(Runnable listener) {
+        return viewListeners.add(listener);
     }
 
     void addInformListener(BiConsumer<ServerPlayer, T> listener) {
@@ -132,9 +137,14 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     private void switchView(SyncView<T> next) {
         T before = get();
+        boolean couldChangeOverrides = view.canChangeOverrides();
         view = next;
-        if (!getOptionTree().findChanges(before, get()).isEmpty()) {
+        boolean valuesChanged = !getOptionTree().findChanges(before, get()).isEmpty();
+        if (valuesChanged) {
             fireChanged();
+        }
+        if (valuesChanged || couldChangeOverrides != next.canChangeOverrides()) {
+            viewListeners.fire(Runnable::run);
         }
     }
 

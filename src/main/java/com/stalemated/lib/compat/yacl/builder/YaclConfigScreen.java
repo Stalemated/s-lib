@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.stalemated.lib.config.Subscription;
 import dev.isxander.yacl3.gui.YACLScreen;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -8,6 +9,7 @@ final class YaclConfigScreen extends YACLScreen {
     private final YaclScreenBuilder.ScreenBuild build;
     private final Screen parent;
     private int openingTab;
+    private Subscription viewChanges;
 
     YaclConfigScreen(YaclScreenBuilder owner, YaclScreenBuilder.ScreenBuild build, Screen parent, int openingTab) {
         super(build.lib(), parent);
@@ -31,7 +33,36 @@ final class YaclConfigScreen extends YACLScreen {
             tabNavigationBar.selectTab(openingTab, false);
             openingTab = 0;
         }
-        if (owner.sessionsBehindManagers()) {
+        followServerView();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (viewChanges == null && isShown()) {
+            followServerView();
+        }
+    }
+
+    private void followServerView() {
+        if (viewChanges == null) {
+            viewChanges = owner.onViewChange(this::onServerViewChange);
+        }
+        if (owner.sessionsBehindManagers() || owner.overridePermissionsChangedSince(build)) {
+            rebuild(owner::catchUpSessions);
+        }
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        if (viewChanges == null) return;
+        viewChanges.unsubscribe();
+        viewChanges = null;
+    }
+
+    private void onServerViewChange() {
+        if (isShown()) {
             rebuild(owner::catchUpSessions);
         }
     }
