@@ -143,6 +143,7 @@ public class AdvancedColorController implements IStringController<String> {
             inputField = value;
             caretPos = value.length();
             selectionLength = 0;
+            setDimension(getDimension());
             checkRenderOffset();
         }
 
