@@ -4,5 +4,10 @@
   "s_lib.config_screen.no_entries": "Sin entradas",
   "s_lib.config_screen.remove_entry": "Quitar entrada",
   "s_lib.config_screen.remove_entry.desc": "Quita esta entrada al guardar la pantalla.",
+  "s_lib.config_screen.add_entry": "Agregar entrada",
+  "s_lib.config_screen.add_entry.desc": "Agrega una entrada con los valores por defecto. Guarda la pantalla para conservarla.",
+  "s_lib.config_screen.add_map_entry.desc": "Agrega una entrada con la clave escrita en Clave de la entrada nueva y los valores por defecto. Guarda la pantalla para conservarla.",
+  "s_lib.config_screen.new_key": "Clave de la entrada nueva",
+  "s_lib.config_screen.new_key.desc": "La clave de la entrada que crea Agregar entrada. No puede quedar en blanco ni ser una clave que el mapa ya tiene.",
   "s_lib.config_screen.comma_list": "Separa las entradas con comas. Pon una entrada entre comillas dobles para conservar una coma o los espacios del borde: \"Hola, mundo\". Dentro de las comillas, escribe \\\" para una comilla y \\\\ para una barra invertida."
 }

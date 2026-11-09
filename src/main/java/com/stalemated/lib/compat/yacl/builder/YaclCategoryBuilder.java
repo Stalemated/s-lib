@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.google.common.collect.ImmutableList;
 import com.stalemated.lib.compat.yacl.internal.ValueAccessor;
 import com.stalemated.lib.compat.yacl.internal.YaclContext;
 import com.stalemated.lib.compat.yacl.internal.YaclMapOptionFactory;
@@ -17,11 +18,14 @@ import dev.isxander.yacl3.api.LabelOption;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.OptionGroup;
+import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.function.Consumer;
+
+import static com.stalemated.lib.SLib.LOGGER;
 
 /**
  * Fluent builder for YACL {@link ConfigCategory}.
@@ -33,6 +37,9 @@ import java.util.function.Consumer;
 public class YaclCategoryBuilder<T> {
     private static final String NO_ENTRIES = "s_lib.config_screen.no_entries";
     private static final String REMOVE_ENTRY = "s_lib.config_screen.remove_entry";
+    private static final String ADD_ENTRY = "s_lib.config_screen.add_entry";
+    private static final String ADD_MAP_ENTRY_DESC = "s_lib.config_screen.add_map_entry.desc";
+    private static final String NEW_KEY = "s_lib.config_screen.new_key";
 
     private final YaclContext<T> context;
     private final YaclMapOptionFactory<T> mapOptionFactory;
@@ -160,9 +167,29 @@ public class YaclCategoryBuilder<T> {
     @SuppressWarnings({"unchecked"})
     public YaclCategoryBuilder<T> nestedMap(String mapKey) {
         OptionInfo info = requireOptionInfo(mapKey);
-        if (info.hasTitle()) {
-            label(info.getTitle());
-        }
+        Class<?> entryType = info.getMapValueType();
+        newEntry(info, entryType);
+        NewEntryKeyState typedKey = new NewEntryKeyState();
+        YaclOptionMetadata newKey = entryControl(info, NEW_KEY, NEW_KEY + ".desc");
+        Option<String> keyField = Option.<String>createBuilder()
+                .name(newKey.name())
+                .description(newKey.description())
+                .available(newKey.available())
+                .stateManager(typedKey)
+                .controller(StringControllerBuilder::create)
+                .build();
+
+        sectionHeader(info, keyField, entryButton(entryControl(info, ADD_ENTRY, ADD_MAP_ENTRY_DESC), screen -> {
+            String key = typedKey.get().strip();
+            ValueAccessor.mapKeyError(context.session(), info, key)
+                .ifPresentOrElse(LOGGER::warn, () -> screen.rebuild(
+                        () -> ValueAccessor.addMapEntry(
+                                context.session(), info, key,
+                                newEntry(info, entryType)
+                        )
+                    )
+                );
+        }));
 
         Map<?, ?> defaults = ValueAccessor.defaultMapOf(info);
         Map<String, ?> currentMap = context.session().get(info);
@@ -188,9 +215,10 @@ public class YaclCategoryBuilder<T> {
      */
     public YaclCategoryBuilder<T> nestedList(String listKey) {
         OptionInfo info = requireOptionInfo(listKey);
-        if (info.hasTitle()) {
-            label(info.getTitle());
-        }
+        Class<?> entryType = info.getCollectionElementType();
+        newEntry(info, entryType);
+        sectionHeader(info, entryButton(entryControl(info, ADD_ENTRY, ADD_ENTRY + ".desc"),
+                screen -> screen.rebuild(() -> ValueAccessor.addListEntry(context.session(), info, newEntry(info, entryType)))));
 
         List<?> defaults = ValueAccessor.defaultListOf(info);
         List<?> currentList = context.session().get(info);
@@ -319,6 +347,38 @@ public class YaclCategoryBuilder<T> {
         }
     }
 
+    private YaclOptionMetadata entryControl(OptionInfo container, String nameKey, String descriptionKey) {
+        return context.metadata(Component.translatable(nameKey), Component.translatable(descriptionKey), container, container.getKey());
+    }
+
+    private static ButtonOption entryButton(YaclOptionMetadata meta, Consumer<YaclConfigScreen> action) {
+        return ButtonOption.createBuilder()
+                .name(meta.name())
+                .description(meta.description())
+                .available(meta.available())
+                .text(Component.empty())
+                .action((screen, button) -> action.accept(YaclConfigScreen.from(screen)))
+                .build();
+    }
+
+    private Object newEntry(OptionInfo container, Class<?> entryType) {
+        Object entry = context.controllerRegistry().resolveInitialValue(entryType);
+        if (entry == null) {
+            throw new UnsupportedOperationException("Add Entry needs a no-args constructor or an initial supplier for "
+                    + entryType.getName() + " on config option: " + container.getKey());
+        }
+        return entry;
+    }
+
+    private void sectionHeader(OptionInfo container, Option<?>... controls) {
+        List<Option<?>> options = new ArrayList<>();
+        if (container.hasTitle()) {
+            options.add(LabelOption.create(context.namingStrategy().groupName(context.translationPrefix(), container.getTitle())));
+        }
+        options.addAll(List.of(controls));
+        groups.add(new YaclSectionHeaderGroup(ImmutableList.copyOf(options)));
+    }
+
     private OptionGroup buildPojoEntryGroup(
             OptionInfo containerInfo,
             ValueAccessor<Object> storedEntry,
@@ -344,15 +404,7 @@ public class YaclCategoryBuilder<T> {
             }
         }
 
-        YaclOptionMetadata removeEntry = context.metadata(Component.translatable(REMOVE_ENTRY),
-                Component.translatable(REMOVE_ENTRY + ".desc"), containerInfo, containerInfo.getKey());
-        groupOptions.add(ButtonOption.createBuilder()
-                .name(removeEntry.name())
-                .description(removeEntry.description())
-                .available(removeEntry.available())
-                .text(Component.empty())
-                .action((screen, button) -> YaclConfigScreen.from(screen).rebuild(removal))
-                .build());
+        groupOptions.add(entryButton(entryControl(containerInfo, REMOVE_ENTRY, REMOVE_ENTRY + ".desc"), screen -> screen.rebuild(removal)));
         groupBuilder.options(groupOptions);
         return groupBuilder.build();
     }

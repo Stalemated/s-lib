@@ -10,10 +10,10 @@ import net.minecraft.network.chat.Component;
 import java.util.Objects;
 
 /**
- * Lightweight, non-collapsible {@link OptionGroup} wrapper that renders a standalone
- * {@link LabelOption} inline without a collapsible arrow header bar in YACL.
+ * Lightweight, non-collapsible {@link OptionGroup} that renders its options inline without a
+ * collapsible arrow header bar in YACL, such as a section label or the Add Entry controls of a nested section.
  *
- * @param options The immutable list containing the section label option.
+ * @param options The immutable list of options shown under the section.
  */
 record YaclSectionHeaderGroup(ImmutableList<Option<?>> options) implements OptionGroup {
 

@@ -4,5 +4,10 @@
   "s_lib.config_screen.no_entries": "No entries",
   "s_lib.config_screen.remove_entry": "Remove Entry",
   "s_lib.config_screen.remove_entry.desc": "Removes this entry when you save the screen.",
+  "s_lib.config_screen.add_entry": "Add Entry",
+  "s_lib.config_screen.add_entry.desc": "Adds an entry with the default values. Save the screen to keep it.",
+  "s_lib.config_screen.add_map_entry.desc": "Adds an entry with the key typed in New Entry Key and the default values. Save the screen to keep it.",
+  "s_lib.config_screen.new_key": "New Entry Key",
+  "s_lib.config_screen.new_key.desc": "The key of the entry that Add Entry creates. It cannot be blank or a key the map already has.",
   "s_lib.config_screen.comma_list": "Separate the entries with commas. Put an entry in double quotes to keep a comma or the spaces around it: \"Hello, world\". Inside quotes, write \\\" for a quote and \\\\ for a backslash."
 }

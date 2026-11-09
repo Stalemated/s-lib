@@ -23,7 +23,7 @@ final class YaclConfigScreen extends YACLScreen {
         if (screen instanceof YaclConfigScreen configScreen) {
             return configScreen;
         }
-        throw new IllegalStateException("Remove Entry needs the screen from YaclScreenBuilder.generateScreen(), got " + screen.getClass().getName());
+        throw new IllegalStateException("Adding or removing nested entries needs the screen from YaclScreenBuilder.generateScreen(), got " + screen.getClass().getName());
     }
 
     @Override
