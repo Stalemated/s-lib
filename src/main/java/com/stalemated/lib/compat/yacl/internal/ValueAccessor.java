@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -121,6 +122,34 @@ public final class ValueAccessor<M> {
             throw new IllegalStateException("Cannot remove entry '" + entryKey + "' of '" + mapInfo.getKey() + "', it has no such key");
         }
         updated.remove(entryKey);
+        session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
+    }
+
+    public static void addListEntry(ConfigSession<?> session, OptionInfo listInfo, Object entry) {
+        Objects.requireNonNull(entry, "new entry of '" + listInfo.getKey() + "' cannot be null");
+        List<Object> updated = new ArrayList<>(listOrDefaults(session, listInfo));
+        updated.add(entry);
+        session.set(listInfo, updated);
+    }
+
+    public static Optional<String> mapKeyError(ConfigSession<?> session, OptionInfo mapInfo, String entryKey) {
+        if (entryKey == null || entryKey.isBlank()) {
+            return Optional.of("Key of a new '" + mapInfo.getKey() + "' entry must not be blank, got '" + entryKey + "'");
+        }
+        if (mapOrDefaults(session, mapInfo).containsKey(entryKey)) {
+            return Optional.of("Key of a new '" + mapInfo.getKey() + "' entry must not be in the map already, got '" + entryKey + "'");
+        }
+        return Optional.empty();
+    }
+
+    public static void addMapEntry(ConfigSession<?> session, OptionInfo mapInfo, String entryKey, Object entry) {
+        Optional<String> error = mapKeyError(session, mapInfo, entryKey);
+        if (error.isPresent()) {
+            throw new IllegalArgumentException(error.get());
+        }
+        Objects.requireNonNull(entry, "new entry '" + entryKey + "' of '" + mapInfo.getKey() + "' cannot be null");
+        Map<Object, Object> updated = new LinkedHashMap<>(mapOrDefaults(session, mapInfo));
+        updated.put(entryKey, entry);
         session.set(mapInfo, mapInfo.isSortedMap() ? new TreeMap<>(updated) : updated);
     }
 
