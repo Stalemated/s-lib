@@ -220,10 +220,16 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     public void createDropdownWidget() {
         this.matchingValues = computeMatchingValues();
         //? if >=26.3 {
-        /*popupTextFocus.open(this, screen, super::createDropdownWidget);
+        /*popupTextFocus.open(this, screen, this::showDropdown);
         *///?} else {
-        super.createDropdownWidget();
+        showDropdown();
         //?}
+    }
+
+    private void showDropdown() {
+        this.dropdownVisible = true;
+        this.dropdownWidget = new TextFieldDropdownWidget<>(this.itemOrTagController, this.screen, this.getDimension(), this);
+        this.screen.addPopupControllerWidget(this.dropdownWidget);
     }
 
     //? if yacl: <3.9.0 {

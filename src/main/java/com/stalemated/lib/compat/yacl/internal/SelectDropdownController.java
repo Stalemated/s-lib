@@ -117,6 +117,13 @@ public class SelectDropdownController<T> extends AbstractDropdownController<T> {
             }
 
             @Override
+            public void createDropdownWidget() {
+                this.dropdownVisible = true;
+                this.dropdownWidget = new TextFieldDropdownWidget<>(SelectDropdownController.this, this.screen, this.getDimension(), this);
+                this.screen.addPopupControllerWidget(this.dropdownWidget);
+            }
+
+            @Override
             public void unfocus() {
                 if (this.isDropdownVisible()) {
                     int index = this.dropdownWidget().selectedIndex();
