@@ -8,15 +8,15 @@ final class YaclConfigScreen extends YACLScreen {
     private final YaclScreenBuilder owner;
     private final YaclScreenBuilder.ScreenBuild build;
     private final Screen parent;
-    private int openingTab;
+    private YaclScreenView openingView;
     private Subscription viewChanges;
 
-    YaclConfigScreen(YaclScreenBuilder owner, YaclScreenBuilder.ScreenBuild build, Screen parent, int openingTab) {
+    YaclConfigScreen(YaclScreenBuilder owner, YaclScreenBuilder.ScreenBuild build, Screen parent, YaclScreenView openingView) {
         super(build.lib(), parent);
         this.owner = owner;
         this.build = build;
         this.parent = parent;
-        this.openingTab = openingTab;
+        this.openingView = openingView;
     }
 
     static YaclConfigScreen from(YACLScreen screen) {
@@ -29,9 +29,12 @@ final class YaclConfigScreen extends YACLScreen {
     @Override
     protected void init() {
         super.init();
-        if (openingTab > 0) {
-            tabNavigationBar.selectTab(openingTab, false);
-            openingTab = 0;
+        if (openingView != null) {
+            if (openingView.tab() > 0) {
+                tabNavigationBar.selectTab(openingView.tab(), false);
+            }
+            openingView.restore(tabNavigationBar.getTabs());
+            openingView = null;
         }
         followServerView();
     }
@@ -109,8 +112,8 @@ final class YaclConfigScreen extends YACLScreen {
 
     @SuppressWarnings("ConstantConditions")
     void rebuild(Runnable change) {
-        int tab = Math.max(tabNavigationBar.getTabs().indexOf(tabManager.getCurrentTab()), 0);
-        Screen next = new YaclConfigScreen(owner, owner.rebuild(build, change), parent, tab);
+        YaclScreenView view = YaclScreenView.of(tabNavigationBar.getTabs(), tabManager.getCurrentTab());
+        Screen next = new YaclConfigScreen(owner, owner.rebuild(build, change), parent, view);
         //? if <26.2 {
         minecraft.setScreen(next);
         //?} else {

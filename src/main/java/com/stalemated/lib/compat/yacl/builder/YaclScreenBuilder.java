@@ -209,6 +209,6 @@ public class YaclScreenBuilder {
     }
 
     public Screen generateScreen() {
-        return new YaclConfigScreen(this, build(), parent, 0);
+        return new YaclConfigScreen(this, build(), parent, YaclScreenView.FIRST_TAB);
     }
 }
