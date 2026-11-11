@@ -1,11 +1,13 @@
 {
     "required": true,
     "package": "com.stalemated.lib.mixin.internal",
+    "plugin": "com.stalemated.lib.mixin.ConditionalMixinPlugin",
     "compatibilityLevel": "${mixin_compatibility}",
     "minVersion": "0.8",
     "client": [
         "client.accessor.OrderedTextTooltipComponentAccessor",
-        "client.yacl.LegacySelectionListHolderMixin"
+        "client.yacl.LegacySelectionListHolderMixin",
+        "client.yacl.OptionEntryFocusMixin"
     ],
     "mixins": [
         "server.PlayerListMixin"
