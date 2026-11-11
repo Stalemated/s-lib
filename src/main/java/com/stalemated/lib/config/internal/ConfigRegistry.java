@@ -105,6 +105,10 @@ public final class ConfigRegistry {
         onPlayerPermissionChanged(player);
     }
 
+    public static void onPlayersPermissionChanged(PlayerList players) {
+        players.getPlayers().forEach(ConfigRegistry::onPlayerPermissionChanged);
+    }
+
     public static void onPlayerPermissionChanged(ServerPlayer player) {
         notifySynced(synced -> synced.sendConfigTo(player), () -> "Failed to resend config to player " + player.getName().getString() + " after a permission change");
     }

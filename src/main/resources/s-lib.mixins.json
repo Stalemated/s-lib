@@ -6,6 +6,7 @@
     "minVersion": "0.8",
     "client": [
         "client.accessor.OrderedTextTooltipComponentAccessor",
+        "client.IntegratedServerMixin",
         "client.yacl.LegacySelectionListHolderMixin",
         "client.yacl.OptionEntryFocusMixin"
     ],
