@@ -2,12 +2,14 @@ package com.stalemated.lib.compat.yacl.registry;
 
 import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorControllerBuilder;
 import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
+import com.stalemated.lib.compat.yacl.internal.IdController;
 import com.stalemated.lib.compat.yacl.internal.ItemTargetIndex;
 import com.stalemated.lib.compat.yacl.internal.TypeLens;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.annotation.Format;
 import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.internal.Constraint;
+import com.stalemated.lib.util.ResourceIds;
 import com.stalemated.lib.util.color.ColorUtils;
 import com.stalemated.lib.util.internal.ReflectionUtils;
 import com.stalemated.lib.util.internal.RegexText;
@@ -34,6 +36,8 @@ import static com.stalemated.lib.SLib.LOGGER;
 public class YaclControllerRegistry {
 
     private static final Pattern NO_BREAK_SPACES = Pattern.compile("[\\u00a0\\u202f]");
+
+    private static final ResourceLocation EMPTY_ID = ResourceIds.of("minecraft", "");
 
     private final Map<Class<?>, TypeLens<?, ?>> lenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
@@ -158,14 +162,14 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 ResourceLocation.class,
-                ResourceLocation::toString,
+                YaclControllerRegistry::idToGui,
                 str -> parseOrWarn("id", str, ResourceLocation::tryParse),
-                "minecraft:air",
+                "",
                 (info, opt) -> {
                     if (itemDropdownOf(info).isPresent()) {
                         return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(false));
                     }
-                    return StringControllerBuilder.create(opt);
+                    return () -> new IdController(opt);
                 }
         );
 
@@ -184,6 +188,10 @@ public class YaclControllerRegistry {
                 ".*",
                 (info, opt) -> StringControllerBuilder.create(opt)
         );
+    }
+
+    private static String idToGui(ResourceLocation id) {
+        return id.equals(EMPTY_ID) ? "" : id.toString();
     }
 
     private static <M> M parseOrWarn(String kind, String input, Function<String, M> parser) {

@@ -21,4 +21,8 @@ public final class ResourceIds {
         /*return ResourceLocation.parse(id);
         *///?}
     }
+
+    public static boolean isValid(String text) {
+        return ResourceLocation.tryParse(text) != null;
+    }
 }
