@@ -92,3 +92,7 @@ tasks {
         from(named<Jar>("reobfJar").flatMap { it.archiveFile }, named<Jar>("sourcesJar").flatMap { it.archiveFile })
     }
 }
+
+publishMods {
+    file = tasks.named<Jar>("reobfJar").flatMap { it.archiveFile }
+}

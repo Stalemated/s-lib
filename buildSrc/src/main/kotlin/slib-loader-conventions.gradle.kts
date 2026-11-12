@@ -4,6 +4,7 @@ plugins {
     `java-library`
     `maven-publish`
     id("publish-mutex")
+    id("mod-publishing")
 }
 
 val sc = extensions.getByType<StonecutterBuildExtension>()

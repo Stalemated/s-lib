@@ -68,3 +68,7 @@ tasks {
         from(jar.flatMap { it.archiveFile }, named<Jar>("sourcesJar").flatMap { it.archiveFile })
     }
 }
+
+publishMods {
+    file = tasks.jar.flatMap { it.archiveFile }
+}

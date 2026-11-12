@@ -69,3 +69,7 @@ tasks {
         }
     }
 }
+
+publishMods {
+    file = loomx.modJar.flatMap { it.archiveFile }
+}
