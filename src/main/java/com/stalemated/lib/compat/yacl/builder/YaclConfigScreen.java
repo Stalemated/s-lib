@@ -6,12 +6,16 @@ import dev.isxander.yacl3.gui.YACLScreen;
 import net.minecraft.client.gui.components.tabs.Tab;
 import net.minecraft.client.gui.screens.Screen;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 final class YaclConfigScreen extends YACLScreen {
     private final YaclScreenBuilder owner;
     private final YaclScreenBuilder.ScreenBuild build;
     private final Screen parent;
     private YaclScreenView openingView;
     private Subscription viewChanges;
+    private Subscription configChanges;
+    private final AtomicBoolean configSavedElsewhere = new AtomicBoolean();
     private Tab buttonsShownFor;
 
     YaclConfigScreen(YaclScreenBuilder owner, YaclScreenBuilder.ScreenBuild build, Screen parent, YaclScreenView openingView) {
@@ -50,6 +54,9 @@ final class YaclConfigScreen extends YACLScreen {
         if (viewChanges == null && isShown()) {
             followServerView();
         }
+        if (isShown() && configSavedElsewhere.getAndSet(false) && owner.sessionsBehindManagers()) {
+            rebuild(owner::catchUpSessions);
+        }
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -78,6 +85,9 @@ final class YaclConfigScreen extends YACLScreen {
         if (viewChanges == null) {
             viewChanges = owner.onViewChange(this::onServerViewChange);
         }
+        if (configChanges == null) {
+            configChanges = owner.onConfigChange(() -> configSavedElsewhere.set(true));
+        }
         if (owner.sessionsBehindManagers() || owner.overridePermissionsChangedSince(build)) {
             rebuild(owner::catchUpSessions);
         }
@@ -86,9 +96,14 @@ final class YaclConfigScreen extends YACLScreen {
     @Override
     public void removed() {
         super.removed();
-        if (viewChanges == null) return;
-        viewChanges.unsubscribe();
-        viewChanges = null;
+        if (viewChanges != null) {
+            viewChanges.unsubscribe();
+            viewChanges = null;
+        }
+        if (configChanges != null) {
+            configChanges.unsubscribe();
+            configChanges = null;
+        }
     }
 
     private void onServerViewChange() {

@@ -176,6 +176,11 @@ public class YaclScreenBuilder {
         return () -> subscriptions.forEach(Subscription::unsubscribe);
     }
 
+    Subscription onConfigChange(Runnable listener) {
+        List<Subscription> subscriptions = sessions.keySet().stream().map(manager -> manager.onChange(config -> listener.run())).toList();
+        return () -> subscriptions.forEach(Subscription::unsubscribe);
+    }
+
     boolean overridePermissionsChangedSince(ScreenBuild build) {
         return !build.overridePermissions().equals(overridePermissions());
     }
