@@ -99,7 +99,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             if (this.isMouseOver(mouseX, mouseY)) {
                 this.clickInValueArea(mouseX, mouseY, () -> super.mouseClicked(mouseX, mouseY, button));
                 return true;
@@ -112,7 +112,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     public boolean onMouseClicked(double mouseX, double mouseY, int button) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             if (this.isMouseOver(mouseX, mouseY)) {
                 this.clickInValueArea(mouseX, mouseY, () -> super.onMouseClicked(mouseX, mouseY, button));
                 return true;
@@ -125,7 +125,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
         if (!this.itemOrTagController.option().available()) return false;
 
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             if (this.isMouseOver(event.x(), event.y())) {
                 this.clickInValueArea(event.x(), event.y(), () -> super.mouseClicked(event, doubleClick));
                 return true;
