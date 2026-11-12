@@ -1,5 +1,52 @@
 # Changelog
 
+## 4.0.0
+
+**API BREAKING RELEASE**
+> S-Lib now supports Fabric, Forge, and NeoForge from Minecraft 1.20 to 26.3!
+> - Every file on Modrinth and CurseForge has the version number `<version>+<minecraft>-<loader>`
+
+### Breaking Changes
+
+- Configs are now registered with `SLibConfig.synced(modId, Config.class)` and `SLibConfig.local(modId, Config.class)`
+- The config managers, their builders, `OptionInfo` and `OptionTree` moved to `com.stalemated.lib.config`
+- Implementation classes moved to `*.internal` packages, client-only code moved to `com.stalemated.lib.client`, and the enum and string dropdowns were merged into `SelectDropdownControllerBuilder`
+- Sync packets use new channels, and a sync over 256 KB to a client or 32 KB to the server is logged and not sent
+
+### New Features
+
+- New YACL screen builder (`YaclScreenBuilder`): `autoGenerate()` builds a whole config, or groups, nested objects, lists, and maps can be customized. Edits stay in a draft until the player saves
+- Nested lists and maps have Add Entry and Remove Entry buttons
+- Open config screens reload when the server changes their values or the player's permission, or when another player saves on a LAN world. The reload keeps the tab, the scroll, and the open groups
+- ID fields only accept valid ids, and empty ids are not saved
+- `SLibConfigScreens.register` adds the config button on every loader and does nothing without YACL
+- `editListElement` and `addListElement` edit or create one list element in its own screen
+- `SLibTesting.assertScreenBuilds` checks in JUnit that a config screen builds and that its translations exist
+- New annotations:
+  - `@RangeLong`, plus a `step` on every range annotation for YACL sliders
+  - `@Title`: adds a section header above a field
+  - `@ItemDropdown`: shows the item dropdown on `String` and id fields
+  - `@SharedDescription`: gives several options one description
+  - `@EnabledIf`: enables an option while a boolean or enum option holds a given value
+  - `@Format`: replaces the slider text
+  - `@RequiresMod`: applies a mixin only when the mods it needs are loaded (with `ConditionalMixinPlugin`)
+- Synced configs are sent again when a player's OP status changes and, on 26.2 and later, when a LAN world's host changes command access
+- Config screens, saves, and syncs only process the options that changed, and the item dropdown caps and caches its matches
+
+### Fixes
+
+Fixed:
+- Config files being half-written or overwritten without a backup: saves now go through a temp file, back up the old file first, and report failures
+- Invalid values being silently replaced with fallbacks
+- NaN, infinite and overflowing numbers being accepted, and ranges not clamping the contents of lists and maps
+- `@SerializedName` alternate keys not being read and `@Comment` on `@Nest` categories not being written
+- Server changes not being broadcast, the LAN host not being able to edit server options, and `INFORM_SERVER` values not being sent on player connection
+- Fixed the color controller crashing, and the item dropdown text covering the option name and placing its caret away from the mouse
+- Fixed Save, Cancel, and Undo only updating on the tab where something changed, and config screens keeping their old size after a resize with a popup open
+- Fixed Forge 1.20.1 mixins, attribute math, scrolling text, gradients, and the shared tooltip state
+
+**_And much more!_**
+
 ## 3.0.1+1.20.1
 
 ### Fixes
