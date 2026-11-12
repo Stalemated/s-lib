@@ -33,7 +33,7 @@ final class YaclConfigScreen extends YACLScreen {
             if (openingView.tab() > 0) {
                 tabNavigationBar.selectTab(openingView.tab(), false);
             }
-            openingView.restore(tabNavigationBar.getTabs());
+            openingView.restore(this);
             openingView = null;
         }
         followServerView();
@@ -112,7 +112,7 @@ final class YaclConfigScreen extends YACLScreen {
 
     @SuppressWarnings("ConstantConditions")
     void rebuild(Runnable change) {
-        YaclScreenView view = YaclScreenView.of(tabNavigationBar.getTabs(), tabManager.getCurrentTab());
+        YaclScreenView view = YaclScreenView.of(this);
         Screen next = new YaclConfigScreen(owner, owner.rebuild(build, change), parent, view);
         //? if <26.2 {
         minecraft.setScreen(next);

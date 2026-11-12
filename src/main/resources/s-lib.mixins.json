@@ -8,6 +8,7 @@
         "client.accessor.OrderedTextTooltipComponentAccessor",
         "client.IntegratedServerMixin",
         "client.yacl.CategoryTabAccessor",
+        "client.yacl.ElementListWidgetExtInvoker",
         "client.yacl.GroupSeparatorEntryAccessor",
         "client.yacl.LegacySelectionListHolderMixin",
         "client.yacl.OptionEntryFocusMixin"
