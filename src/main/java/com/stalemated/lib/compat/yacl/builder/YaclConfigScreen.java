@@ -2,6 +2,7 @@ package com.stalemated.lib.compat.yacl.builder;
 
 import com.stalemated.lib.config.Subscription;
 import dev.isxander.yacl3.gui.YACLScreen;
+import net.minecraft.client.gui.components.tabs.Tab;
 import net.minecraft.client.gui.screens.Screen;
 
 final class YaclConfigScreen extends YACLScreen {
@@ -10,6 +11,7 @@ final class YaclConfigScreen extends YACLScreen {
     private final Screen parent;
     private YaclScreenView openingView;
     private Subscription viewChanges;
+    private Tab buttonsShownFor;
 
     YaclConfigScreen(YaclScreenBuilder owner, YaclScreenBuilder.ScreenBuild build, Screen parent, YaclScreenView openingView) {
         super(build.lib(), parent);
@@ -41,9 +43,19 @@ final class YaclConfigScreen extends YACLScreen {
 
     @Override
     public void tick() {
+        showPendingStateOnCurrentTab();
         super.tick();
         if (viewChanges == null && isShown()) {
             followServerView();
+        }
+    }
+
+    private void showPendingStateOnCurrentTab() {
+        Tab current = tabManager.getCurrentTab();
+        if (current == buttonsShownFor) return;
+        buttonsShownFor = current;
+        if (current instanceof CategoryTab categoryTab) {
+            categoryTab.updateButtons();
         }
     }
 
