@@ -21,6 +21,9 @@ public abstract class OptionEntryFocusMixin {
     @Inject(method = "setFocused(Lnet/minecraft/client/gui/components/events/GuiEventListener;)V", at = @At("HEAD"), cancellable = true)
     private void s_lib$keepFocusedChild(GuiEventListener child, CallbackInfo ci) {
         if (child != null && child == focused && (Object) this instanceof OptionListWidget.Entry) {
+            if (!child.isFocused()) {
+                child.setFocused(true);
+            }
             ci.cancel();
         }
     }
