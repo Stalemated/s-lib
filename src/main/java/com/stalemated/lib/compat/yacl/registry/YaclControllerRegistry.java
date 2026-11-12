@@ -9,7 +9,6 @@ import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.annotation.Format;
 import com.stalemated.lib.config.annotation.ItemDropdown;
 import com.stalemated.lib.config.internal.Constraint;
-import com.stalemated.lib.util.ResourceIds;
 import com.stalemated.lib.util.color.ColorUtils;
 import com.stalemated.lib.util.internal.ReflectionUtils;
 import com.stalemated.lib.util.internal.RegexText;
@@ -36,8 +35,6 @@ import static com.stalemated.lib.SLib.LOGGER;
 public class YaclControllerRegistry {
 
     private static final Pattern NO_BREAK_SPACES = Pattern.compile("[\\u00a0\\u202f]");
-
-    private static final ResourceLocation EMPTY_ID = ResourceIds.of("minecraft", "");
 
     private final Map<Class<?>, TypeLens<?, ?>> lenses = new LinkedHashMap<>();
     private final Map<Class<?>, Supplier<?>> initialSuppliers = new LinkedHashMap<>();
@@ -162,8 +159,8 @@ public class YaclControllerRegistry {
 
         registerAdapted(
                 ResourceLocation.class,
-                YaclControllerRegistry::idToGui,
-                str -> parseOrWarn("id", str, ResourceLocation::tryParse),
+                ResourceLocation::toString,
+                YaclControllerRegistry::idFromGui,
                 "",
                 (info, opt) -> {
                     if (itemDropdownOf(info).isPresent()) {
@@ -190,8 +187,9 @@ public class YaclControllerRegistry {
         );
     }
 
-    private static String idToGui(ResourceLocation id) {
-        return id.equals(EMPTY_ID) ? "" : id.toString();
+    private static ResourceLocation idFromGui(String text) {
+        if (text.isEmpty()) return null;
+        return parseOrWarn("id", text, ResourceLocation::tryParse);
     }
 
     private static <M> M parseOrWarn(String kind, String input, Function<String, M> parser) {

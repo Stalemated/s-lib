@@ -193,6 +193,10 @@ public class YaclGroupBuilder<T> {
                         + (elemClass != null ? elemClass.getName() : "null") + " on list option: " + listKey));
 
         E padding = defaultElement != null ? defaultElement : lens.fromGui().apply(lens.fallback());
+        if (padding == null) {
+            throw new IllegalArgumentException("listElement '" + optionKey + "' of list '" + listKey + "' needs a default element, since '"
+                    + lens.fallback() + "' is not a valid " + elemClass.getSimpleName());
+        }
         return assembler.option(meta, elementInfo, ValueAccessor.listElement(context.session(), listInfo, index, padding), lens, defaultElement, null);
     }
 
