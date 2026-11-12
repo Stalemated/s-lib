@@ -171,7 +171,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     /**
      * Serializes the current server config and pushes it to a specific player.
-     * S-Lib already does this when a player joins and when {@code /op} or {@code /deop} changes their operator status, and, on Minecraft 26.2 and later, when the host changes Allow Cheats or Command Access in World Options; call it to resend after changing the config outside {@link #modify(Consumer)}, or after a permission plugin changes what the player may edit.
+     * S-Lib already does this when a player joins and when {@code /op} or {@code /deop} changes their operator status, and, on Minecraft 26.2 and later, when the host changes who may use commands in World Options or in the LAN options; call it to resend after changing the config outside {@link #modify(Consumer)}, or after a permission plugin changes what the player may edit.
      *
      * @param player The target player to sync the config to.
      */
