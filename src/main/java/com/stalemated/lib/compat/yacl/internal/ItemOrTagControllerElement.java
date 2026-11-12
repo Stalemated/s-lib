@@ -37,6 +37,9 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     private final Map<String, ItemStack> iconsByTarget = new HashMap<>();
     private ItemStack currentItemIcon = ItemStack.EMPTY;
     private int valueTextX;
+    private boolean measuringValueArea;
+    private int valueAreaLength;
+    private int valueAreaUnwrapLength;
 
     public ItemOrTagControllerElement(ItemOrTagController control, YACLScreen screen, Dimension<Integer> dim) {
         super(control, screen, dim);
@@ -68,11 +71,10 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     //? if yacl: <3.9.0 {
     @Override
     protected void drawValueText(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        Dimension<Integer> oldDimension = this.getDimension();
-        this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
-        this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
-        super.drawValueText(graphics, mouseX, mouseY, delta);
-        this.setDimension(oldDimension);
+        this.inValueArea(() -> {
+            this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
+            super.drawValueText(graphics, mouseX, mouseY, delta);
+        });
 
         if (!this.currentItemIcon.isEmpty()) {
             graphics.renderFakeItem(this.currentItemIcon, this.getDimension().xLimit() - this.getXPadding() - this.getDecorationPadding() + 2, this.getDimension().y() + 2);
@@ -81,11 +83,10 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     //?} else {
     /*@Override
     protected void extractValueText(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        Dimension<Integer> oldDimension = this.getDimension();
-        this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
-        this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
-        super.extractValueText(graphics, mouseX, mouseY, delta);
-        this.setDimension(oldDimension);
+        this.inValueArea(() -> {
+            this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
+            super.extractValueText(graphics, mouseX, mouseY, delta);
+        });
 
         if (!this.currentItemIcon.isEmpty()) {
             graphics.fakeItem(this.currentItemIcon, this.getDimension().xLimit() - this.getXPadding() - this.getDecorationPadding() + 2, this.getDimension().y() + 2);
@@ -136,15 +137,50 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
     private void clickInValueArea(double mouseX, double mouseY, Runnable click) {
         boolean movesCaret = this.isDropdownVisible();
-        Dimension<Integer> fullDimension = this.getDimension();
-        this.setDimension(fullDimension.withWidth(fullDimension.width() - this.getDecorationPadding()));
-        click.run();
-        boolean onText = this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY);
-        this.setDimension(fullDimension);
-        if (movesCaret && onText) {
-            this.caretPos = TextCaret.indexAt(this.inputField, this.textRenderer::width, (int) mouseX - this.valueTextX);
-            this.selectionLength = 0;
+        this.inValueArea(() -> {
+            click.run();
+            if (movesCaret && this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY)) {
+                this.caretPos = TextCaret.indexAt(this.inputField, this.textRenderer::width, (int) mouseX - this.valueTextX);
+                this.selectionLength = 0;
+            }
+        });
+    }
+
+    private void inValueArea(Runnable action) {
+        if (this.measuringValueArea) {
+            action.run();
+            return;
         }
+        Dimension<Integer> fullDimension = this.getDimension();
+        this.valueAreaLength = this.getUnshiftedLength() - this.getDecorationPadding();
+        this.valueAreaUnwrapLength = this.getMaxUnwrapLength() - this.getDecorationPadding();
+        this.measuringValueArea = true;
+        this.setDimension(fullDimension.withWidth(fullDimension.width() - this.getDecorationPadding()));
+        action.run();
+        this.measuringValueArea = false;
+        this.setDimension(fullDimension);
+    }
+
+    @Override
+    public int getUnshiftedLength() {
+        if (this.measuringValueArea) return this.valueAreaLength;
+        return super.getUnshiftedLength();
+    }
+
+    @Override
+    public int getMaxUnwrapLength() {
+        if (this.measuringValueArea) return this.valueAreaUnwrapLength;
+        return super.getMaxUnwrapLength();
+    }
+
+    @Override
+    protected int getHoveredControlWidth() {
+        return Math.min(this.textRenderer.width(this.getValueText()) + this.getDecorationPadding(), super.getUnshiftedLength());
+    }
+
+    @Override
+    protected void checkRenderOffset() {
+        this.inValueArea(super::checkRenderOffset);
     }
 
     @Override
