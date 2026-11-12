@@ -37,7 +37,7 @@ publishMods {
     val modrinthId = sc.properties.get<String>("publish.modrinth_id")
     val curseforgeId = sc.properties.get<String>("publish.curseforge_id")
     val changelogFile = rootProject.file("Changelog.md")
-    val javaVersion = the<JavaPluginExtension>().targetCompatibility
+    val javaVersion = providers.provider { the<JavaPluginExtension>().targetCompatibility }
     val releasedVersions = providers.provider {
         requireNotNull(mcReleases) { "mod.mc_releases is missing for node $node" }
     }
