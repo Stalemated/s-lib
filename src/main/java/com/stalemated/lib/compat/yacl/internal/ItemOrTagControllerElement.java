@@ -36,6 +36,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     private final ItemOrTagController itemOrTagController;
     private final Map<String, ItemStack> iconsByTarget = new HashMap<>();
     private ItemStack currentItemIcon = ItemStack.EMPTY;
+    private int valueTextX;
 
     public ItemOrTagControllerElement(ItemOrTagController control, YACLScreen screen, Dimension<Integer> dim) {
         super(control, screen, dim);
@@ -69,6 +70,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     protected void drawValueText(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         Dimension<Integer> oldDimension = this.getDimension();
         this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
+        this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
         super.drawValueText(graphics, mouseX, mouseY, delta);
         this.setDimension(oldDimension);
 
@@ -81,6 +83,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
     protected void extractValueText(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         Dimension<Integer> oldDimension = this.getDimension();
         this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
+        this.valueTextX = this.getDimension().xLimit() - this.textRenderer.width(this.getValueText()) + this.renderOffset - this.getXPadding();
         super.extractValueText(graphics, mouseX, mouseY, delta);
         this.setDimension(oldDimension);
 
@@ -97,12 +100,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
         if (button == 0) {
             if (this.isMouseOver(mouseX, mouseY)) {
-                Dimension<Integer> oldDimension = this.getDimension();
-                this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
-
-                super.mouseClicked(mouseX, mouseY, button);
-                this.setDimension(oldDimension);
-
+                this.clickInValueArea(mouseX, mouseY, () -> super.mouseClicked(mouseX, mouseY, button));
                 return true;
             }
         }
@@ -115,12 +113,7 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
         if (button == 0) {
             if (this.isMouseOver(mouseX, mouseY)) {
-                Dimension<Integer> oldDimension = this.getDimension();
-                this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
-
-                super.onMouseClicked(mouseX, mouseY, button);
-                this.setDimension(oldDimension);
-
+                this.clickInValueArea(mouseX, mouseY, () -> super.onMouseClicked(mouseX, mouseY, button));
                 return true;
             }
         }
@@ -133,18 +126,26 @@ class ItemOrTagControllerElement extends AbstractDropdownControllerElement<Strin
 
         if (event.button() == 0) {
             if (this.isMouseOver(event.x(), event.y())) {
-                Dimension<Integer> oldDimension = this.getDimension();
-                this.setDimension(this.getDimension().withWidth(oldDimension.width() - this.getDecorationPadding()));
-
-                super.mouseClicked(event, doubleClick);
-                this.setDimension(oldDimension);
-
+                this.clickInValueArea(event.x(), event.y(), () -> super.mouseClicked(event, doubleClick));
                 return true;
             }
         }
         return super.mouseClicked(event, doubleClick);
     }
     *///?}
+
+    private void clickInValueArea(double mouseX, double mouseY, Runnable click) {
+        boolean movesCaret = this.isDropdownVisible();
+        Dimension<Integer> fullDimension = this.getDimension();
+        this.setDimension(fullDimension.withWidth(fullDimension.width() - this.getDecorationPadding()));
+        click.run();
+        boolean onText = this.inputFieldBounds.isPointInside((int) mouseX, (int) mouseY);
+        this.setDimension(fullDimension);
+        if (movesCaret && onText) {
+            this.caretPos = TextCaret.indexAt(this.inputField, this.textRenderer::width, (int) mouseX - this.valueTextX);
+            this.selectionLength = 0;
+        }
+    }
 
     @Override
     public void unfocus() {
