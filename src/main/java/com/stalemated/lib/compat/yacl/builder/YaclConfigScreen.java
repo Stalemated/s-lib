@@ -1,5 +1,6 @@
 package com.stalemated.lib.compat.yacl.builder;
 
+import com.mojang.blaze3d.platform.Window;
 import com.stalemated.lib.config.Subscription;
 import dev.isxander.yacl3.gui.YACLScreen;
 import net.minecraft.client.gui.components.tabs.Tab;
@@ -43,11 +44,25 @@ final class YaclConfigScreen extends YACLScreen {
 
     @Override
     public void tick() {
+        if (isShown()) followWindowSize();
         showPendingStateOnCurrentTab();
         super.tick();
         if (viewChanges == null && isShown()) {
             followServerView();
         }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private void followWindowSize() {
+        Window window = minecraft.getWindow();
+        int windowWidth = window.getGuiScaledWidth();
+        int windowHeight = window.getGuiScaledHeight();
+        if (width == windowWidth && height == windowHeight) return;
+        //? if >=1.21.11 {
+        /*resize(windowWidth, windowHeight);
+        *///?} else {
+        resize(minecraft, windowWidth, windowHeight);
+        //?}
     }
 
     private void showPendingStateOnCurrentTab() {
