@@ -165,6 +165,7 @@ public class YaclCategoryBuilder<T> {
     @SuppressWarnings({"unchecked"})
     public YaclCategoryBuilder<T> nestedMap(String mapKey) {
         OptionInfo info = requireOptionInfo(mapKey);
+        YaclMapOptionFactory.requireStringKeys(info);
         Class<?> entryType = info.getMapValueType();
         newEntry(info, entryType);
         NewEntryKeyState typedKey = new NewEntryKeyState();
@@ -424,7 +425,7 @@ public class YaclCategoryBuilder<T> {
         return info;
     }
 
-    public ConfigCategory build() {
+    ConfigCategory build() {
         ConfigCategory.Builder builder = ConfigCategory.createBuilder()
                 .name(name)
                 .groups(groups);

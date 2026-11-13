@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -103,8 +104,9 @@ public class YaclScreenBuilder {
         return this;
     }
 
-    public YaclScreenBuilder category(ConfigCategory customCategory) {
-        categories.add(synchronizers -> customCategory);
+    public YaclScreenBuilder category(Supplier<ConfigCategory> customCategory) {
+        Objects.requireNonNull(customCategory, "customCategory cannot be null");
+        categories.add(synchronizers -> customCategory.get());
         return this;
     }
 

@@ -3,6 +3,7 @@ package com.stalemated.lib.compat.yacl.internal;
 import com.stalemated.lib.compat.yacl.builder.NestListBinding;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.util.internal.KeyValuePair;
+import com.stalemated.lib.util.internal.ReflectionUtils;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.api.controller.StringControllerBuilder;
 import net.minecraft.network.chat.Component;
@@ -27,6 +28,14 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         Objects.requireNonNull(context, "context cannot be null");
     }
 
+    public static void requireStringKeys(OptionInfo mapInfo) {
+        Class<?> keyType = ReflectionUtils.resolveGenericTypeArgument(mapInfo.genericType(), 0, Object.class);
+        if (!keyType.isAssignableFrom(String.class)) {
+            throw new IllegalArgumentException("Map option '" + mapInfo.getKey() + "' has " + keyType.getSimpleName()
+                    + " keys; config screens only edit maps with String keys");
+        }
+    }
+
     public ListOption<String> buildMapPairsOption(OptionInfo info) {
         return buildMapPairsOption(info, null);
     }
@@ -36,6 +45,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
             OptionInfo info,
             Consumer<ListOption.Builder<String>> customizer
     ) {
+        requireStringKeys(info);
         YaclOptionMetadata meta = context.resolveMetadata(info);
         Class<?> valueType = info.getMapValueType();
         TypeLens<Object, String> valueText = context.controllerRegistry().findTextLens(valueType).orElseThrow(() ->
@@ -74,6 +84,7 @@ public record YaclMapOptionFactory<T>(YaclContext<T> context) {
         if (mapInfo == null) {
             return Collections.emptyList();
         }
+        requireStringKeys(mapInfo);
 
         Map<String, N> defaultMap = (Map<String, N>) ValueAccessor.defaultMapOf(mapInfo);
         Map<String, N> currentMap = context.session().get(mapInfo);
