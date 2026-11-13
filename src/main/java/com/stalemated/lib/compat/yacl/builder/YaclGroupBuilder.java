@@ -31,6 +31,7 @@ public class YaclGroupBuilder<T> {
     private boolean collapsed = false;
     private final List<Consumer<List<Option<?>>>> actions = new ArrayList<>();
     private final Map<String, Consumer<Option.Builder<?>>> overrides = new HashMap<>();
+    private final Set<String> appliedOverrides = new HashSet<>();
 
     YaclGroupBuilder(YaclContext<T> context, Component defaultName) {
         this.context = Objects.requireNonNull(context, "context cannot be null");
@@ -112,12 +113,26 @@ public class YaclGroupBuilder<T> {
      */
     @SuppressWarnings("unchecked")
     public YaclGroupBuilder<T> dropdown(String key, List<String> values, ValueFormatter<String> formatter) {
+        requireEditedAsText(key);
         configureOption(key, b -> ((Option.Builder<String>) b).controller(opt ->
                 SelectDropdownControllerBuilder.create(opt)
                         .values(values)
                         .formatValue(formatter)
         ));
         return include(key);
+    }
+
+    private void requireEditedAsText(String key) {
+        OptionInfo info = context.session().getOptionTree().get(key);
+        if (info == null) {
+            throw new IllegalArgumentException("Unknown config option key: '" + key + "' in OptionGroup '" + groupName() + "'.");
+        }
+        boolean editedAsText = context.controllerRegistry().findLens(info.type())
+                .map(lens -> lens.fallback() instanceof String)
+                .orElse(false);
+        if (!editedAsText) {
+            throw new IllegalArgumentException("dropdown('" + key + "') needs an option edited as text, '" + key + "' is a " + info.type().getSimpleName());
+        }
     }
 
     /**
@@ -217,7 +232,11 @@ public class YaclGroupBuilder<T> {
         if (info.hasTitle()) {
             appendTitle(list, info.getTitle());
         }
-        list.add(context.assembler().option(context.resolveMetadata(info), info, overrides.get(info.getKey())));
+        Consumer<Option.Builder<?>> override = overrides.get(info.getKey());
+        if (override != null) {
+            appliedOverrides.add(info.getKey());
+        }
+        list.add(context.assembler().option(context.resolveMetadata(info), info, override));
     }
 
     private void appendTitle(List<Option<?>> list, String title) {
