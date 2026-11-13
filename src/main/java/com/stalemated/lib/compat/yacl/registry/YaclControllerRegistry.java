@@ -1,8 +1,8 @@
 package com.stalemated.lib.compat.yacl.registry;
 
 import com.stalemated.lib.compat.yacl.controller.builder.AdvancedColorControllerBuilder;
-import com.stalemated.lib.compat.yacl.controller.builder.ItemOrTagControllerBuilder;
 import com.stalemated.lib.compat.yacl.internal.IdController;
+import com.stalemated.lib.compat.yacl.internal.ItemOrTagController;
 import com.stalemated.lib.compat.yacl.internal.ItemTargetIndex;
 import com.stalemated.lib.compat.yacl.internal.TypeLens;
 import com.stalemated.lib.config.OptionInfo;
@@ -17,6 +17,7 @@ import dev.isxander.yacl3.api.controller.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.awt.Color;
 import java.math.BigDecimal;
@@ -45,6 +46,7 @@ public class YaclControllerRegistry {
         this(ItemTargetIndex::fromRegistry);
     }
 
+    @ApiStatus.Internal
     public YaclControllerRegistry(Function<Boolean, ItemTargetIndex> itemTargetSource) {
         this.itemTargetSource = Objects.requireNonNull(itemTargetSource, "itemTargetSource cannot be null");
         registerDefaultPrimitives();
@@ -106,7 +108,7 @@ public class YaclControllerRegistry {
             Optional<ItemDropdown> dropdown = itemDropdownOf(info);
             if (dropdown.isPresent()) {
                 boolean includeTags = dropdown.get().allowTags();
-                return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(includeTags));
+                return () -> new ItemOrTagController(opt, () -> itemTargets(includeTags));
             }
             return StringControllerBuilder.create(opt);
         });
@@ -164,7 +166,7 @@ public class YaclControllerRegistry {
                 "",
                 (info, opt) -> {
                     if (itemDropdownOf(info).isPresent()) {
-                        return ItemOrTagControllerBuilder.create(opt, () -> itemTargets(false));
+                        return () -> new ItemOrTagController(opt, () -> itemTargets(false));
                     }
                     return () -> new IdController(opt);
                 }
@@ -252,11 +254,13 @@ public class YaclControllerRegistry {
         return null;
     }
 
+    @ApiStatus.Internal
     @SuppressWarnings("unchecked")
     public <M, G> Optional<TypeLens<M, G>> findLens(Class<?> type) {
         return Optional.ofNullable((TypeLens<M, G>) ReflectionUtils.findAssignable(lenses, type));
     }
 
+    @ApiStatus.Internal
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Optional<TypeLens<Object, String>> findTextLens(Class<?> type) {
         Optional<TypeLens<Object, Object>> lens = findLens(type);

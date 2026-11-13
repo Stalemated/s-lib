@@ -9,6 +9,7 @@ import com.stalemated.lib.config.internal.DeepCopy;
 import com.stalemated.lib.config.internal.InvalidConfigValueException;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.internal.ReflectionUtils;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -83,6 +84,7 @@ public class OptionInfo implements ConfigNode {
 
     public SyncMode getSyncMode() { return syncMode; }
 
+    @ApiStatus.Internal
     @Override
     public Constraint constraint() { return constraint; }
 
@@ -103,6 +105,7 @@ public class OptionInfo implements ConfigNode {
         return deepCopy.of(defaultValue, genericType);
     }
 
+    @ApiStatus.Internal
     public ConfigNode getElementTemplate() { return template; }
 
     public OptionInfo childTemplate(String childKey, Field childField, Object childDefault, Class<?> childType, Type childGenericType) {

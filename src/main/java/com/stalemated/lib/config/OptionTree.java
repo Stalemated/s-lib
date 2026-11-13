@@ -16,6 +16,7 @@ import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.internal.SLibGsonDefaults;
 import com.stalemated.lib.config.network.SyncMode;
 import com.stalemated.lib.util.internal.ReflectionUtils;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -213,8 +214,10 @@ public class OptionTree {
 
     public Gson gson() { return gson; }
 
+    @ApiStatus.Internal
     public DeepCopy deepCopy() { return deepCopy; }
 
+    @ApiStatus.Internal
     public CategoryNode getSchemaRoot() { return schemaRoot; }
 
     public OptionInfo get(String key) { return options.get(key); }
@@ -250,6 +253,7 @@ public class OptionTree {
      * @param candidate The candidate or modified config instance.
      * @return An unmodifiable list of detected {@link OptionChange} descriptors.
      */
+    @ApiStatus.Internal
     public List<OptionChange> findChanges(Object current, Object candidate) {
         if (current == null || candidate == null) {
             return Collections.emptyList();
