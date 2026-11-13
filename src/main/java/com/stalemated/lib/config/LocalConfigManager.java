@@ -1,7 +1,6 @@
 package com.stalemated.lib.config;
 
 import com.stalemated.lib.config.internal.ConfigRegistry;
-import com.stalemated.lib.config.internal.ConfigSerializer;
 import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.io.ConfigLoadFailure;
 import com.stalemated.lib.config.io.ConfigProvider;
@@ -221,18 +220,6 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     public T get() {
         requireRegistered();
         return provider.instance();
-    }
-
-    boolean hasSerializer() {
-        return provider.getSerializer() != null;
-    }
-
-    ConfigSerializer<T> serializer() {
-        ConfigSerializer<T> serializer = provider.getSerializer();
-        if (serializer == null) {
-            throw new IllegalStateException("Config '" + getName() + "' uses a provider without a serializer, so it cannot convert values to JSON");
-        }
-        return serializer;
     }
 
     Logger logger() {

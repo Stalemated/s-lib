@@ -150,9 +150,4 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     public T instance() {
         return instance;
     }
-
-    @Override
-    public ConfigSerializer<T> getSerializer() {
-        return serializer;
-    }
 }

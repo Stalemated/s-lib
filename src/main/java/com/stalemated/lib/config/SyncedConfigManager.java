@@ -2,7 +2,6 @@ package com.stalemated.lib.config;
 
 import com.stalemated.lib.config.internal.ConfigRegistry;
 import com.stalemated.lib.config.internal.SyncedConfigHooks;
-import com.stalemated.lib.config.internal.ConfigSerializer;
 import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.network.ConnectionState;
 import com.stalemated.lib.config.network.SyncMode;
@@ -45,9 +44,6 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     private final ConfigNetworkHandler<T> networkHandler;
 
     SyncedConfigManager(LocalConfigManager<T> localManager, ResourceLocation syncChannel, Predicate<ServerPlayer> serverPermissionCheck, ConfigTransport transport) {
-        if (!localManager.hasSerializer()) {
-            throw new IllegalArgumentException("Synced config '" + localManager.getName() + "' needs a provider with a serializer to sync over the network");
-        }
         this.localManager = localManager;
         this.syncChannel = syncChannel;
         this.serverPermissionCheck = serverPermissionCheck;
@@ -344,10 +340,6 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     public Path getConfigPath() {
         return localManager.getConfigPath();
-    }
-
-    ConfigSerializer<T> serializer() {
-        return localManager.serializer();
     }
 
     private final class RegistryHooks implements SyncedConfigHooks {

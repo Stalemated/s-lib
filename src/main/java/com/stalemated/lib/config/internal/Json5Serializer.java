@@ -11,7 +11,6 @@ import com.stalemated.lib.config.annotation.Nest;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.OptionTree;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -96,16 +95,6 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
             readOption(instance, rootObject, option, report);
         }
         return report.toResult(instance);
-    }
-
-    @Override
-    public com.google.gson.JsonElement serializeOption(Object value) {
-        return gson.toJsonTree(value);
-    }
-
-    @Override
-    public Object deserializeOption(com.google.gson.JsonElement json, Type targetType) {
-        return gson.fromJson(json.toString(), targetType);
     }
 
     private void readOption(T instance, JsonObject rootObject, OptionInfo option, LoadReport report) {

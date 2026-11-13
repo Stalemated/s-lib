@@ -1,7 +1,5 @@
 package com.stalemated.lib.config.io;
 
-import com.stalemated.lib.config.internal.ConfigSerializer;
-
 import java.io.UncheckedIOException;
 import java.util.Optional;
 
@@ -26,12 +24,4 @@ public interface ConfigProvider<T> {
      * @return The config instance.
      */
     T instance();
-
-    /**
-     * Gets the associated config serializer if available.
-     * @return The serializer, or null if not supported.
-     */
-    default ConfigSerializer<T> getSerializer() {
-        return null;
-    }
 }

@@ -1,10 +1,10 @@
 package com.stalemated.lib.config;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
-import com.stalemated.lib.config.internal.ConfigSerializer;
 import com.stalemated.lib.config.internal.OptionChange;
 import com.stalemated.lib.config.network.SyncMode;
 import io.netty.buffer.Unpooled;
@@ -66,23 +66,22 @@ final class ConfigNetworkPayload {
      * @param tree The option schema tree.
      * @param configInstance The source config POJO.
      * @param targetMode The sync mode filter.
-     * @param serializer The config serializer used to map individual options.
      * @return Compact flat JSON representation of the filtered options.
      */
-    public static String snapshot(OptionTree tree, Object configInstance, SyncMode targetMode, ConfigSerializer<?> serializer) {
+    public static String snapshot(OptionTree tree, Object configInstance, SyncMode targetMode) {
         JsonObject payload = new JsonObject();
         for (OptionInfo option : tree.getSyncedOptions()) {
             if (option.getSyncMode() == targetMode) {
-                put(payload, option, option.getValue(configInstance), serializer);
+                put(payload, option, option.getValue(configInstance), tree.gson());
             }
         }
         return payload.toString();
     }
 
-    public static String changes(List<OptionChange> changes, ConfigSerializer<?> serializer) {
+    public static String changes(OptionTree tree, List<OptionChange> changes) {
         JsonObject payload = new JsonObject();
         for (OptionChange change : changes) {
-            put(payload, change.option(), change.clampedValue(), serializer);
+            put(payload, change.option(), change.clampedValue(), tree.gson());
         }
         return payload.toString();
     }
@@ -105,9 +104,8 @@ final class ConfigNetworkPayload {
      * @param tree The option schema tree.
      * @param acceptedMode The only sync mode this payload is allowed to change.
      * @param targetInstance The target config POJO to update.
-     * @param serializer The config serializer to parse custom types.
      */
-    public static void applyFromJson(String json, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+    public static void applyFromJson(String json, OptionTree tree, SyncMode acceptedMode, Object targetInstance) {
         JsonObject jsonObject;
         try {
             jsonObject = JsonParser.parseString(json).getAsJsonObject();
@@ -115,12 +113,12 @@ final class ConfigNetworkPayload {
             LOGGER.error("Ignoring config sync payload of {} chars that is not a JSON object: {}", json.length(), e.getMessage());
             return;
         }
-        apply(jsonObject, tree, acceptedMode, targetInstance, serializer);
+        apply(jsonObject, tree, acceptedMode, targetInstance);
     }
 
-    public static void apply(JsonObject options, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+    public static void apply(JsonObject options, OptionTree tree, SyncMode acceptedMode, Object targetInstance) {
         for (String key : options.keySet()) {
-            applySingleOption(key, options.get(key), tree, acceptedMode, targetInstance, serializer);
+            applySingleOption(key, options.get(key), tree, acceptedMode, targetInstance);
         }
     }
 
@@ -133,17 +131,16 @@ final class ConfigNetworkPayload {
      * @param tree The option schema tree.
      * @param acceptedMode The only sync mode this payload is allowed to change.
      * @param targetInstance The target config POJO to update.
-     * @param serializer The config serializer.
      */
-    public static void readAndApply(FriendlyByteBuf buf, int maxLength, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
-        applyFromJson(buf.readUtf(maxLength), tree, acceptedMode, targetInstance, serializer);
+    public static void readAndApply(FriendlyByteBuf buf, int maxLength, OptionTree tree, SyncMode acceptedMode, Object targetInstance) {
+        applyFromJson(buf.readUtf(maxLength), tree, acceptedMode, targetInstance);
     }
 
-    private static void put(JsonObject payload, OptionInfo option, Object value, ConfigSerializer<?> serializer) {
-        payload.add(option.getKey(), serializer.serializeOption(value));
+    private static void put(JsonObject payload, OptionInfo option, Object value, Gson gson) {
+        payload.add(option.getKey(), gson.toJsonTree(value));
     }
 
-    private static void applySingleOption(String key, JsonElement elem, OptionTree tree, SyncMode acceptedMode, Object targetInstance, ConfigSerializer<?> serializer) {
+    private static void applySingleOption(String key, JsonElement elem, OptionTree tree, SyncMode acceptedMode, Object targetInstance) {
         OptionInfo option = tree.get(key);
 
         if (option == null) {
@@ -157,7 +154,7 @@ final class ConfigNetworkPayload {
         }
 
         try {
-            Object rawValue = serializer.deserializeOption(elem, option.genericType());
+            Object rawValue = tree.gson().fromJson(elem.toString(), option.genericType());
             Object clampedValue = option.clampValue(rawValue);
             option.setValue(targetInstance, clampedValue);
         } catch (RuntimeException e) {

@@ -54,7 +54,7 @@ final class ConfigNetworkHandler<T> {
         }
         ConfigNetworkPayload.ServerConfigMessage message = ConfigNetworkPayload.readServerConfig(buf);
         T serverConfig = manager.cloneConfig(manager.local());
-        ConfigNetworkPayload.apply(message.options(), manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, serverConfig, manager.serializer());
+        ConfigNetworkPayload.apply(message.options(), manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, serverConfig);
         manager.acceptServerConfig(serverConfig, message.canChangeOverrides());
 
         if (state != ConnectionState.MULTIPLAYER_MODDED && manager.getOptionTree().hasOptionsSyncedAs(SyncMode.INFORM_SERVER)) {
@@ -79,7 +79,7 @@ final class ConfigNetworkHandler<T> {
         }
 
         if (!transport.isSingleplayerOwner(player)) {
-            ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local(), manager.serializer());
+            ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.OVERRIDE_CLIENT, manager.local());
             saveRemoteChange(player);
         }
         broadcastServerConfig();
@@ -105,7 +105,7 @@ final class ConfigNetworkHandler<T> {
 
     T informedConfig(FriendlyByteBuf buf) {
         T informed = manager.cloneConfig(manager.local());
-        ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.INFORM_SERVER, informed, manager.serializer());
+        ConfigNetworkPayload.readAndApply(buf, ConfigNetworkPayload.MAX_SERVER_BOUND_BYTES, manager.getOptionTree(), SyncMode.INFORM_SERVER, informed);
         return informed;
     }
 
@@ -145,7 +145,7 @@ final class ConfigNetworkHandler<T> {
     }
 
     private String serverSnapshot() {
-        return ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT, manager.serializer());
+        return ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.OVERRIDE_CLIENT);
     }
 
     /**
@@ -155,7 +155,7 @@ final class ConfigNetworkHandler<T> {
      * @return false if the payload is over the server-bound limit and nothing was sent.
      */
     boolean sendOverridesToServer(List<OptionChange> overrides) {
-        return sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(overrides, manager.serializer()));
+        return sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(manager.getOptionTree(), overrides));
     }
 
     /**
@@ -163,14 +163,14 @@ final class ConfigNetworkHandler<T> {
      * The host shares its config instance with the integrated server, so the payload carries no options.
      */
     void requestOverrideBroadcast() {
-        sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(List.of(), manager.serializer()));
+        sendToServer(channels.clientOverride(), ConfigNetworkPayload.changes(manager.getOptionTree(), List.of()));
     }
 
     /**
      * Sends a C2S packet to inform the server of local preferences.
      */
     void sendInformToServer() {
-        sendToServer(channels.clientInform(), ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.INFORM_SERVER, manager.serializer()));
+        sendToServer(channels.clientInform(), ConfigNetworkPayload.snapshot(manager.getOptionTree(), manager.local(), SyncMode.INFORM_SERVER));
     }
 
     private boolean sendToServer(ResourceLocation packet, String json) {
