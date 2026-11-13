@@ -410,17 +410,9 @@ public class YaclCategoryBuilder<T> {
     }
 
     private static List<Field> resolvePojoFields(Class<?> itemClass) {
-        List<Field> fields = new ArrayList<>();
-        Class<?> current = itemClass;
-        while (current != null && current != Object.class) {
-            for (Field field : current.getDeclaredFields()) {
-                if (!OptionTree.isIgnored(field)) {
-                    fields.add(field);
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return fields;
+        return ReflectionUtils.declaredFieldsSuperclassFirst(itemClass).stream()
+                .filter(field -> !OptionTree.isIgnored(field))
+                .toList();
     }
 
     private static Component resolveListEntryGroupName(int index, Object sampleItem) {

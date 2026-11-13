@@ -44,6 +44,18 @@ public final class ReflectionUtils {
 
     private ReflectionUtils() {}
 
+    public static List<Field> declaredFieldsSuperclassFirst(Class<?> type) {
+        Deque<Class<?>> hierarchy = new ArrayDeque<>();
+        for (Class<?> current = type; current != null && current != Object.class; current = current.getSuperclass()) {
+            hierarchy.addFirst(current);
+        }
+        List<Field> fields = new ArrayList<>();
+        for (Class<?> declaring : hierarchy) {
+            fields.addAll(List.of(declaring.getDeclaredFields()));
+        }
+        return fields;
+    }
+
     /**
      * Instantiates a class using its zero-argument constructor.
      *

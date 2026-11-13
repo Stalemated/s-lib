@@ -36,7 +36,7 @@
 ### Fixes
 
 Fixed:
-- Config files being half-written or overwritten without a backup: saves now go through a temp file, back up the old file first, and report failures
+- Config files being half-written or overwritten without a backup: saves now go through a temp file and report failures, and a file that cannot be read or has invalid or unknown entries is backed up when it loads
 - Invalid values being silently replaced with fallbacks
 - NaN, infinite and overflowing numbers being accepted, and ranges not clamping the contents of lists and maps
 - `@SerializedName` alternate keys not being read and `@Comment` on `@Nest` categories not being written

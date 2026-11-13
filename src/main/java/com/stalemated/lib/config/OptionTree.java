@@ -152,21 +152,15 @@ public class OptionTree {
 
     private Map<Field, ConfigNode> scanCategoryFields(String key, Class<?> type, Object currentInstance, List<Field> path, SyncMode syncMode, boolean isTemplate) {
         Map<Field, ConfigNode> fields = new LinkedHashMap<>();
-        Class<?> current = type;
+        for (Field f : ReflectionUtils.declaredFieldsSuperclassFirst(type)) {
+            if (isIgnored(f)) continue;
 
-        while (current != null && current != Object.class) {
-            for (Field f : current.getDeclaredFields()) {
-                if (isIgnored(f)) continue;
+            String childKey = key.isEmpty() ? f.getName() : key + "." + f.getName();
+            SyncMode childSyncMode = resolveSyncMode(f, syncMode);
 
-                String childKey = key.isEmpty() ? f.getName() : key + "." + f.getName();
-                SyncMode childSyncMode = resolveSyncMode(f, syncMode);
-
-                ConfigNode childNode = buildNode(childKey, f, f.getGenericType(), path, childSyncMode, currentInstance, isTemplate, false);
-                fields.put(f, childNode);
-            }
-            current = current.getSuperclass();
+            ConfigNode childNode = buildNode(childKey, f, f.getGenericType(), path, childSyncMode, currentInstance, isTemplate, false);
+            fields.put(f, childNode);
         }
-
         return fields;
     }
 
