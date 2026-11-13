@@ -122,6 +122,9 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     void onClientJoinSingleplayer() {
         switchView(new SyncView<>(ConnectionState.SINGLEPLAYER, null, true));
+        if (getOptionTree().hasOptionsSyncedAs(SyncMode.INFORM_SERVER)) {
+            networkHandler.sendInformToServer();
+        }
     }
 
     private T configWithDefaultOverrides() {
@@ -226,7 +229,7 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
     @Override
     public void modifyOptions(Map<OptionInfo, ?> values) {
-        applyChanges(LocalConfigManager.changesIn(getOptionTree(), get(), values));
+        applyChanges(LocalConfigManager.changesIn(this, get(), values));
     }
 
     private void applyChanges(List<OptionChange> changes) {

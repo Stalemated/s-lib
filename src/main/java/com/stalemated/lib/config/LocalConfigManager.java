@@ -67,7 +67,13 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
         return manager.getOptionTree().findChanges(current, workingCopy);
     }
 
-    static <T> List<OptionChange> changesIn(OptionTree tree, T current, Map<OptionInfo, ?> values) {
+    static <T> List<OptionChange> changesIn(ConfigManager<T> manager, T current, Map<OptionInfo, ?> values) {
+        OptionTree tree = manager.getOptionTree();
+        for (OptionInfo option : values.keySet()) {
+            if (tree.get(option.getKey()) != option) {
+                throw new IllegalArgumentException("Option '" + option.getKey() + "' does not belong to config '" + manager.getName() + "'");
+            }
+        }
         List<OptionChange> changes = new ArrayList<>();
         values.forEach((option, value) -> {
             Object clamped = option.clampValue(value);
@@ -107,10 +113,11 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     void registerClaimedBy(Runnable claim) {
-        if (!registered) {
-            claim.run();
-            registered = true;
+        if (registered) {
+            throw new IllegalStateException("Config '" + getName() + "' is already registered");
         }
+        claim.run();
+        registered = true;
 
         Optional<ConfigLoadFailure> failure = provider.load();
         failure.ifPresent(f -> loadFailedListeners.fire(listener -> listener.accept(f)));
@@ -158,7 +165,7 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
 
     @Override
     public void modifyOptions(Map<OptionInfo, ?> values) {
-        applyChanges(changesIn(optionTree, get(), values));
+        applyChanges(changesIn(this, get(), values));
     }
 
     private void applyChanges(List<OptionChange> changes) {
