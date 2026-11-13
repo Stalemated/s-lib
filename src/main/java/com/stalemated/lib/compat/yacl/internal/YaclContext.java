@@ -5,6 +5,8 @@ import com.stalemated.lib.compat.yacl.registry.YaclControllerRegistry;
 import com.stalemated.lib.compat.yacl.registry.YaclNamingStrategy;
 import com.stalemated.lib.config.annotation.SharedDescription;
 import com.stalemated.lib.config.OptionInfo;
+import com.stalemated.lib.config.internal.CategoryNode;
+import com.stalemated.lib.config.internal.ConfigNode;
 import com.stalemated.lib.config.internal.ConfigSession;
 import net.minecraft.network.chat.Component;
 
@@ -12,6 +14,7 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -91,5 +94,14 @@ public record YaclContext<T>(
 
     public OptionAssembler assembler() {
         return new OptionAssembler(session, synchronizer, controllerRegistry);
+    }
+
+    public Optional<CategoryNode> nestedCategory(String path) {
+        ConfigNode current = session.getOptionTree().getSchemaRoot();
+        for (String part : path.split("\\.")) {
+            if (!(current instanceof CategoryNode category)) return Optional.empty();
+            current = category.getChild(part);
+        }
+        return current instanceof CategoryNode category ? Optional.of(category) : Optional.empty();
     }
 }

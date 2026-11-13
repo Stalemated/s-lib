@@ -142,8 +142,7 @@ public class YaclGroupBuilder<T> {
             for (String key : keysCopy) {
                 OptionInfo info = context.session().getOptionTree().get(key);
                 if (info == null) {
-                    throw new IllegalArgumentException("Unknown config option key: '" + key + "' in OptionGroup '"
-                            + (name != null ? name.getString() : "unnamed") + "'.");
+                    throw new IllegalArgumentException("Unknown config option key: '" + key + "' in OptionGroup '" + groupName() + "'.");
                 }
                 if (info.isCollection() || info.isMap()) {
                     throw new IllegalArgumentException("Option '" + key + "' is a " + info.type().getSimpleName()
@@ -159,7 +158,13 @@ public class YaclGroupBuilder<T> {
     public YaclGroupBuilder<T> includePrefix(String prefix) {
         String cleanPrefix = prefix.endsWith(".") ? prefix : prefix + ".";
         actions.add(list -> {
-            for (OptionInfo info : context.session().getOptionTree().all()) {
+            Collection<OptionInfo> options = context.session().getOptionTree().all();
+            boolean matches = context.nestedCategory(prefix).isPresent()
+                    || options.stream().anyMatch(info -> info.getKey().startsWith(cleanPrefix) || info.getKey().equals(prefix));
+            if (!matches) {
+                throw new IllegalArgumentException("No config option or nested category matches prefix '" + prefix + "' in OptionGroup '" + groupName() + "'");
+            }
+            for (OptionInfo info : options) {
                 if (info.getKey().startsWith(cleanPrefix) || info.getKey().equals(prefix)) {
                     if (info.isCollection() || info.isMap()) {
                         continue;
@@ -200,6 +205,10 @@ public class YaclGroupBuilder<T> {
         return assembler.option(meta, elementInfo, ValueAccessor.listElement(context.session(), listInfo, index, padding), lens, defaultElement, null);
     }
 
+    private String groupName() {
+        return name != null ? name.getString() : "unnamed";
+    }
+
     private boolean hasGroupTitle() {
         return name != null && !name.equals(Component.empty()) && !name.getString().isEmpty();
     }
@@ -225,12 +234,30 @@ public class YaclGroupBuilder<T> {
         }
     }
 
-    public OptionGroup build() {
+    OptionGroup build() {
+        return toGroup(resolveOptions());
+    }
+
+    Optional<OptionGroup> buildUnlessEmpty() {
+        List<Option<?>> resolvedOptions = resolveOptions();
+        return resolvedOptions.isEmpty() ? Optional.empty() : Optional.of(toGroup(resolvedOptions));
+    }
+
+    private List<Option<?>> resolveOptions() {
+        appliedOverrides.clear();
         List<Option<?>> resolvedOptions = new ArrayList<>();
         for (Consumer<List<Option<?>>> action : actions) {
             action.accept(resolvedOptions);
         }
+        for (String key : overrides.keySet()) {
+            if (!appliedOverrides.contains(key)) {
+                throw new IllegalArgumentException("configureOption('" + key + "') in OptionGroup '" + groupName() + "' targets an option the group does not include");
+            }
+        }
+        return resolvedOptions;
+    }
 
+    private OptionGroup toGroup(List<Option<?>> resolvedOptions) {
         OptionGroup.Builder builder = OptionGroup.createBuilder()
                 .name(name)
                 .collapsed(collapsed)

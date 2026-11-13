@@ -134,8 +134,9 @@ public class YaclCategoryBuilder<T> {
     }
 
     public YaclCategoryBuilder<T> nested(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
-        CategoryNode catNode = resolveCategoryNode(nestPrefix);
-        String groupKey = catNode != null && catNode.hasTitle() ? catNode.title() : nestPrefix;
+        CategoryNode catNode = context.nestedCategory(nestPrefix)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown nested category key: '" + nestPrefix + "'"));
+        String groupKey = catNode.hasTitle() ? catNode.title() : nestPrefix;
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, context.namingStrategy().groupName(context.translationPrefix(), groupKey));
         builder.collapsed(false);
         builder.description(context.namingStrategy().groupDescription(context.translationPrefix(), groupKey));
@@ -143,10 +144,7 @@ public class YaclCategoryBuilder<T> {
         if (customizer != null) {
             customizer.accept(builder);
         }
-        OptionGroup builtGroup = builder.build();
-        if (!builtGroup.options().isEmpty()) {
-            groups.add(builtGroup);
-        }
+        builder.buildUnlessEmpty().ifPresent(groups::add);
 
         // Emit any Collection or Map options nested under this prefix as sibling YACL groups
         String cleanPrefix = nestPrefix.endsWith(".") ? nestPrefix : nestPrefix + ".";
@@ -299,18 +297,6 @@ public class YaclCategoryBuilder<T> {
 
         flushPendingLeaves(pendingLeaves, currentSectionTitle);
         return this;
-    }
-
-    private CategoryNode resolveCategoryNode(String nestPrefix) {
-        ConfigNode current = context.session().getOptionTree().getSchemaRoot();
-        for (String part : nestPrefix.split("\\.")) {
-            if (current instanceof CategoryNode catNode) {
-                current = catNode.getChild(part);
-            } else {
-                return null;
-            }
-        }
-        return current instanceof CategoryNode cat ? cat : null;
     }
 
     private void flushPendingLeaves(List<String> pendingLeaves, String sectionTitleKey) {
