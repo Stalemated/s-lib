@@ -17,6 +17,7 @@ deps.log4j = "2.19.0"
 publish.modrinth_id = "VtMfe1Va"
 publish.curseforge_id = "1576101"
 publish.type = "stable"
+publish.modrinth_environment = "client_or_server_prefers_both"
 publish.requires = []
 publish.optional = ["yacl"]
 
@@ -160,7 +161,7 @@ deps.neo_loader = "21.11.45"
 
 
 ["26.1"]
-mod.mc_releases = ["26.1"]
+mod.mc_releases = ["26.1", "26.1.1", "26.1.2"]
 deps.yacl = "3.9.7+26.1"
 
 [fabric."26.1"]

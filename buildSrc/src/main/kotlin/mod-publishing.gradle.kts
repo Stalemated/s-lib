@@ -1,4 +1,6 @@
 import dev.kikugie.stonecutter.build.StonecutterBuildExtension
+import me.modmuss50.mpp.platforms.modrinth.ModrinthEnvironment
+import kotlin.enums.enumEntries
 
 plugins {
     id("me.modmuss50.mod-publish-plugin")
@@ -11,6 +13,7 @@ val loaderNames = mapOf("fabric" to "Fabric", "forge" to "Forge", "neoforge" to 
 val loaderRequirements = mapOf("fabric" to listOf("fabric-api"))
 val loaderOptionals = mapOf("fabric" to listOf("modmenu"))
 val curseforgeSides = mapOf("both" to (true to true), "client" to (true to false), "server" to (false to true))
+val modrinthEnvironments = enumEntries<ModrinthEnvironment>().associateBy { it.name.lowercase() }
 
 fun tomlList(vararg path: String): List<String>? = sc.properties.rawOrNull(*path)?.asList()?.map { it.toString() }
 
@@ -25,9 +28,13 @@ publishMods {
     val loaderName = requireNotNull(loaderNames[loader]) {
         "loader must be one of ${loaderNames.keys.toList()}, got '$loader'"
     }
-    val environment = sc.properties.get<String>("mod.environment")
-    val (clientSide, serverSide) = requireNotNull(curseforgeSides[environment]) {
-        "mod.environment must be one of ${curseforgeSides.keys.toList()}, got '$environment'"
+    val modEnvironment = sc.properties.get<String>("mod.environment")
+    val (clientSide, serverSide) = requireNotNull(curseforgeSides[modEnvironment]) {
+        "mod.environment must be one of ${curseforgeSides.keys.toList()}, got '$modEnvironment'"
+    }
+    val modrinthEnvironmentName = sc.properties.get<String>("publish.modrinth_environment")
+    val modrinthEnvironment = requireNotNull(modrinthEnvironments[modrinthEnvironmentName]) {
+        "publish.modrinth_environment must be one of ${modrinthEnvironments.keys.toList()}, got '$modrinthEnvironmentName'"
     }
     val releaseTypes = mapOf("stable" to STABLE, "beta" to BETA, "alpha" to ALPHA)
     val releaseType = sc.properties.get<String>("publish.type")
@@ -66,6 +73,7 @@ publishMods {
             modrinthId
         }
         accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+        environment = modrinthEnvironment
         minecraftVersions.addAll(releasedVersions)
         requires(*requiredProjects.toTypedArray())
         optional(*optionalProjects.toTypedArray())

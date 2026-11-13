@@ -210,7 +210,7 @@ modCompileOnly("com.stalemated.lib:s-lib-fabric:<version>+<minecraft>")
 | 1.21.6 - 1.21.8  | Yes    |       | Yes      |
 | 1.21.9 - 1.21.10 | Yes    |       | Yes      |
 | 1.21.11          | Yes    |       | Yes      |
-| 26.1             | Yes    |       | Yes      |
+| 26.1 - 26.1.2    | Yes    |       | Yes      |
 | 26.2             | Yes    |       | Yes      |
 | 26.3             | Yes    |       | Yes      |
 
