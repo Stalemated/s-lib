@@ -63,7 +63,7 @@ publishMods {
         lines.subList(start + 1, end).joinToString("\n").trim()
     }
     modLoaders.add(loader)
-    dryRun = flag("publishDryRun")
+    dryRun = dryPublishRequested()
 
     modrinth {
         projectId = providers.provider {
