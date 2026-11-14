@@ -20,7 +20,11 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 //? if neoforge {
 /*import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.fml.ModList;
+//? if <1.21.10 {
 import net.neoforged.fml.loading.LoadingModList;
+//?} else {
+/^import net.neoforged.fml.loading.FMLLoader;
+^///?}
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLEnvironment;
 *///?}
@@ -81,8 +85,10 @@ public final class PlatformHelper {
     public static boolean isModLoadedAtLaunch(String modId) {
         //? if fabric {
         return FabricLoader.getInstance().isModLoaded(modId);
-        //?} elif forge || neoforge {
+        //?} elif forge || neoforge && <1.21.10 {
         /*return LoadingModList.get().getModFileById(modId) != null;
+        *///?} elif neoforge {
+        /*return FMLLoader.getCurrent().getLoadingModList().getModFileById(modId) != null;
         *///?}
     }
 

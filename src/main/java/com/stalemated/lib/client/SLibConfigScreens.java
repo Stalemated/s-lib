@@ -19,10 +19,10 @@ import net.minecraftforge.fml.ModList;
 //? if neoforge {
 /*import net.neoforged.fml.ModList;
 //? if <=1.20.4 {
-/^import net.neoforged.neoforge.client.ConfigScreenHandler;
-^///?} else {
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
-//?}
+import net.neoforged.neoforge.client.ConfigScreenHandler;
+//?} else {
+/^import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+^///?}
 *///?}
 
 public final class SLibConfigScreens {

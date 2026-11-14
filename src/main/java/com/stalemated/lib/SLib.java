@@ -29,10 +29,10 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 //? if <=1.20.4 {
-/^import net.neoforged.fml.common.Mod.EventBusSubscriber;
-^///?} else {
-import net.neoforged.fml.common.EventBusSubscriber;
-//?}
+import net.neoforged.fml.common.Mod.EventBusSubscriber;
+//?} else {
+/^import net.neoforged.fml.common.EventBusSubscriber;
+^///?}
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;

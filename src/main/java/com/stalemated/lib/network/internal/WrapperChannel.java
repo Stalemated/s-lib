@@ -36,15 +36,15 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.bus.api.IEventBus;
 
 //? if <=1.20.4 {
-/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlerEvent;
 import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
-^///?} else {
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+//?} else {
+/^import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
-//?}
+^///?}
 
 //? if >=1.21.7
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+//import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 *///?}
 public final class WrapperChannel {
 
@@ -127,10 +127,10 @@ public final class WrapperChannel {
     private static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(MOD_ID).optional();
         //? if <1.21.7 {
-        /^registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload);
-        ^///?} else {
-        registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload, WrapperChannel::handlePayload);
-        //?}
+        registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload);
+        //?} else {
+        /^registrar.playBidirectional(WrapperPayload.ID, WrapperPayload.CODEC, WrapperChannel::handlePayload, WrapperChannel::handlePayload);
+        ^///?}
     }
     *///?}
 
@@ -223,7 +223,7 @@ public final class WrapperChannel {
         //channel().sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4 && <1.21.7
+        //? if neoforge && >1.20.4 <1.21.7
         //PacketDistributor.sendToServer(new WrapperPayload(id, data));
         //? if neoforge && >=1.21.7
         //ClientPacketDistributor.sendToServer(new WrapperPayload(id, data));
