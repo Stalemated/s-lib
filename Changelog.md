@@ -1,5 +1,27 @@
 # Changelog
 
+## 4.0.1
+
+### Changes
+
+- `YaclScreenBuilder.category(ConfigCategory)` is now `category(Supplier<ConfigCategory>)`
+- `ConfigProvider.getSerializer()` was removed, so synced configs can use a custom `ConfigProvider`
+- `ItemOrTagControllerBuilder.create(Option)` no longer takes an item index, and `allowTags(boolean)` enables choosing tags
+- `ColorUtils.toHex(TextColor)` now returns `#RRGGBB` only
+
+### Fixes
+
+Fixed:
+- Singleplayer clients and LAN hosts not sending the `INFORM_SERVER` values until one of them changed
+- A second `register()` silently reloading the config
+- `modifyOptions` accepting options of another config
+- Typos in `nested`, `includePrefix` and `configureOption` being ignored, and `dropdown` on an option that is not edited as text failing only when drawn
+- Config screens crashing on maps without `String` keys
+- Custom categories keeping listeners of old screens after Save, Undo, or a server change
+- Key mappings registered after `RegisterKeyMappingsEvent` on Forge and NeoForge being lost without a warning
+- `SLibConfigScreens.register` only rejecting an unknown mod id when YACL is installed
+- Weapon damage and speed on 1.20.5+ ignoring the default modifiers of the item and the modifiers from enchantments
+
 ## 4.0.0
 
 **API BREAKING RELEASE**

@@ -2,7 +2,7 @@
 mod.id = "s_lib"
 mod.name = "S-Lib"
 mod.group = "com.stalemated.lib"
-mod.version = "4.0.0"
+mod.version = "4.0.1"
 mod.environment = "both"
 
 deps.fabric_loader = "0.18.4"
