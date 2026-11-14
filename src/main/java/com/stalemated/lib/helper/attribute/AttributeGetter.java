@@ -21,6 +21,11 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 *///?}
 
+/**
+ * Tooltip text for the weapon stats, enchantments, and food values of an {@link ItemStack}.
+ * Decimal numbers have one decimal and use a dot ({@code "%.1f"} with {@link Locale#US}).
+ * Weapon stats read the main-hand modifiers of the stack, not of a player.
+ */
 public final class AttributeGetter {
 
     private static final double PLAYER_BASE_ATTACK_DAMAGE = 1.0;
@@ -28,6 +33,18 @@ public final class AttributeGetter {
 
     private AttributeGetter() {}
 
+    /**
+     * Returns the main-hand attack damage of {@code stack}: the player base damage (1.0) with
+     * the stack's attack damage modifiers applied.
+     * <p>
+     * Before 1.21 it also adds the enchantment damage bonus (Sharpness and similar). From 1.21
+     * it does not, like the vanilla tooltip, because that damage depends on the target.
+     * Attribute modifiers that come from enchantments still count.
+     *
+     * @param stack the item stack to inspect
+     * @return the damage with one decimal, or {@code "0"} if the stack has no attack damage
+     *         modifiers and no enchantment bonus
+     */
     public static String calculateWeaponDamage(ItemStack stack) {
         AttributeTotal damage = mainHandTotal(stack, Attributes.ATTACK_DAMAGE);
         double enchantmentBonus = enchantmentDamageBonus(stack);
@@ -35,6 +52,14 @@ public final class AttributeGetter {
         return formatString(damage.valueFrom(PLAYER_BASE_ATTACK_DAMAGE) + enchantmentBonus);
     }
 
+    /**
+     * Returns the main-hand attack speed of {@code stack}: the player base attack speed (4.0)
+     * with the stack's attack speed modifiers applied.
+     *
+     * @param stack the item stack to inspect
+     * @return the attack speed with one decimal, or {@code "0"} if the stack has no attack
+     *         speed modifiers
+     */
     public static String calculateWeaponSpeed(ItemStack stack) {
         AttributeTotal speed = mainHandTotal(stack, Attributes.ATTACK_SPEED);
         if (speed.isEmpty()) return "0";
@@ -42,6 +67,13 @@ public final class AttributeGetter {
     }
 
     //? if <1.20.5 {
+    /**
+     * Returns all enchantments on {@code stack} as newline-separated localized names, with
+     * the level as vanilla shows it, for example {@code Sharpness V}.
+     *
+     * @param stack the item stack to inspect
+     * @return newline-separated enchantment names, or {@code ""} if unenchanted
+     */
     public static String getEnchantments(ItemStack stack) {
         Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(stack);
         if (enchantments.isEmpty()) return "";
@@ -54,11 +86,23 @@ public final class AttributeGetter {
         return String.join("\n", formattedEnchants);
     }
 
+    /**
+     * Returns the food saturation value of {@code stack} formatted to one decimal place.
+     *
+     * @param stack the item stack to inspect
+     * @return formatted saturation, or {@code ""} if {@code stack} is not food
+     */
     public static String getSaturation(ItemStack stack) {
         FoodProperties food = stack.getItem().getFoodProperties();
         return food == null ? "" : formatString(food.getNutrition() * food.getSaturationModifier() * 2.0);
     }
 
+    /**
+     * Returns the food nutrition (hunger points) of {@code stack} as a string.
+     *
+     * @param stack the item stack to inspect
+     * @return nutrition string, or {@code ""} if {@code stack} is not food
+     */
     public static String getHunger(ItemStack stack) {
         FoodProperties food = stack.getItem().getFoodProperties();
         return food == null ? "" : String.valueOf(food.getNutrition());
@@ -80,7 +124,14 @@ public final class AttributeGetter {
         return EnchantmentHelper.getDamageBonus(stack, MobType.UNDEFINED);
     }
     //?} else {
-    /*public static String getEnchantments(ItemStack stack) {
+    /*/^*
+     * Returns all enchantments on {@code stack} as newline-separated localized names, with
+     * the level as vanilla shows it, for example {@code Sharpness V}.
+     *
+     * @param stack the item stack to inspect
+     * @return newline-separated enchantment names, or {@code ""} if unenchanted
+     ^/
+    public static String getEnchantments(ItemStack stack) {
         ItemEnchantments enchantments = EnchantmentHelper.getEnchantmentsForCrafting(stack);
         if (enchantments.isEmpty()) return "";
 
@@ -96,11 +147,23 @@ public final class AttributeGetter {
         return String.join("\n", formattedEnchants);
     }
 
+    /^*
+     * Returns the food saturation value of {@code stack} formatted to one decimal place.
+     *
+     * @param stack the item stack to inspect
+     * @return formatted saturation, or {@code ""} if {@code stack} is not food
+     ^/
     public static String getSaturation(ItemStack stack) {
         FoodProperties food = stack.get(DataComponents.FOOD);
         return food == null ? "" : formatString(food.saturation());
     }
 
+    /^*
+     * Returns the food nutrition (hunger points) of {@code stack} as a string.
+     *
+     * @param stack the item stack to inspect
+     * @return nutrition string, or {@code ""} if {@code stack} is not food
+     ^/
     public static String getHunger(ItemStack stack) {
         FoodProperties food = stack.get(DataComponents.FOOD);
         return food == null ? "" : String.valueOf(food.nutrition());

@@ -17,9 +17,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Config manager that loads and saves a config through a {@link ConfigProvider}.
+ * Config manager that loads and saves a config through a {@link ConfigProvider}, by default a
+ * JSON5 file. It never uses the network.
+ * <p>
+ * Get one from {@link SLibConfig#local(String, Class)} with {@code build()} or
+ * {@code register()}. Call {@link #register()} before reading or changing the config.
  *
- * @param <T> The config data model class.
+ * @param <T> the config model type
  */
 public final class LocalConfigManager<T> implements ConfigManager<T> {
 
@@ -101,11 +105,17 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Registers the config.
-     * This claims the config file, loads it (creating it with defaults when it is new),
-     * and invokes the load and load failure listeners.
+     * Registers the config: claims the file, loads it, runs the load failure listeners if the
+     * load failed, and then the load listeners.
+     * <p>
+     * With the default JSON5 file, a missing or empty file is created with defaults. The file is
+     * rewritten when options are missing, clamped or stored under an old key. Before it drops
+     * unknown keys or invalid values, S-Lib saves a backup named
+     * {@code <name>_backup_<yyyyMMdd-HHmmss>.json5}. A file that is not valid JSON5 is backed up
+     * and left as it is, and the config keeps its defaults.
      *
-     * @throws IllegalStateException If another registered config already uses the same file.
+     * @throws IllegalStateException if this manager is already registered, or if another
+     *                               registered config already uses the same file
      */
     public void register() {
         registerClaimedBy(() -> ConfigRegistry.claimFile(this, getConfigPath()));
@@ -126,10 +136,15 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Creates a deep clone of the provided config instance based on the {@link OptionTree} schema.
+     * Creates a deep copy of {@code source}, clamping each value. The copy comes from the default
+     * factory or, without one, from the no-argument constructor of the config class.
      *
-     * @param source The config object to clone.
-     * @return A fresh instance with all option values copied, or {@code null} if source is null.
+     * @param source the config to copy, or {@code null}
+     * @return the copy, or {@code null} if {@code source} is {@code null}
+     * @throws IllegalArgumentException if {@code source} has a value that can never be valid,
+     *                                  like {@code NaN}
+     * @throws RuntimeException if there is no default factory and the config class has no
+     *                          no-argument constructor
      */
     @Override
     @SuppressWarnings("unchecked")
@@ -147,21 +162,33 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Executes a transactional modification on the config instance.
-     * <p>
-     * Modifications made within the {@code mutator} are validated, clamped against metadata
-     * boundaries (e.g. {@code @RangeInt}), and atomically saved to disk if any value changed.
-     * If an uncaught exception occurs during mutator execution, the active configuration
-     * remains unmutated (transaction isolation).
+     * Runs {@code mutator} on a copy of the config and applies what changed. Values are clamped,
+     * and if something changed the config is saved once and the change listeners run. If
+     * {@code mutator} throws, the config stays as it was. {@code @Sync} modes are ignored.
      *
-     * @param mutator The consumer performing strongly typed property updates on the working copy.
-     * @throws UncheckedIOException If the changed config could not be written, the new values stay in memory.
+     * @param mutator changes the copy it gets
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws IllegalArgumentException if the mutator leaves a value that can never be valid,
+     *                                  like {@code NaN}
+     * @throws UncheckedIOException if writing to disk fails; the new values stay in memory
      */
     @Override
     public void modify(Consumer<T> mutator) {
         applyChanges(changesMadeBy(this, get(), mutator));
     }
 
+    /**
+     * Sets several options in one change. Every option must come from {@link #getOptionTree()};
+     * this is checked before anything is applied. Each value is clamped, values that do not
+     * change are skipped, and if anything changed the config is saved once.
+     *
+     * @param values new value per option
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws IllegalArgumentException if an option belongs to another config, or a value can
+     *                                  never be valid
+     * @throws RuntimeException if a value does not match the type of its field
+     * @throws UncheckedIOException if writing to disk fails
+     */
     @Override
     public void modifyOptions(Map<OptionInfo, ?> values) {
         applyChanges(changesIn(this, get(), values));
@@ -178,11 +205,17 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Clamps the stored config, writes it to disk, and invokes the save and change listeners.
-     * Fields mutated directly are only clamped here, and synced configs never send them over the network;
-     * use {@link #modify(Consumer)} for both.
+     * Clamps the stored config, writes it with the {@link ConfigProvider} and runs the save and
+     * change listeners. The default JSON5 file is written to a {@code .tmp} file first and then
+     * moved over the old one.
+     * <p>
+     * Use it after changing fields of {@link #get()} by hand; they are only clamped here. From
+     * code, {@link #modify(Consumer)} is better: it only saves and runs the listeners when
+     * something changed.
      *
-     * @throws UncheckedIOException If the file could not be written. Change listeners still run, save listeners do not.
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws UncheckedIOException if writing fails; change listeners still run, save listeners
+     *                              do not
      */
     public void save() {
         requireRegistered();
@@ -211,10 +244,10 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Retrieves the config values in effect. Never null after {@link #register()}.
+     * Returns the current config: the live instance of the provider.
      *
-     * @return The config object.
-     * @throws IllegalStateException If called before {@link #register()}.
+     * @return the current config, never {@code null}
+     * @throws IllegalStateException if called before {@link #register()}
      */
     @Override
     public T get() {
@@ -227,9 +260,9 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Retrieves the option tree schema descriptor.
+     * Returns the options of this config, scanned from its class.
      *
-     * @return The option tree.
+     * @return the option tree
      */
     @Override
     public OptionTree getOptionTree() {
@@ -237,19 +270,20 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Retrieves the path to the config file.
+     * Returns the path of the config file: the one set with {@code configPath} or the default
+     * {@code config/<modId>.json5}, as it was given.
      *
-     * @return The config path.
+     * @return the config file path
      */
     public Path getConfigPath() {
         return configPath;
     }
 
     /**
-     * Retrieves a human-readable name or identifier for this config manager.
-     * Defaults to the filename without extension or the root class simple name.
+     * Returns the file name without its last extension or, without a path, the simple name of the
+     * config class.
      *
-     * @return The config name.
+     * @return the config name
      */
     @Override
     public String getName() {

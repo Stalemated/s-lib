@@ -12,27 +12,52 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Config manager for a single POJO instance kept in memory, so it can be edited through
- * a {@code ConfigSession} and YACL screens without a config file.
+ * Config manager for one object kept in memory, with no file and no network. Use it to edit any
+ * POJO in a config screen or in tests. The managers of {@link ConfigManager#editListElement} and
+ * {@link ConfigManager#addListElement} are in-memory managers too.
+ * <p>
+ * It is ready as soon as it is created and has no {@code register()}. Saving changes the object
+ * in place and calls the {@code onSave} callback; nothing is written to disk.
  *
- * @param <T> The POJO model type.
+ * @param <T> the config model type
  */
 public final class InMemoryConfigManager<T> implements ConfigManager<T> {
 
     private final LocalConfigManager<T> manager;
 
     /**
-     * @param instance The POJO instance to manage.
-     * @param onSave   Optional callback executed when changes are committed.
+     * Creates a manager for {@code instance}. Defaults and copies come from the no-argument
+     * constructor of its class.
+     *
+     * @param instance the object to edit; it is changed in place
+     * @param onSave called with {@code instance} after each save, or {@code null}
+     * @throws NullPointerException if {@code instance} is {@code null}
+     * @throws IllegalArgumentException if the class of {@code instance} is not a valid config
+     *                                  schema
+     * @throws RuntimeException if the class of {@code instance} has no no-argument constructor
      */
     public InMemoryConfigManager(T instance, Consumer<T> onSave) {
         this(instance, null, onSave);
     }
 
     /**
-     * @param instance       The POJO instance to manage.
-     * @param defaultFactory Optional supplier of new default instances, used for clones and defaults.
-     * @param onSave         Optional callback executed when changes are committed.
+     * Creates a manager for {@code instance}. The schema is scanned from the class of
+     * {@code instance}, not from {@code T}.
+     * <p>
+     * The defaults shown in screens come from {@code defaultFactory}, or from a new instance of
+     * the class, not from {@code instance}. The manager uses the default S-Lib {@code Gson},
+     * without a customizer. An exception thrown by {@code onSave} reaches the caller of
+     * {@code modify}.
+     *
+     * @param instance the object to edit; it is changed in place
+     * @param defaultFactory returns a new default instance on every call, or {@code null} to use
+     *                       the no-argument constructor
+     * @param onSave called with {@code instance} after each save, or {@code null}
+     * @throws NullPointerException if {@code instance} is {@code null}
+     * @throws IllegalArgumentException if {@code defaultFactory} returns {@code null} or the same
+     *                                  instance twice, or if the config schema is invalid
+     * @throws RuntimeException if {@code defaultFactory} is {@code null} and the class has no
+     *                          no-argument constructor
      */
     @SuppressWarnings("unchecked")
     public InMemoryConfigManager(T instance, Supplier<T> defaultFactory, Consumer<T> onSave) {
@@ -90,6 +115,11 @@ public final class InMemoryConfigManager<T> implements ConfigManager<T> {
         return manager.getOptionTree();
     }
 
+    /**
+     * Returns the object this manager edits. There is no {@code register()}, so it never throws.
+     *
+     * @return the edited object, never {@code null}
+     */
     @Override
     public T get() {
         return manager.get();

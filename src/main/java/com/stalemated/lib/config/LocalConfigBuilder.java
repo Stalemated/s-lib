@@ -1,9 +1,11 @@
 package com.stalemated.lib.config;
 
 /**
- * Builder for {@link LocalConfigManager}.
+ * Fluent builder for {@link LocalConfigManager}.
+ * <p>
+ * Get one from {@link SLibConfig#local(String, Class)}.
  *
- * @param <T> The config data model type.
+ * @param <T> the config model type
  */
 public final class LocalConfigBuilder<T> extends ConfigBuilder<T, LocalConfigManager<T>, LocalConfigBuilder<T>> {
 

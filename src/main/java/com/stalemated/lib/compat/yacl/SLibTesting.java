@@ -20,12 +20,31 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
+/**
+ * Helpers for JUnit tests of S-Lib YACL screens. They build a screen without opening it.
+ * Client only.
+ */
 public final class SLibTesting {
 
     private static final String SLIB_LANG = "/assets/s_lib/lang/en_us.json";
 
     private SLibTesting() {}
 
+    /**
+     * Builds {@code screen} and checks that every translation key it needs is in
+     * {@code langFile} or in the S-Lib lang file. Any exception from building the screen fails
+     * the test too.
+     * <p>
+     * It checks the names of tabs, groups and options and the text of labels. Keys with a
+     * fallback, like descriptions and enum value names, are not checked.
+     *
+     * @param screen the builder to test, with registered or in-memory managers
+     * @param langFile path of the mod's {@code en_us.json}, which must be a JSON object
+     * @throws IOException if {@code langFile} or the S-Lib lang file can't be read
+     * @throws AssertionError if keys are missing; the message lists them
+     * @throws NullPointerException if {@code screen} or {@code langFile} is {@code null}
+     * @throws IllegalStateException if the S-Lib {@code en_us.json} is not on the classpath
+     */
     public static void assertScreenBuilds(YaclScreenBuilder screen, Path langFile) throws IOException {
         Objects.requireNonNull(screen, "screen cannot be null");
         Objects.requireNonNull(langFile, "langFile cannot be null");

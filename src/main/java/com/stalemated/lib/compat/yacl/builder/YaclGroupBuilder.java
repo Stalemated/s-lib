@@ -18,10 +18,13 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * Fluent builder for YACL {@link OptionGroup}.
- * Groups individual options together under a titled and collapsible group.
+ * Fluent builder for a YACL {@link OptionGroup} inside a {@link YaclCategoryBuilder}.
+ * Client only.
+ * <p>
+ * Most methods only record what to add. The options are created when the screen is built, in
+ * the order of the calls, so a wrong key fails then and not when called.
  *
- * @param <T> The config model type.
+ * @param <T> the config model type
  */
 @SuppressWarnings("UnusedReturnValue")
 public class YaclGroupBuilder<T> {
@@ -38,36 +41,69 @@ public class YaclGroupBuilder<T> {
         this.name = defaultName;
     }
 
+    /**
+     * Sets the name of this group. With an empty name, a {@code @Title} on the first option
+     * becomes the group name.
+     *
+     * @param name the group name
+     * @return this builder
+     */
     public YaclGroupBuilder<T> name(Component name) {
         this.name = name;
         return this;
     }
 
+    /**
+     * Sets the description of this group.
+     *
+     * @param description the description, or {@code null} for none
+     * @return this builder
+     */
     public YaclGroupBuilder<T> description(OptionDescription description) {
         this.description = description;
         return this;
     }
 
+    /**
+     * Same as {@link #description(OptionDescription)} with {@code OptionDescription.of(description)}.
+     *
+     * @param description the description text
+     * @return this builder
+     */
     public YaclGroupBuilder<T> description(Component description) {
         this.description = OptionDescription.of(description);
         return this;
     }
 
+    /**
+     * Sets whether this group starts collapsed. The default is {@code false}. When the screen
+     * rebuilds, each group keeps the state the player left it in.
+     *
+     * @param collapsed {@code true} to start collapsed
+     * @return this builder
+     */
     public YaclGroupBuilder<T> collapsed(boolean collapsed) {
         this.collapsed = collapsed;
         return this;
     }
 
+    /**
+     * Adds a YACL option built elsewhere, at this position. YACL saves it through its own
+     * binding; it is not part of the S-Lib draft.
+     *
+     * @param customOption the option to add
+     * @return this builder
+     */
     public YaclGroupBuilder<T> option(Option<?> customOption) {
         this.actions.add(list -> list.add(customOption));
         return this;
     }
 
     /**
-     * Appends a YACL {@link LabelOption} section header to this group.
+     * Adds a {@link LabelOption} with {@code labelText} at this position.
      *
-     * @param labelText The text component to display.
-     * @return This group builder.
+     * @param labelText the text to show
+     * @return this builder
      */
     public YaclGroupBuilder<T> label(Component labelText) {
         this.actions.add(list -> list.add(LabelOption.create(labelText)));
@@ -75,41 +111,59 @@ public class YaclGroupBuilder<T> {
     }
 
     /**
-     * Appends a YACL {@link LabelOption} section header resolved via the naming strategy.
+     * Same as {@link #label(Component)} with the group name of {@code titleKey}, which is
+     * {@code <prefix>.group.<titleKey>} by default. {@code titleKey} is always a translation key,
+     * never literal text: {@code label("Combat Stats")} looks up {@code <prefix>.group.combat_stats}.
      *
-     * @param titleKey The translation key or literal title string.
-     * @return This group builder.
+     * @param titleKey key of the label text
+     * @return this builder
+     * @throws NullPointerException when called, if {@code titleKey} is {@code null}
      */
     public YaclGroupBuilder<T> label(String titleKey) {
         Component resolved = context.namingStrategy().groupName(context.translationPrefix(), titleKey);
         return label(resolved);
     }
 
+    /**
+     * Changes the YACL builder of the option with this key when the group adds it with
+     * {@link #include(String...)}, {@link #includePrefix(String)} or
+     * {@link #dropdown(String, List)}. It runs after S-Lib sets the name, description and
+     * controller, so it can replace the controller; S-Lib sets the binding afterwards. The order
+     * of this call and the include does not matter, and a second call for the same key replaces
+     * the first.
+     *
+     * @param key exact key of the option
+     * @param customizer changes the YACL builder
+     * @return this builder
+     * @throws IllegalArgumentException when the screen is built, if the group does not add the option with that key
+     */
     public YaclGroupBuilder<T> configureOption(String key, Consumer<Option.Builder<?>> customizer) {
         this.overrides.put(key, customizer);
         return this;
     }
 
     /**
-     * Configures a {@code String} or {@code ResourceLocation} option
-     * to render as a dropdown populated with the given string values, and includes it in this group.
+     * Same as {@link #dropdown(String, List, ValueFormatter)} with each value shown as it is.
      *
-     * @param key    The option key.
-     * @param values The list of selectable string values.
-     * @return This group builder.
+     * @param key key of an option edited as text, such as a {@code String} or an id
+     * @param values the values to pick from; none can be {@code null}
+     * @return this builder
+     * @throws IllegalArgumentException when called, if no option has that key or the option is not edited as text
      */
     public YaclGroupBuilder<T> dropdown(String key, List<String> values) {
         return dropdown(key, values, Component::literal);
     }
 
     /**
-     * Configures a {@code String} or {@code ResourceLocation} option
-     * to render as a dropdown with a custom display formatter, and includes it in this group.
+     * Shows the option as a dropdown of {@code values} and adds it to this group. It is the same
+     * as {@link #configureOption(String, Consumer)} with a {@link SelectDropdownControllerBuilder},
+     * then {@link #include(String...)}.
      *
-     * @param key       The option key.
-     * @param values    The list of selectable string values.
-     * @param formatter Custom display formatter for each string entry.
-     * @return This group builder.
+     * @param key key of an option edited as text, such as a {@code String} or an id
+     * @param values the values to pick from; none can be {@code null}
+     * @param formatter makes the text shown for each value
+     * @return this builder
+     * @throws IllegalArgumentException when called, if no option has that key or the option is not edited as text
      */
     @SuppressWarnings("unchecked")
     public YaclGroupBuilder<T> dropdown(String key, List<String> values, ValueFormatter<String> formatter) {
@@ -136,21 +190,41 @@ public class YaclGroupBuilder<T> {
     }
 
     /**
-     * Projects a single element at {@code index} of a {@code List<E>} configuration option
-     * as a standalone YACL {@link Option} inside this group (e.g., primary/secondary colors in a 2-color gradient list).
+     * Shows element {@code index} of a {@code List<E>} option as its own option in this group,
+     * for example the two colors of a gradient. Its name and description come from
+     * {@code optionKey}. If the list is shorter, setting the element fills the gap with
+     * {@code defaultElement}. When the same list is also on the screen, both stay in sync.
      *
-     * @param listKey        The key of the backing {@code List<E>} option in the config model.
-     * @param index          The zero-based index within the list.
-     * @param optionKey      The logical option key used to resolve the display name and description via the naming strategy.
-     * @param defaultElement The default element value when the list does not yet contain an entry at {@code index}.
-     * @param <E>            The element type of the list.
-     * @return This group builder.
+     * @param listKey key of a {@code List} option
+     * @param index position of the element, from 0
+     * @param optionKey key for the name and description, {@code <prefix>.option.<optionKey>} by default
+     * @param defaultElement value used by Reset and to fill the list when it is shorter than {@code index + 1}; {@code null} uses the fallback of the element type, if that is a valid value
+     * @param <E> the list element type
+     * @return this builder
+     * @throws IllegalArgumentException when the screen is built, if {@code listKey} is not a {@code List} option, or {@code defaultElement} is {@code null} and the fallback of the type is not a valid value
+     * @throws UnsupportedOperationException when the screen is built, if the element type has no controller
+     * @throws IndexOutOfBoundsException when the screen is built, if {@code index} is negative
      */
     public <E> YaclGroupBuilder<T> listElement(String listKey, int index, String optionKey, E defaultElement) {
         this.actions.add(list -> list.add(buildListElementOption(listKey, index, optionKey, defaultElement)));
         return this;
     }
 
+    /**
+     * Adds the simple options with these keys, in this order, each one with the controller of its
+     * type. A {@code @Title} on an option adds a label before it; on the first option of a group
+     * with no name, it names the group instead. {@code @EnabledIf} and
+     * {@link #configureOption(String, Consumer)} apply too.
+     * <p>
+     * Lists and maps can't go inside a YACL group; add them with
+     * {@link YaclCategoryBuilder#listOption(String)} or {@link YaclCategoryBuilder#mapPairsOption(String)}.
+     *
+     * @param keys the option keys
+     * @return this builder
+     * @throws NullPointerException when called, if {@code keys} is {@code null}
+     * @throws IllegalArgumentException when the screen is built, if a key is unknown or names a list or map, or an annotation on the option is invalid
+     * @throws UnsupportedOperationException when the screen is built, if an option has no controller
+     */
     public YaclGroupBuilder<T> include(String... keys) {
         String[] keysCopy = keys.clone();
         actions.add(list -> {
@@ -170,6 +244,16 @@ public class YaclGroupBuilder<T> {
         return this;
     }
 
+    /**
+     * Adds every simple option whose key is {@code prefix} or starts with it followed by a dot, in
+     * the order of the config fields, as {@link #include(String...)} does. Lists and maps are
+     * skipped.
+     *
+     * @param prefix key prefix, such as the key of a {@code @Nest} field; a trailing dot is fine
+     * @return this builder
+     * @throws IllegalArgumentException when the screen is built, if no option or {@code @Nest} category matches {@code prefix}
+     * @throws UnsupportedOperationException when the screen is built, if an option has no controller
+     */
     public YaclGroupBuilder<T> includePrefix(String prefix) {
         String cleanPrefix = prefix.endsWith(".") ? prefix : prefix + ".";
         actions.add(list -> {

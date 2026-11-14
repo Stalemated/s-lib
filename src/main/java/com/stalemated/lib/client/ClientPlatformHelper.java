@@ -16,6 +16,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 *///?}
 
+/**
+ * Client helpers that depend on the mod loader. For now, only key mapping registration.
+ * Client only.
+ */
 public final class ClientPlatformHelper {
 
     //? if forge || neoforge {
@@ -26,8 +30,14 @@ public final class ClientPlatformHelper {
     private ClientPlatformHelper() {}
 
     /**
-     * Registers a keybind to the client platform.
-     * @param keyBinding The keybind to register.
+     * Registers a {@link KeyMapping} with the current mod loader. Unlike the Fabric API, it does
+     * not return the key mapping.
+     * <p>
+     * On Fabric, call this from the client initializer. On Forge and NeoForge, call this during
+     * mod construction, before {@code RegisterKeyMappingsEvent} fires.
+     *
+     * @param keyBinding the key mapping to register
+     * @throws IllegalStateException on Forge and NeoForge, if called after {@code RegisterKeyMappingsEvent}
      */
     public static void registerKeyBinding(KeyMapping keyBinding) {
         //? if fabric && <26.1 {

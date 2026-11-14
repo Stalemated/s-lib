@@ -2,6 +2,10 @@
 
 ## 4.0.1
 
+### Additions
+
+- Added a ton of Javadocs to the API
+
 ### Changes
 
 - `YaclScreenBuilder.category(ConfigCategory)` is now `category(Supplier<ConfigCategory>)`

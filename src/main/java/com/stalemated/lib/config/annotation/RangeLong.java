@@ -6,9 +6,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Defines long integer numerical boundaries for a config field.
+ * Limits a {@code long} or {@code Long} option, or the contents of a {@link Nest} collection or
+ * map of them, to {@code [min, max]}. In YACL screens the option becomes a slider.
  * <p>
- * During config loading, any value outside the [min, max] range is clamped to the nearest bound.
+ * Values are clamped when the config loads, changes, saves or arrives from the network.
+ * {@code min} must not be greater than {@code max} and {@code step} must be greater than 0, or
+ * building the config fails.
  * <p>
  * Example: {@code @RangeLong(min = 0L, max = 100000L)}
  */
@@ -16,17 +19,23 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface RangeLong {
     /**
-     * Minimum allowable value (inclusive).
+     * Minimum allowed value (inclusive).
+     *
+     * @return the lower bound
      */
     long min();
 
     /**
-     * Maximum allowable value (inclusive).
+     * Maximum allowed value (inclusive).
+     *
+     * @return the upper bound
      */
     long max();
 
     /**
-     * Slider step increment.
+     * Step of the YACL slider. It does not affect clamping.
+     *
+     * @return the step size
      */
     long step() default 1L;
 }

@@ -5,97 +5,124 @@ import net.minecraft.network.chat.Component;
 import static com.stalemated.lib.compat.yacl.registry.TranslationKeys.normalize;
 
 /**
- * Strategy interface for resolving localized names and descriptions of categories, groups, and options for YACL.
+ * Makes the names and descriptions shown on a YACL screen. Override only the methods you need;
+ * all of them have a default. Client only.
  * <p>
- * Every generated key is {@code <prefix>.<family>.<path>}, where each segment of the path is converted to snake_case
- * and the dots between segments are kept: option {@code visualSettings.displayScale} becomes
- * {@code <prefix>.option.visual_settings.display_scale}.
- * Descriptions append {@code .desc} and show nothing when the key is missing.
- * {@code @Title} sections use the group family, so a {@code @Title("x")} and a {@code group("x")} share their keys.
+ * Every default key is {@code <prefix>.<family>.<path>}, where each segment of the path is
+ * converted to snake_case and the dots between segments are kept: option
+ * {@code visualSettings.displayScale} becomes {@code <prefix>.option.visual_settings.display_scale}.
+ * Acronyms are split, so {@code HTTPServer} gives {@code http_server}, and other characters
+ * become {@code _}. Descriptions append {@code .desc} and show nothing when the key is missing.
+ * {@code @Title} sections use the group family, so a {@code @Title("x")} and a
+ * {@code group("x")} share their keys.
  */
 public interface YaclNamingStrategy {
 
     /**
-     * Resolves the localized display title for a category tab.
+     * Returns the name of a tab: {@code <prefix>.category.<categoryKey>}, with no fallback.
      *
-     * @param prefix The translation prefix.
-     * @param categoryKey The category key or identifier.
-     * @return The localized category title component.
+     * @param prefix the screen translation prefix
+     * @param categoryKey the {@code tabKey} given to {@code category}
+     * @return the tab name
+     * @throws NullPointerException if {@code categoryKey} is {@code null}
      */
     default Component categoryName(String prefix, String categoryKey) {
         return Component.translatable(prefix + ".category." + normalize(categoryKey));
     }
 
     /**
-     * Resolves the localized description for a category tab.
+     * Returns the tooltip of a tab: {@code <prefix>.category.<categoryKey>.desc}, empty when the
+     * key is missing.
      *
-     * @param prefix The translation prefix.
-     * @param categoryKey The category key or identifier.
-     * @return The localized category description component.
+     * @param prefix the screen translation prefix
+     * @param categoryKey the {@code tabKey} given to {@code category}
+     * @return the tab tooltip
+     * @throws NullPointerException if {@code categoryKey} is {@code null}
      */
     default Component categoryDescription(String prefix, String categoryKey) {
         return Component.translatableWithFallback(prefix + ".category." + normalize(categoryKey) + ".desc", "");
     }
 
     /**
-     * Resolves the localized display title for an option group or a {@code @Title} section.
+     * Returns the name of a group, {@code @Nest} section, {@code label(String)} text or
+     * {@code @Title}: {@code <prefix>.group.<groupKey>}, with no fallback.
      *
-     * @param prefix The translation prefix.
-     * @param groupKey The group key, nest prefix or {@code @Title} value.
-     * @return The localized group title component.
+     * @param prefix the screen translation prefix
+     * @param groupKey the group key, nest prefix or {@code @Title} value
+     * @return the group name
+     * @throws NullPointerException if {@code groupKey} is {@code null}
      */
     default Component groupName(String prefix, String groupKey) {
         return Component.translatable(prefix + ".group." + normalize(groupKey));
     }
 
     /**
-     * Resolves the localized description for an option group or a {@code @Title} section.
+     * Returns the description of a group, {@code @Nest} section or {@code @Title}:
+     * {@code <prefix>.group.<groupKey>.desc}, empty when the key is missing.
      *
-     * @param prefix The translation prefix.
-     * @param groupKey The group key, nest prefix or {@code @Title} value.
-     * @return The localized group description component.
+     * @param prefix the screen translation prefix
+     * @param groupKey the group key, nest prefix or {@code @Title} value
+     * @return the group description
+     * @throws NullPointerException if {@code groupKey} is {@code null}
      */
     default Component groupDescription(String prefix, String groupKey) {
         return Component.translatableWithFallback(prefix + ".group." + normalize(groupKey) + ".desc", "");
     }
 
     /**
-     * Resolves the display title for an option key, including fields of nested POJO entries
-     * ({@code <container key>.<field name>}) and projected list element options.
+     * Returns the name of an option: {@code <prefix>.option.<optionKey>}, with no fallback. POJO
+     * fields use {@code <container key>.<field name>} as key, and {@code listElement} uses its
+     * {@code optionKey}.
+     * <p>
+     * Two options of the same config must not get the same name: building the screen fails with
+     * an {@code IllegalStateException}.
      *
-     * @param prefix The translation prefix.
-     * @param optionKey The option key.
-     * @return The localized name component.
+     * @param prefix the screen translation prefix
+     * @param optionKey the dot-separated option key
+     * @return the option name
+     * @throws NullPointerException if {@code optionKey} is {@code null}
      */
     default Component optionName(String prefix, String optionKey) {
         return Component.translatable(optionBaseKey(prefix, optionKey));
     }
 
     /**
-     * Resolves the description or tooltip for an option key, including fields of nested POJO entries
-     * and projected list element options.
+     * Returns the description of an option: {@code <prefix>.option.<optionKey>.desc}, empty when
+     * the key is missing. A field with {@code @SharedDescription} uses
+     * {@link #sharedDescription(String, String)} instead.
      *
-     * @param prefix The translation prefix.
-     * @param optionKey The option key.
-     * @return The option description.
+     * @param prefix the screen translation prefix
+     * @param optionKey the dot-separated option key
+     * @return the option description
+     * @throws NullPointerException if {@code optionKey} is {@code null}
      */
     default Component optionDescription(String prefix, String optionKey) {
         return Component.translatableWithFallback(optionBaseKey(prefix, optionKey) + ".desc", "");
     }
 
+    /**
+     * Returns the description named by a {@code @SharedDescription}:
+     * {@code <prefix>.description.<descriptionKey>}, empty when the key is missing.
+     *
+     * @param prefix the screen translation prefix
+     * @param descriptionKey the value of the {@code @SharedDescription}
+     * @return the shared description
+     * @throws NullPointerException if {@code descriptionKey} is {@code null}
+     */
     default Component sharedDescription(String prefix, String descriptionKey) {
         return Component.translatableWithFallback(prefix + ".description." + normalize(descriptionKey), "");
     }
 
     /**
-     * Resolves the localized display component for an enum constant of a config option.
-     * Uses {@code <option key>.value.<constant in snake_case>} with a fallback to {@code value.toString()},
-     * so a constant named {@code DESC} never shares the {@code .desc} key of the option.
+     * Returns the name of an enum constant: {@code <prefix>.option.<optionKey>.value.<constant>},
+     * with the constant in snake_case and {@code value.toString()} as fallback. The
+     * {@code .value.} part keeps a constant named {@code DESC} from sharing the {@code .desc} key
+     * of the option.
      *
-     * @param prefix The translation prefix.
-     * @param optionKey The dot-separated key of the option.
-     * @param value The enum constant value.
-     * @return The localized or fallback enum value component.
+     * @param prefix the screen translation prefix
+     * @param optionKey the dot-separated option key
+     * @param value the enum constant, or {@code null}
+     * @return the constant name, or {@link Component#empty()} if {@code value} is {@code null}
      */
     default Component enumValueName(String prefix, String optionKey, Enum<?> value) {
         if (value == null) return Component.empty();
@@ -107,5 +134,6 @@ public interface YaclNamingStrategy {
         return prefix + ".option." + normalize(optionKey);
     }
 
+    /** Default naming strategy using the standard {@code <prefix>.<family>.<path>} keys. */
     YaclNamingStrategy DEFAULT = new YaclNamingStrategy() {};
 }

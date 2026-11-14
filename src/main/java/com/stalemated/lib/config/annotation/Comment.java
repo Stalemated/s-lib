@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Attaches comments to a config field.
+ * Writes a comment above a config field or a {@link Nest} category in the {@code .json5} file,
+ * as line comments ({@code // ...}). Use {@code \n} or a text block for several lines.
  * <p>
- * Comments are written directly above the field in the {@code .json5} file as line comments ({@code // comment}).
- * Multiline comments can be written using newline characters ({@code \n}) or text blocks.
+ * It does not change config screens; their descriptions come from the translations.
  * <p>
  * Example: {@code @Comment("This is a test!")}
  */
@@ -17,7 +17,9 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Comment {
     /**
-     * The comment text describing the purpose or behavior of the config field.
+     * The comment text written to the config file.
+     *
+     * @return the comment text
      */
     String value();
 }

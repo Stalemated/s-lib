@@ -11,17 +11,21 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Strategy interface to evaluate whether a config option is interactively editable on the client.
+ * Decides whether an option can be edited on the screen and, if not, the reason shown under its
+ * description. Pass one to {@code YaclScreenBuilder.availabilityRule}. Client only.
  */
 @FunctionalInterface
 public interface OptionAvailabilityRule {
 
     /**
      * Explains why an option cannot be edited on the screen right now.
+     * <p>
+     * With a reason, the option is locked and the reason is added under its description. The
+     * screen asks again every time it is built or rebuilt.
      *
-     * @param option The configuration option to evaluate.
-     * @param manager The config manager the option belongs to.
-     * @return The reason shown below the option description, or empty if the option is editable.
+     * @param option the option to check; for list elements, POJO fields and the entry buttons, the list or map option that holds them
+     * @param manager the manager the screen edits
+     * @return the reason, or {@link Optional#empty()} if the option can be edited
      */
     Optional<Component> unavailableReason(OptionInfo option, ConfigManager<?> manager);
 
@@ -29,14 +33,21 @@ public interface OptionAvailabilityRule {
      * Combines this rule with another rule. The option is editable only if both rules allow it,
      * and the reason of this rule wins when both block it.
      *
-     * @param other The other rule to combine with.
-     * @return A composed rule.
+     * @param other the other rule
+     * @return the combined rule
+     * @throws NullPointerException if {@code other} is {@code null}
      */
     default OptionAvailabilityRule and(OptionAvailabilityRule other) {
         Objects.requireNonNull(other, "other rule cannot be null");
         return (option, manager) -> unavailableReason(option, manager).or(() -> other.unavailableReason(option, manager));
     }
 
+    /**
+     * Locks the {@code OVERRIDE_CLIENT} options of a {@link SyncedConfigManager} when the player
+     * can't change them: the server doesn't have the mod, or the player has no permission. The
+     * reason is {@code s_lib.config_screen.server_without_mod} or
+     * {@code s_lib.config_screen.no_permission}. Other options stay editable.
+     */
     OptionAvailabilityRule DEFAULT = (option, manager) -> {
         if (option.getSyncMode() != SyncMode.OVERRIDE_CLIENT
                 || !(manager instanceof SyncedConfigManager<?> synced)
@@ -49,5 +60,9 @@ public interface OptionAvailabilityRule {
         return Optional.of(Component.translatable(reason));
     };
 
+    /**
+     * Never locks an option. A client without permission can then edit {@code OVERRIDE_CLIENT}
+     * options, and {@code modify} drops those edits with a warning.
+     */
     OptionAvailabilityRule UNRESTRICTED = (option, manager) -> Optional.empty();
 }

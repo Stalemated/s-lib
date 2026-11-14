@@ -6,6 +6,10 @@ import java.util.regex.Pattern;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.TextColor;
 
+/**
+ * Converts colors between text (hex, color names, and {@code &} codes), AWT {@link Color},
+ * {@link TextColor}, and ARGB ints.
+ */
 public final class ColorUtils {
 
     private static final Pattern HEX_RGB = Pattern.compile("[0-9a-fA-F]{6}");
@@ -13,6 +17,13 @@ public final class ColorUtils {
 
     private ColorUtils() {}
 
+    /**
+     * Formats {@code color} as {@code #RRGGBB} when opaque, or {@code #AARRGGBB} when
+     * translucent.
+     *
+     * @param color the AWT color to format
+     * @return the uppercase hex string
+     */
     public static String toArgbHex(Color color) {
         if (color.getAlpha() == 255) {
             return String.format("#%06X", color.getRGB() & 0xFFFFFF);
@@ -20,6 +31,13 @@ public final class ColorUtils {
         return String.format("#%08X", color.getRGB());
     }
 
+    /**
+     * Formats {@code color} as {@code #RRGGBB} when opaque, or {@code #RRGGBBAA} when
+     * translucent.
+     *
+     * @param color the AWT color to format
+     * @return the uppercase hex string
+     */
     public static String toRgbaHex(Color color) {
         if (color.getAlpha() == 255) {
             return String.format("#%06X", color.getRGB() & 0xFFFFFF);
@@ -27,10 +45,24 @@ public final class ColorUtils {
         return String.format("#%02X%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
     }
 
+    /**
+     * Formats {@code color} as an uppercase {@code #RRGGBB} hex string (even for named colors).
+     *
+     * @param color the Minecraft {@link TextColor}
+     * @return the {@code #RRGGBB} hex string
+     */
     public static String toHex(TextColor color) {
         return String.format("#%06X", color.getValue());
     }
 
+    /**
+     * Parses a Minecraft {@link TextColor} from a {@code &} color code such as {@code "&c"}, a
+     * color name such as {@code "red"}, or 6 hex digits with an optional {@code #}, {@code 0x},
+     * or {@code x} prefix. The text is not trimmed.
+     *
+     * @param colorStr the text to parse, or {@code null}
+     * @return the parsed {@link TextColor}, or {@code null} if the text is empty or not a color
+     */
     public static TextColor parseTextColor(String colorStr) {
         if (colorStr == null || colorStr.isEmpty()) return null;
 
@@ -74,14 +106,36 @@ public final class ColorUtils {
         return null;
     }
 
+    /**
+     * Parses a color as an ARGB int. Reads 8 hex digits as {@code AARRGGBB}, 6 hex digits as
+     * {@code RRGGBB}, a color name, or a {@code &} code. Hex can start with {@code #},
+     * {@code 0x}, or {@code x}. Colors without alpha get alpha {@code 0xFF}. Leading and
+     * trailing spaces are ignored.
+     *
+     * @param colorStr the text to parse, or {@code null}
+     * @return the ARGB int, or {@code null} if the text is blank or not a color
+     */
     public static Integer parseArgb(String colorStr) {
         return parseHex(colorStr, true);
     }
 
+    /**
+     * Same as {@link #parseArgb(String)}, but reads 8 hex digits as {@code RRGGBBAA}. The
+     * result is still an ARGB int.
+     *
+     * @param colorStr the text to parse, or {@code null}
+     * @return the ARGB int, or {@code null} if the text is blank or not a color
+     */
     public static Integer parseRgba(String colorStr) {
         return parseHex(colorStr, false);
     }
 
+    /**
+     * Same as {@link #parseArgb(String)}, as an AWT {@link Color} with alpha.
+     *
+     * @param colorStr the text to parse, or {@code null}
+     * @return the parsed {@link Color}, or {@code null} if the text is blank or not a color
+     */
     public static Color parseArgbColor(String colorStr) {
         Integer argb = parseArgb(colorStr);
         return argb != null ? new Color(argb, true) : null;

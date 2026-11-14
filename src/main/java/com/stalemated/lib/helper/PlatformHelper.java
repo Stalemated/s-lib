@@ -30,15 +30,16 @@ import net.neoforged.fml.loading.FMLEnvironment;
 *///?}
 
 /**
- * An abstraction layer for retrieving platform-specific information and performing actions across different modloaders.
+ * Loader info with the same API on Fabric, Forge, and NeoForge.
  */
 public final class PlatformHelper {
 
     private PlatformHelper() {}
 
     /**
-     * Gets the path to the config directory.
-     * @return The absolute path to the config directory (e.g. {@code .minecraft/config/}).
+     * Returns the mod loader's config directory, for example {@code .minecraft/config}.
+     *
+     * @return the path to the config directory
      */
     public static Path getConfigDir() {
         //? if fabric {
@@ -49,8 +50,9 @@ public final class PlatformHelper {
     }
 
     /**
-     * Gets the path to the game directory.
-     * @return The absolute path to the game directory (e.g. {@code .minecraft/}).
+     * Returns the game root directory, for example {@code .minecraft}.
+     *
+     * @return the path to the game directory
      */
     public static Path getGameDir() {
         //? if fabric {
@@ -61,9 +63,15 @@ public final class PlatformHelper {
     }
 
     /**
-     * Checks if a mod with the specified ID is currently loaded.
-     * @param modId The ID of the mod to check.
-     * @return {@code true} if the mod is loaded, {@code false} otherwise.
+     * Returns whether {@code modId} is currently loaded.
+     * <p>
+     * Do not call during early mixin loading on Forge or NeoForge before {@code ModList} is
+     * constructed; use {@link #isModLoadedAtLaunch(String)} instead.
+     *
+     * @param modId the mod id to check
+     * @return {@code true} if the mod is loaded
+     * @throws IllegalStateException on Forge or NeoForge if called before {@code ModList} is
+     *                               initialized
      */
     public static boolean isModLoaded(String modId) {
         //? if fabric {
@@ -78,9 +86,11 @@ public final class PlatformHelper {
     }
 
     /**
-     * Checks if a mod with the specified ID is loaded at the very beginning of the launch cycle.
-     * @param modId The ID of the mod to check.
-     * @return {@code true} if the mod is present in the loading list, {@code false} otherwise.
+     * Returns whether {@code modId} is present in the early launch mod list, safe to call
+     * from mixin plugins before {@code ModList} is constructed.
+     *
+     * @param modId the mod id to check
+     * @return {@code true} if the mod is present at launch
      */
     public static boolean isModLoadedAtLaunch(String modId) {
         //? if fabric {
@@ -93,8 +103,10 @@ public final class PlatformHelper {
     }
 
     /**
-     * Checks if the current environment is a dedicated server.
-     * @return {@code true} if running on a dedicated server, {@code false} otherwise.
+     * Returns whether the current JVM is running on a dedicated server.
+     *
+     * @return {@code true} on a dedicated server, {@code false} on a client, also when it runs
+     *         an integrated server
      */
     public static boolean isDedicatedServer() {
         //? if fabric {
@@ -107,9 +119,10 @@ public final class PlatformHelper {
     }
 
     /**
-     * Gets the MinecraftServer instance for a given ServerPlayer.
-     * @param player The player.
-     * @return The MinecraftServer, or null if player is null.
+     * Returns the {@link MinecraftServer} associated with {@code player}.
+     *
+     * @param player the server player, or {@code null}
+     * @return the player's server instance, or {@code null} if {@code player} is {@code null}
      */
     //? if >=1.21.6
     //@SuppressWarnings("resource")
@@ -123,9 +136,11 @@ public final class PlatformHelper {
      }
 
     /**
-     * Checks if the specified server player is the host of a singleplayer session.
-     * @param player The player to check.
-     * @return {@code true} if the player is the singleplayer host, {@code false} otherwise.
+     * Returns whether {@code player} is the host of the integrated server (singleplayer or LAN).
+     *
+     * @param player the player to check, or {@code null}
+     * @return {@code true} if the player is the host; {@code false} if {@code player} is
+     *         {@code null}
      */
     public static boolean isSingleplayerOwner(ServerPlayer player) {
         MinecraftServer server = getServer(player);

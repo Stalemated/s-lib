@@ -39,19 +39,24 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 *///?}
+//? if forge || neoforge
+//import net.minecraft.server.level.ServerPlayer;
 
-//? if forge || neoforge {
-/*import net.minecraft.server.level.ServerPlayer;
-
-@Mod(SLib.MOD_ID)
-*///?}
+/**
+ * S-Lib entrypoint, created by the mod loader. Mods only need {@link #MOD_ID} and
+ * {@link #LOGGER} from this class.
+ */
+//? if forge || neoforge
+//@Mod(SLib.MOD_ID)
 //? if neoforge
 //@EventBusSubscriber(modid = SLib.MOD_ID)
 public final class SLib 
 //? if fabric 
 implements ModInitializer 
 {
+    /** S-Lib's mod id. */
     public static final String MOD_ID = "s_lib";
+    /** Shared SLF4J logger for S-Lib. */
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     private static void init() {
@@ -59,7 +64,11 @@ implements ModInitializer
     }
 
     //? if forge {
-    /*public SLib() {
+    /*/^*
+     * Called by Forge. Registers the network channel and the game event listeners, and on a
+     * client calls {@link SLibClient#init()}.
+     ^/
+    public SLib() {
         init();
 
         WrapperChannel.registerChannel();
@@ -73,7 +82,14 @@ implements ModInitializer
         }
     }
     *///?} elif neoforge {
-    /*public SLib(IEventBus modBus, Dist dist) {
+    /*/^*
+     * Called by NeoForge. Registers the network payload on the mod bus and, on a client, the
+     * client listeners. The game events reach this class through {@code @EventBusSubscriber}.
+     *
+     * @param modBus the S-Lib mod event bus
+     * @param dist the physical side
+     ^/
+    public SLib(IEventBus modBus, Dist dist) {
         init();
 
         WrapperChannel.registerModBusListeners(modBus);
@@ -84,6 +100,9 @@ implements ModInitializer
     *///?}
 
     //? if fabric {
+    /**
+     * Called by Fabric Loader. Registers the network channel and the game event listeners.
+     */
     @Override
     public void onInitialize() {
         init();

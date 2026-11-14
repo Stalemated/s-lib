@@ -29,9 +29,15 @@ import java.util.regex.Pattern;
 import static com.stalemated.lib.SLib.LOGGER;
 
 /**
- * Registry of controller builders and type lenses for YACL.
- * Decouples model types from GUI controller implementations, supporting both
- * direct model controllers and intermediate adapted types (Lens pattern).
+ * Maps config types to YACL controllers. A type is either edited as it is, with
+ * {@link #registerDirect(Class, Object, ControllerFactory)}, or converted to another type for the
+ * screen, usually {@code String}, with {@link #registerAdapted}. It also gives the initial value
+ * of new list elements and entries. Client only.
+ * <p>
+ * A new registry already handles {@code boolean}, {@code int}, {@code long}, {@code float} and
+ * {@code double} with their wrappers, {@code String}, {@code Color}, {@code TextColor},
+ * {@code ResourceLocation}, {@code UUID} and {@code Pattern}. Numbers with a range annotation get
+ * a slider. Enums need no registration: they get a dropdown.
  */
 public class YaclControllerRegistry {
 
@@ -42,10 +48,15 @@ public class YaclControllerRegistry {
     private final Map<Boolean, ItemTargetIndex> itemTargetsByTagInclusion = new HashMap<>();
     private final Function<Boolean, ItemTargetIndex> itemTargetSource;
 
+    /**
+     * Creates a registry with the default types. The item suggestions are read from the item
+     * registry the first time they are needed.
+     */
     public YaclControllerRegistry() {
         this(ItemTargetIndex::fromRegistry);
     }
 
+    /** Used by the S-Lib YACL layer. */
     @ApiStatus.Internal
     public YaclControllerRegistry(Function<Boolean, ItemTargetIndex> itemTargetSource) {
         this.itemTargetSource = Objects.requireNonNull(itemTargetSource, "itemTargetSource cannot be null");
@@ -53,10 +64,19 @@ public class YaclControllerRegistry {
         registerDefaultAdaptedTypes();
     }
 
+    /**
+     * Same as {@link #YaclControllerRegistry()}. Each call returns a new registry.
+     *
+     * @return a new registry
+     */
     public static YaclControllerRegistry createDefault() {
         return new YaclControllerRegistry();
     }
 
+    /**
+     * Drops the cached item suggestions, so they are read again from the item registry and the
+     * loaded tags. {@code YaclScreenBuilder} calls this every time it builds a screen.
+     */
     public void clearItemTargets() {
         itemTargetsByTagInclusion.clear();
     }
@@ -208,10 +228,31 @@ public class YaclControllerRegistry {
         return parsed;
     }
 
+    /**
+     * Registers a type that the screen edits as it is. It replaces an earlier registration of the
+     * same type.
+     *
+     * @param type the type to register
+     * @param initial value shown when the option has no value, and initial value of new list elements; the same instance is used every time
+     * @param factory makes the controller
+     * @param <V> the value type
+     * @throws NullPointerException if {@code factory} is {@code null}
+     */
     public <V> void registerDirect(Class<V> type, V initial, ControllerFactory<V> factory) {
         registerDirect(type, type, initial, factory);
     }
 
+    /**
+     * Same as {@link #registerDirect(Class, Object, ControllerFactory)} for a primitive type and
+     * its wrapper, with the same controller for both.
+     *
+     * @param primitiveType the primitive class, for example {@code int.class}
+     * @param boxedType the wrapper class, for example {@code Integer.class}
+     * @param initial value shown when the option has no value, and initial value of new list elements
+     * @param factory makes the controller
+     * @param <V> the wrapper type
+     * @throws NullPointerException if {@code factory} is {@code null}
+     */
     public <V> void registerDirect(Class<?> primitiveType, Class<V> boxedType, V initial, ControllerFactory<V> factory) {
         TypeLens<V, V> lens = TypeLens.identity(initial, factory);
         for (Class<?> type : List.of(primitiveType, boxedType)) {
@@ -220,6 +261,19 @@ public class YaclControllerRegistry {
         }
     }
 
+    /**
+     * Registers a type that the screen edits as another type. It replaces an earlier registration
+     * of the same type.
+     *
+     * @param modelType the type of the config field
+     * @param toGui converts a config value to the screen value
+     * @param fromGui converts a screen value back; returning {@code null} ignores the edit
+     * @param fallbackGuiDefault screen value used when the config value is {@code null}; {@code fromGui(fallbackGuiDefault)} is also the initial value of new elements, and a {@code String} here lets the type be edited as text in map pairs, {@code nestedMapLists} and {@code dropdown}
+     * @param guiControllerFactory makes the controller of the screen type
+     * @param <M> the config type
+     * @param <G> the screen type
+     * @throws NullPointerException if {@code toGui}, {@code fromGui} or {@code guiControllerFactory} is {@code null}
+     */
     public <M, G> void registerAdapted(
             Class<M> modelType,
             Function<M, G> toGui,
@@ -231,10 +285,29 @@ public class YaclControllerRegistry {
         initialSuppliers.put(modelType, () -> fromGui.apply(fallbackGuiDefault));
     }
 
+    /**
+     * Registers the initial value of new elements of {@code type}, for lists and Add Entry. It
+     * replaces the initial value of an earlier registration of the same type.
+     *
+     * @param type the element type; its subtypes use it too unless they have their own
+     * @param supplier makes a new element
+     * @param <E> the element type
+     */
     public <E> void registerInitialSupplier(Class<E> type, Supplier<E> supplier) {
         initialSuppliers.put(type, supplier);
     }
 
+    /**
+     * Returns the initial value of a new element of {@code elementType}, for lists and Add Entry.
+     * It tries, in order: the initial value registered for the type, or else for the first
+     * registered supertype; the first constant of an enum; a new instance from the no-args
+     * constructor, even a private one.
+     *
+     * @param elementType the element type, or {@code null}
+     * @param <E> the element type
+     * @return the value, or {@code null} if none of those works or {@code elementType} is {@code null}
+     * @throws RuntimeException if the no-args constructor throws
+     */
     @SuppressWarnings("unchecked")
     public <E> E resolveInitialValue(Class<?> elementType) {
         if (elementType == null) return null;
@@ -254,12 +327,14 @@ public class YaclControllerRegistry {
         return null;
     }
 
+    /** Used by the S-Lib YACL layer. */
     @ApiStatus.Internal
     @SuppressWarnings("unchecked")
     public <M, G> Optional<TypeLens<M, G>> findLens(Class<?> type) {
         return Optional.ofNullable((TypeLens<M, G>) ReflectionUtils.findAssignable(lenses, type));
     }
 
+    /** Used by the S-Lib YACL layer. */
     @ApiStatus.Internal
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Optional<TypeLens<Object, String>> findTextLens(Class<?> type) {

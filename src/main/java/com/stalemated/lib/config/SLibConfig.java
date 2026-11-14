@@ -1,36 +1,45 @@
 package com.stalemated.lib.config;
 
 /**
- * Primary entry point for registering configs in S-Lib.
+ * Entry point for S-Lib configs.
  * <p>
- * Call {@code register()} on the builder from your mod initializer, not from a static field initializer,
- * so the config loads at a known point in the mod lifecycle.
+ * You can build the manager in a static field, but call {@code register()} from your mod
+ * initializer, not from a static initializer, so the file loads at a known point.
  */
 public final class SLibConfig {
 
     private SLibConfig() {}
 
     /**
-     * Creates a builder for a config that syncs between server and clients.
-     * By default, the file is {@code config/<modId>.json5} and the network channel {@code <modId>:sync_config}.
+     * Creates a builder for a config that syncs between the server and its clients.
+     * <p>
+     * By default, the file is {@code config/<modId>.json5} and the sync channel is
+     * {@code <modId>:sync_config}. Nothing is read or written until {@code register()}.
      *
-     * @param modId The unique identifier of your mod.
-     * @param configClass The runtime class of the config data model.
-     * @param <T> The config data model type.
-     * @return A new {@link SyncedConfigBuilder} instance.
+     * @param modId the id of your mod; it names the file, the logger and the sync channel
+     * @param configClass the config class; it needs a no-argument constructor unless you set
+     *                    {@code defaultFactory}
+     * @param <T> the config model type
+     * @return a new {@link SyncedConfigBuilder}
+     * @throws NullPointerException if {@code modId} or {@code configClass} is {@code null}
      */
     public static <T> SyncedConfigBuilder<T> synced(String modId, Class<T> configClass) {
         return new SyncedConfigBuilder<>(modId, configClass);
     }
 
     /**
-     * Creates a builder for a config that only lives locally.
-     * By default, the file is {@code config/<modId>.json5}.
+     * Creates a builder for a config that only lives locally and never uses the network. The
+     * {@code @Sync} annotations of the class are ignored.
+     * <p>
+     * By default, the file is {@code config/<modId>.json5}. Nothing is read or written until
+     * {@code register()}.
      *
-     * @param modId The unique identifier of your mod.
-     * @param configClass The runtime class of the config data model.
-     * @param <T> The config data model type.
-     * @return A new {@link LocalConfigBuilder} instance.
+     * @param modId the id of your mod; it names the file and the logger
+     * @param configClass the config class; it needs a no-argument constructor unless you set
+     *                    {@code defaultFactory}
+     * @param <T> the config model type
+     * @return a new {@link LocalConfigBuilder}
+     * @throws NullPointerException if {@code modId} or {@code configClass} is {@code null}
      */
     public static <T> LocalConfigBuilder<T> local(String modId, Class<T> configClass) {
         return new LocalConfigBuilder<>(modId, configClass);

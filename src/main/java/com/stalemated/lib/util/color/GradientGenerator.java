@@ -8,16 +8,43 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 
+/**
+ * Colors each character of a {@link Component} with a gradient and keeps its other styles.
+ * Colors are RGB ints: alpha has no effect on text. The animated gradients read the system
+ * clock when called, so call them again every frame to animate.
+ */
 public final class GradientGenerator {
 
     private GradientGenerator() {}
 
+    /**
+     * Applies a static linear gradient from {@code color1} to {@code color2} across {@code text}.
+     *
+     * @param text the text to color
+     * @param color1 the color of the first character
+     * @param color2 the color of the last character
+     * @return a new styled {@link MutableComponent}
+     */
     public static MutableComponent getStaticGradient(Component text, int color1, int color2) {
         return applyGradient(text, (index, ratio) ->
                 GradientColorUtils.interpolate(color1, color2, ratio)
         );
     }
 
+    /**
+     * Applies a sliding wave gradient between {@code color1} and {@code color2} animated over
+     * wall-clock time.
+     *
+     * @param text the text to color
+     * @param offset shifts the animation; give each line a different value so they do not move
+     *               together
+     * @param color1 the first color
+     * @param color2 the second color
+     * @param slowdown divides {@link System#currentTimeMillis()}; larger values animate slower,
+     *                 and values below 1 count as 1
+     * @param reversed {@code true} to reverse the wave travel direction
+     * @return a new styled {@link MutableComponent}
+     */
     public static MutableComponent getSlideGradient(Component text, int offset, int color1, int color2, int slowdown, boolean reversed) {
         long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;
@@ -27,6 +54,20 @@ public final class GradientGenerator {
         });
     }
 
+    /**
+     * Applies a fixed gradient from {@code color1} to {@code color2} and fades each character
+     * toward white and back on a sine wave.
+     *
+     * @param text the text to color
+     * @param offset shifts the animation; give each line a different value so they do not move
+     *               together
+     * @param color1 the color of the first character
+     * @param color2 the color of the last character
+     * @param slowdown divides {@link System#currentTimeMillis()}; larger values animate slower,
+     *                 and values below 1 count as 1
+     * @param reversed {@code true} to reverse the wave travel direction
+     * @return a new styled {@link MutableComponent}
+     */
     public static MutableComponent getBreathingGradient(Component text, int offset, int color1, int color2, int slowdown, boolean reversed) {
         long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;
@@ -36,6 +77,18 @@ public final class GradientGenerator {
         });
     }
 
+    /**
+     * Applies an animated pastel rainbow gradient across {@code text} (HSB with saturation 0.5
+     * and brightness 1).
+     *
+     * @param text the text to color
+     * @param offset shifts the animation; give each line a different value so they do not move
+     *               together
+     * @param slowdown divides {@link System#currentTimeMillis()}; larger values animate slower,
+     *                 and values below 1 count as 1
+     * @param reversed {@code true} to reverse the rainbow travel direction
+     * @return a new styled {@link MutableComponent}
+     */
     public static MutableComponent getRainbowGradient(Component text, int offset, int slowdown, boolean reversed) {
         long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;

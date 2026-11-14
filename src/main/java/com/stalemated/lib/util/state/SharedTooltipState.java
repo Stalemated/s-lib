@@ -1,5 +1,10 @@
 package com.stalemated.lib.util.state;
 
+/**
+ * A global flag that tooltip mods use to tell each other that a tooltip has its own size.
+ * S-Lib only stores it; other mods read it with {@link #isCustomDimensionsRequested()}.
+ * Nothing resets it on its own. Meant for the render thread.
+ */
 public final class SharedTooltipState {
 
     private static volatile boolean customDimensionsRequested = false;
@@ -7,11 +12,10 @@ public final class SharedTooltipState {
     private SharedTooltipState() {}
 
     /**
-     * Executes the given render operation while setting a custom dimensions flag.
-     * The flag is temporarily set to true during the execution of the render operation
-     * and restored to its previous value afterward, even if the operation throws an exception.
+     * Runs {@code render} with the custom-dimensions flag enabled, restoring its previous state
+     * afterward even if {@code render} throws.
      *
-     * @param render A {@link Runnable} representing the operation to execute with custom dimensions enabled.
+     * @param render the tooltip rendering operation to execute
      */
     public static void withCustomDimensions(Runnable render) {
         boolean previous = customDimensionsRequested;
@@ -23,14 +27,26 @@ public final class SharedTooltipState {
         }
     }
 
+    /**
+     * Sets the custom-dimensions flag to {@code true}. It stays set until
+     * {@link #clearCustomDimensionsRequest()}; prefer {@link #withCustomDimensions(Runnable)}.
+     */
     public static void requestCustomDimensions() {
         customDimensionsRequested = true;
     }
 
+    /**
+     * Resets the custom-dimensions flag to {@code false}.
+     */
     public static void clearCustomDimensionsRequest() {
         customDimensionsRequested = false;
     }
 
+    /**
+     * Returns whether custom tooltip dimensions are currently requested.
+     *
+     * @return {@code true} if the custom-dimensions flag is set
+     */
     public static boolean isCustomDimensionsRequested() {
         return customDimensionsRequested;
     }

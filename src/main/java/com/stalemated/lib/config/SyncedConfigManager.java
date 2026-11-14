@@ -21,13 +21,16 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * A specialized ConfigManager that handles network sync between client and server.
+ * Config saved to a file and synced between the server and its clients.
  * <p>
- * This manager automates Server-To-Client (S2C) and Client-To-Server (C2S) syncing. It evaluates customizable
- * permission checks to decide if a client is allowed to change the config, with fallback logic to avoid desyncs.
- * The config file itself is loaded and saved by a {@link LocalConfigManager}.
+ * Each option has a {@link SyncMode}: {@code NONE} stays local, {@code OVERRIDE_CLIENT} comes
+ * from the server, and {@code INFORM_SERVER} is sent by each client to the server. Changing
+ * {@code OVERRIDE_CLIENT} options from a client needs the {@code permissionCheck} of the builder.
+ * <p>
+ * Get one from {@link SLibConfig#synced(String, Class)} with {@code build()} or
+ * {@code register()}. Call {@link #register()} before reading or changing the config.
  *
- * @param <T> The config data model class.
+ * @param <T> the config model type
  */
 public final class SyncedConfigManager<T> implements ConfigManager<T> {
 
@@ -51,11 +54,13 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Registers the config.
-     * This claims the config file and sync channel, registers the network receivers, loads the file
-     * (creating it with defaults when it is new), and invokes the load and load failure listeners.
+     * Registers the config: claims the file and the sync channel, registers the network
+     * receivers, loads the file, runs the load failure listeners if the load failed, and then the
+     * load listeners. The file is handled like in {@link LocalConfigManager#register()}.
      *
-     * @throws IllegalStateException If another registered config already uses the same file or sync channel.
+     * @throws IllegalStateException if this manager is already registered, if another registered
+     *                               config already uses the same file or sync channel, or if
+     *                               another receiver is registered on one of its channels
      */
     public void register() {
         localManager.registerClaimedBy(() -> {
@@ -69,6 +74,15 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return changeListeners.add(listener);
     }
 
+    /**
+     * Adds a listener that runs on the client when the server values or the permission to edit
+     * {@code OVERRIDE_CLIENT} options change, for example on joining or leaving a server, or
+     * after {@code /op}. Config screens use it to rebuild themselves.
+     *
+     * @param listener runs after the change
+     * @return a {@link Subscription} that removes the listener
+     * @throws NullPointerException if {@code listener} is {@code null}
+     */
     public Subscription onViewChange(Runnable listener) {
         return viewListeners.add(listener);
     }
@@ -81,10 +95,26 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return networkHandler;
     }
 
+    /**
+     * Returns the connection state of this config on this side. A dedicated server is always
+     * {@link ConnectionState#DISCONNECTED}.
+     * <p>
+     * The state is per config: a server with S-Lib that does not have this config leaves it at
+     * {@link ConnectionState#MULTIPLAYER_UNMODDED}.
+     *
+     * @return the connection state
+     */
     public ConnectionState getConnectionState() {
         return view.state();
     }
 
+    /**
+     * Returns whether this side may change {@code OVERRIDE_CLIENT} options right now.
+     *
+     * @return {@code true} while disconnected, in singleplayer and on a dedicated server;
+     *         {@code false} on a server without the mod; on a server with the mod, what its
+     *         {@code permissionCheck} said for this player
+     */
     public boolean canChangeOverrides() {
         return view.canChangeOverrides();
     }
@@ -93,6 +123,18 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return serverPermissionCheck.test(player);
     }
 
+    /**
+     * Returns the last config that {@code player} sent: a copy of the local config of the server
+     * with the {@link SyncMode#INFORM_SERVER} values of that client. Call it on the server.
+     * <p>
+     * A remote client sends it after the first config packet from the server and after each
+     * change. The host of a singleplayer or LAN world sends it when joining, if the config has
+     * {@code INFORM_SERVER} options. It is removed when the player leaves.
+     *
+     * @param player a player on this server
+     * @return the config the player sent, or empty if it sent none yet
+     * @throws NullPointerException if {@code player} is {@code null}
+     */
     public Optional<T> informedConfigOf(ServerPlayer player) {
         return Optional.ofNullable(informedConfigs.get(player.getUUID()));
     }
@@ -148,18 +190,30 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Retrieves the config values in effect. Never null after {@link #register()}.
-     * If playing on a multiplayer server with this mod installed, this returns the synced server config.
-     * If playing on a vanilla multiplayer server, synced options fall back to their defaults.
-     * Otherwise, it returns the local config.
+     * Returns the current config.
+     * <p>
+     * On a server with the mod, this is the server's copy: its {@code OVERRIDE_CLIENT} values and
+     * the local values for the rest. On a server without the mod, it is a local copy with the
+     * {@code OVERRIDE_CLIENT} options at their defaults. In singleplayer, while disconnected and on
+     * the server side, it is {@link #local()}. Changing fields of a copy by hand is never saved.
      *
-     * @return The active config data model.
+     * @return the current config, never {@code null} after {@link #register()}
+     * @throws IllegalStateException if called before {@link #register()}
      */
     @Override
     public T get() {
         return view.effective(local());
     }
 
+    /**
+     * Returns the local config, the one saved in the file, whatever the connection state.
+     * <p>
+     * On the server this is the config that counts. In singleplayer, the client and the
+     * integrated server share this instance.
+     *
+     * @return the local config
+     * @throws IllegalStateException if called before {@link #register()}
+     */
     public T local() {
         return localManager.get();
     }
@@ -169,21 +223,31 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Serializes the current server config and pushes it to a specific player.
-     * S-Lib already does this when a player joins and when {@code /op} or {@code /deop} changes their operator status, and, on Minecraft 26.2 and later, when the host changes who may use commands in World Options or in the LAN options; call it to resend after changing the config outside {@link #modify(Consumer)}, or after a permission plugin changes what the player may edit.
+     * Sends the {@code OVERRIDE_CLIENT} options of {@link #local()} to {@code player}, with whether
+     * that player may change them. Does nothing for the host of a singleplayer or LAN world.
+     * <p>
+     * S-Lib already does this when a player joins, when {@code /op} or {@code /deop} changes their
+     * operator status and, from 26.2, when the host changes who may use commands in World Options
+     * or in the LAN options. Call it after changing the config outside {@link #modify(Consumer)},
+     * or after a permission plugin changes what the player may edit. If the packet is over 262144
+     * bytes, nothing is sent and an error is logged.
      *
-     * @param player The target player to sync the config to.
+     * @param player the player to send the config to
      */
     public void sendConfigToPlayer(ServerPlayer player) {
         networkHandler.sendConfigToPlayer(player);
     }
 
     /**
-     * Clamps the local config, writes it to disk, and invokes the save and change listeners.
-     * Fields mutated directly are only clamped here and never sent over the network;
-     * use {@link #modify(Consumer)} for both.
+     * Clamps the local config, writes it to disk, and runs the save and change listeners.
+     * Nothing is sent over the network.
+     * <p>
+     * Fields changed by hand are only clamped here and never sent to other players; use
+     * {@link #modify(Consumer)} for both, or call {@link #sendConfigToPlayer(ServerPlayer)}.
      *
-     * @throws UncheckedIOException If the file could not be written. Change listeners still run, save listeners do not.
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws UncheckedIOException if writing fails; change listeners still run, save listeners
+     *                              do not
      */
     public void save() {
         try {
@@ -199,30 +263,44 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
     }
 
     /**
-     * Executes a transactional modification on the active config instance.
-     * <p>
-     * Mutations are diffed against the active config and dispatched according to
-     * each option's {@link SyncMode}:
+     * Runs {@code mutator} on a copy of the current config and sends each changed option where its
+     * {@link SyncMode} says.
      * <ul>
-     *     <li>{@link SyncMode#NONE}: Applied locally and saved to disk.</li>
-     *     <li>{@link SyncMode#INFORM_SERVER}: Applied locally, saved, and dispatched via C2S inform packet.</li>
-     *     <li>{@link SyncMode#OVERRIDE_CLIENT}: On dedicated/singleplayer, applied locally; on modded multiplayer,
-     * dropped with a warning if the server does not let this player change them; otherwise only the changed
-     * options are sent to the server via C2S override packet and applied to the active cache
-     * once sent, without saving locally until server echo; rejected with an error if the packet is over the
-     * server-bound size limit; on unmodded multiplayer, rejected with a warning.</li>
+     *     <li>{@link SyncMode#NONE}: applied locally and saved.</li>
+     *     <li>{@link SyncMode#INFORM_SERVER}: applied locally and saved, then sent to the server in
+     *     singleplayer or on a server with the mod.</li>
+     *     <li>{@link SyncMode#OVERRIDE_CLIENT}: on a dedicated server or while disconnected, applied,
+     *     saved and sent to all players. In singleplayer, applied, saved and sent to LAN players.
+     *     On a server with the mod, only the changed options go to the server and are applied to
+     *     its copy, without saving locally; they are dropped with a warning if this player may not
+     *     change them, and rejected with an error if the packet is too big for the server. On a
+     *     server without the mod, they are rejected with a warning.</li>
      * </ul>
-     * All disk I/O and network packet transmissions are batched and executed at most once per transaction.
+     * It saves and sends at most once per call. If {@code mutator} throws, nothing is applied.
      *
-     * @param mutator The consumer performing strongly typed property updates on the working copy.
-     * @throws UncheckedIOException If the changed config could not be written, the new values stay in memory
-     * and no packet is sent.
+     * @param mutator changes the copy it gets
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws IllegalArgumentException if the mutator leaves a value that can never be valid,
+     *                                  like {@code NaN}
+     * @throws UncheckedIOException if writing local changes fails; the new values stay in memory
      */
     @Override
     public void modify(Consumer<T> mutator) {
         applyChanges(LocalConfigManager.changesMadeBy(this, get(), mutator));
     }
 
+    /**
+     * Sets several options in one change and sends them like {@link #modify(Consumer)}. Every
+     * option must come from {@link #getOptionTree()}; this is checked before anything is applied.
+     * Each value is clamped and values that do not change are skipped.
+     *
+     * @param values new value per option
+     * @throws IllegalStateException if called before {@link #register()}
+     * @throws IllegalArgumentException if an option belongs to another config, or a value can
+     *                                  never be valid
+     * @throws RuntimeException if a value does not match the type of its field
+     * @throws UncheckedIOException if writing local changes fails
+     */
     @Override
     public void modifyOptions(Map<OptionInfo, ?> values) {
         applyChanges(LocalConfigManager.changesIn(this, get(), values));
@@ -338,6 +416,11 @@ public final class SyncedConfigManager<T> implements ConfigManager<T> {
         return localManager.getName();
     }
 
+    /**
+     * Returns the path of the local config file.
+     *
+     * @return the config file path
+     */
     public Path getConfigPath() {
         return localManager.getConfigPath();
     }

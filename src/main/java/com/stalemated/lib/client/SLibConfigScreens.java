@@ -25,10 +25,29 @@ import net.neoforged.neoforge.client.ConfigScreenHandler;
 ^///?}
 *///?}
 
+/**
+ * Registers YACL config screens, only when YACL is installed. Client only.
+ * <p>
+ * On Fabric, Mod Menu shows them through S-Lib's integration. On Forge and NeoForge, they are
+ * registered as the config screen extension point of the mod container.
+ */
 public final class SLibConfigScreens {
 
     private SLibConfigScreens() {}
 
+    /**
+     * Registers the config screen of {@code modId}. It checks {@code modId} first. If YACL is not
+     * installed, it logs a debug message and returns without calling {@code factory}.
+     * <p>
+     * With Mod Menu 15.0.2 or older (1.20.1 to 1.21.8), a {@code modmenu} entrypoint of the mod
+     * itself hides this screen.
+     *
+     * @param modId id of a loaded mod
+     * @param factory supplies the function that makes the screen from its parent; it is only called when YACL is installed, so the screen class never loads without YACL
+     * @throws NullPointerException if {@code modId}, {@code factory} or the function it supplies is {@code null}
+     * @throws IllegalArgumentException if no mod with {@code modId} is loaded
+     * @throws IllegalStateException if {@code modId} already has a config screen, or, on Forge and NeoForge, if called before the mod list is built
+     */
     public static void register(String modId, Supplier<Function<Screen, Screen>> factory) {
         Objects.requireNonNull(modId, "modId cannot be null");
         Objects.requireNonNull(factory, "factory cannot be null");

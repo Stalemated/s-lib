@@ -6,21 +6,22 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a {@code String}, {@code ResourceLocation}, or collection of them
- * to use the visual Minecraft Item dropdown controller in YACL.
+ * Uses the S-Lib item dropdown, with search, for a {@code String} or {@code ResourceLocation}
+ * field, or a collection of them, in YACL screens.
+ * <p>
+ * In a {@code String} field the suggestions are only hints: any text is accepted.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface ItemDropdown {
     /**
-     * Whether item tags ({@code #namespace:tag}) and wildcards ({@code *}, {@code namespace:*})
-     * are included in the dropdown suggestions.
+     * Whether the suggestions include item tags ({@code #namespace:tag}) and the wildcards
+     * {@code *} and {@code namespace:*}. With {@code false}, only items are suggested.
      * <p>
-     * Note: When applied to a {@code ResourceLocation} field or collection,
-     * tags and wildcards are automatically excluded because {@code ResourceLocation} cannot
-     * store {@code '#'} or {@code '*'} characters.
+     * Ignored for {@code ResourceLocation} fields, because an id cannot contain {@code '#'} or
+     * {@code '*'}.
      *
-     * @return {@code true} if tags and wildcards should be suggested for String fields.
+     * @return {@code true} to suggest tags and wildcards along with item ids
      */
     boolean allowTags() default true;
 }

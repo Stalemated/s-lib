@@ -3,15 +3,21 @@ package com.stalemated.lib.util.io;
 import com.stalemated.lib.helper.PlatformHelper;
 import java.nio.file.Path;
 
+/**
+ * Path resolution helpers relative to the mod loader's config directory.
+ */
 public final class PathUtils {
 
     private PathUtils() {}
 
     /**
-     * Simplifies path creation by resolving segments against the game's config directory.
+     * Resolves path segments in order against {@link PlatformHelper#getConfigDir()}. With no
+     * segments it returns the config directory. Like {@link Path#resolve(String)}, an absolute
+     * segment replaces the path built so far.
      *
-     * @param paths Subdirectories and filename segments (e.g., "my_mod", "config.json5").
-     * @return The fully resolved absolute Path.
+     * @param paths subdirectory and filename segments, for example
+     *              {@code "my_mod", "config.json5"}
+     * @return the resolved path
      */
     public static Path buildPath(String... paths) {
         Path current = PlatformHelper.getConfigDir();

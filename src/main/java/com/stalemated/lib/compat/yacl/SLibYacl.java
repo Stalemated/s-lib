@@ -4,7 +4,7 @@ import com.stalemated.lib.helper.PlatformHelper;
 
 
 /**
- * Utility class for checking the availability of the Yet Another Config Lib (YACL) mod.
+ * Utility for checking whether Yet Another Config Lib (YACL) is loaded at runtime.
  */
 public final class SLibYacl {
 
@@ -13,9 +13,10 @@ public final class SLibYacl {
     private SLibYacl() {}
 
     /**
-     * Checks if the Yet Another Config Lib (YACL) mod is available.
+     * Returns whether YACL v3 ({@code yet_another_config_lib_v3}) is currently loaded.
      *
-     * @return true if YACL is available, false otherwise.
+     * @return {@code true} if YACL is loaded
+     * @throws IllegalStateException on Forge and NeoForge, if called before the mod list is built
      */
     public static boolean isAvailable() {
         return PlatformHelper.isModLoaded(YACL_MOD_ID);

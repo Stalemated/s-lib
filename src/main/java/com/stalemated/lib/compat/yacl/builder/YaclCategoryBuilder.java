@@ -28,10 +28,13 @@ import java.util.function.Consumer;
 import static com.stalemated.lib.SLib.LOGGER;
 
 /**
- * Fluent builder for YACL {@link ConfigCategory}.
- * Represents a single category tab in the configuration screen.
+ * Fluent builder for a YACL {@link ConfigCategory} tab within a {@link YaclScreenBuilder}.
+ * Client only.
+ * <p>
+ * The screen makes a new builder every time it is built, and groups show up in the order of the
+ * calls. The methods run while the screen is built, so their errors show up there.
  *
- * @param <T> The config model type.
+ * @param <T> the config model type
  */
 @SuppressWarnings("UnusedReturnValue")
 public class YaclCategoryBuilder<T> {
@@ -54,21 +57,54 @@ public class YaclCategoryBuilder<T> {
         this.name = Component.literal(context.session().getManager().getName());
     }
 
+    /**
+     * Sets the name of this tab. By default it comes from the naming strategy:
+     * {@code <prefix>.category.<tabKey>}.
+     *
+     * @param name the tab name
+     * @return this builder
+     */
     public YaclCategoryBuilder<T> name(Component name) {
         this.name = name;
         return this;
     }
 
+    /**
+     * Sets the tooltip of this tab. By default it comes from the naming strategy:
+     * {@code <prefix>.category.<tabKey>.desc}, empty when that key is missing.
+     *
+     * @param description the tooltip, or {@code null} for none
+     * @return this builder
+     */
     public YaclCategoryBuilder<T> description(Component description) {
         this.description = description;
         return this;
     }
 
+    /**
+     * Adds a YACL group built elsewhere. YACL saves its options through their own bindings; they
+     * are not part of the S-Lib draft.
+     *
+     * @param customGroup the group to add
+     * @return this builder
+     */
     public YaclCategoryBuilder<T> group(OptionGroup customGroup) {
         this.groups.add(customGroup);
         return this;
     }
 
+    /**
+     * Adds a group and lets {@code consumer} fill it. By default the group is named
+     * {@code <prefix>.group.<groupKey>}, with the description {@code <prefix>.group.<groupKey>.desc};
+     * a {@code @Title} with the same value uses the same keys. The group starts expanded.
+     *
+     * @param groupKey key of the group
+     * @param consumer fills the group
+     * @return this builder
+     * @throws NullPointerException if {@code consumer} is {@code null}
+     * @throws IllegalArgumentException if the group can't be built, for example because of an unknown option key
+     * @throws UnsupportedOperationException if an option of the group has no controller
+     */
     public YaclCategoryBuilder<T> group(String groupKey, Consumer<YaclGroupBuilder<T>> consumer) {
         Component groupName = context.namingStrategy().groupName(context.translationPrefix(), groupKey);
         YaclGroupBuilder<T> builder = new YaclGroupBuilder<>(context, groupName);
@@ -79,11 +115,11 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Emits a standalone {@link LabelOption} section header group in this category
-     * without a collapsible arrow bar.
+     * Adds a section header: a group with no collapse bar that only shows {@code labelText}.
      *
-     * @param labelText The label component to display.
-     * @return This category builder.
+     * @param labelText the text to show
+     * @return this builder
+     * @throws NullPointerException if {@code labelText} is {@code null}
      */
     public YaclCategoryBuilder<T> label(Component labelText) {
         groups.add(YaclSectionHeaderGroup.of(labelText));
@@ -91,19 +127,42 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Emits a standalone {@link LabelOption} section header group resolved via the naming strategy.
+     * Same as {@link #label(Component)} with the group name of {@code titleKey}, which is
+     * {@code <prefix>.group.<titleKey>} by default. {@code titleKey} is always a translation key,
+     * never literal text: {@code label("Combat Stats")} looks up {@code <prefix>.group.combat_stats}.
      *
-     * @param titleKey The translation key or literal title text.
-     * @return This category builder.
+     * @param titleKey key of the header text
+     * @return this builder
+     * @throws NullPointerException if {@code titleKey} is {@code null}
      */
     public YaclCategoryBuilder<T> label(String titleKey) {
         return label(context.namingStrategy().groupName(context.translationPrefix(), titleKey));
     }
 
+    /**
+     * Same as {@link #listOption(String, Consumer)} with no customizer.
+     *
+     * @param key key of a {@code Collection} option
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, or its {@code @EnabledIf} is invalid
+     * @throws UnsupportedOperationException if the element type has no controller or no initial value
+     */
     public YaclCategoryBuilder<T> listOption(String key) {
         return listOption(key, null);
     }
 
+    /**
+     * Adds a YACL {@link ListOption} for a collection of simple values, each one edited with the
+     * controller of its type. A {@code Set} is edited as a list and saved as a set. If the field
+     * has a {@code @Title}, a header goes first, and {@code @EnabledIf} applies too. For lists of
+     * POJOs, use {@link #nestedList(String)}.
+     *
+     * @param key key of a {@code Collection} option
+     * @param customizer changes the YACL builder after S-Lib sets the name, description, controller and initial element, or {@code null}
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, or its {@code @EnabledIf} is invalid
+     * @throws UnsupportedOperationException if the element type has no controller or no initial value
+     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public YaclCategoryBuilder<T> listOption(String key, Consumer<ListOption.Builder<?>> customizer) {
         OptionInfo info = requireOptionInfo(key);
@@ -115,10 +174,31 @@ public class YaclCategoryBuilder<T> {
         return this;
     }
 
+    /**
+     * Same as {@link #mapPairsOption(String, Consumer)} with no customizer.
+     *
+     * @param key key of a {@code Map} option with {@code String} keys
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, the map keys are not {@code String}, or its {@code @EnabledIf} is invalid
+     * @throws UnsupportedOperationException if the map values can't be converted from text
+     */
     public YaclCategoryBuilder<T> mapPairsOption(String key) {
         return mapPairsOption(key, null);
     }
 
+    /**
+     * Adds a {@link ListOption} that edits a {@code Map<String, V>} option as {@code key: value}
+     * lines. Keys with {@code :}, spaces or quotes are quoted. When saving, a line that can't be
+     * read, or whose value can't be converted, is skipped with a warning. A {@code SortedMap} is
+     * saved as a {@code TreeMap}. {@code @Title} and {@code @EnabledIf} apply as in
+     * {@link #listOption(String, Consumer)}.
+     *
+     * @param key key of a {@code Map} option with {@code String} keys
+     * @param customizer changes the YACL builder after S-Lib sets the name, description, controller and initial element, or {@code null}
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, the map keys are not {@code String}, or its {@code @EnabledIf} is invalid
+     * @throws UnsupportedOperationException if the map values can't be converted from text
+     */
     public YaclCategoryBuilder<T> mapPairsOption(String key, Consumer<ListOption.Builder<String>> customizer) {
         OptionInfo info = requireOptionInfo(key);
         if (info.hasTitle()) {
@@ -129,10 +209,31 @@ public class YaclCategoryBuilder<T> {
         return this;
     }
 
+    /**
+     * Same as {@link #nested(String, Consumer)} with no customizer.
+     *
+     * @param nestPrefix key of a {@code @Nest} field
+     * @return this builder
+     * @throws IllegalArgumentException if {@code nestPrefix} is not a {@code @Nest} category
+     * @throws UnsupportedOperationException if an option under it has no controller
+     */
     public YaclCategoryBuilder<T> nested(String nestPrefix) {
         return nested(nestPrefix, null);
     }
 
+    /**
+     * Adds an expanded group with every simple option under {@code nestPrefix}, including the
+     * options of the nests inside it. The group is named like in {@link #group(String, Consumer)},
+     * with the {@code @Title} of the {@code @Nest} field as key, or {@code nestPrefix} if it has
+     * none. Then each list or map under the prefix is added as a group of its own. If the nest has
+     * only lists and maps, the first group is left out.
+     *
+     * @param nestPrefix key of a {@code @Nest} field; a trailing dot is fine
+     * @param customizer changes the group before it is built, or {@code null}
+     * @return this builder
+     * @throws IllegalArgumentException if {@code nestPrefix} is not a {@code @Nest} category
+     * @throws UnsupportedOperationException if an option under it has no controller
+     */
     public YaclCategoryBuilder<T> nested(String nestPrefix, Consumer<YaclGroupBuilder<T>> customizer) {
         CategoryNode catNode = context.nestedCategory(nestPrefix)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown nested category key: '" + nestPrefix + "'"));
@@ -157,10 +258,18 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Maps entries of a nested POJO map into individual collapsible option groups.
+     * Adds the entries of a map of POJOs. A header holds a New Entry Key field and an Add Entry
+     * button. Then each entry gets a collapsed group, named after its key, with one option per
+     * POJO field and a Remove Entry button. Add Entry ignores a blank or repeated key and logs
+     * why. The changes stay in the draft until the player saves.
+     * <p>
+     * The Add Entry and Remove Entry buttons need the screen from
+     * {@link YaclScreenBuilder#generateScreen()}.
      *
-     * @param mapKey The key of the map option.
-     * @return This category builder.
+     * @param mapKey key of a {@code Map} option with {@code String} keys
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, or the map keys are not {@code String}
+     * @throws UnsupportedOperationException if the entry type has no no-args constructor or initial supplier, or a field has no controller
      */
     @SuppressWarnings({"unchecked"})
     public YaclCategoryBuilder<T> nestedMap(String mapKey) {
@@ -207,10 +316,17 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Maps elements of a nested POJO list into individual collapsible option groups.
+     * Like {@link #nestedMap(String)}, for a list of POJOs and without the key field. Each group
+     * is named by its number, from 1, followed by the first non-blank {@code String} field among
+     * {@code comment}, {@code name} and {@code id}, if there is one.
+     * <p>
+     * The Add Entry and Remove Entry buttons need the screen from
+     * {@link YaclScreenBuilder#generateScreen()}.
      *
-     * @param listKey The key of the list option.
-     * @return This category builder.
+     * @param listKey key of a {@code List} option
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key
+     * @throws UnsupportedOperationException if the element type has no no-args constructor or initial supplier, or a field has no controller
      */
     public YaclCategoryBuilder<T> nestedList(String listKey) {
         OptionInfo info = requireOptionInfo(listKey);
@@ -238,12 +354,18 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Maps dynamic list options inside entries of a nested POJO map using a {@link NestListBinding}.
+     * Adds one text {@link ListOption} per map key, each editing the list that {@code binding}
+     * reads from the POJO of that key. Keys from {@code binding.keys()} come first, then the keys
+     * of the map. Editing the list of a key that is not in the map creates its entry with
+     * {@code binding.newEntry()}; without one, the edit is dropped. If the map has a
+     * {@code @Title}, a header goes first. {@code @EnabledIf} does not apply to these lists.
      *
-     * @param mapKey The key of the map option.
-     * @param binding The functional binding for reading and writing the list property on each POJO item.
-     * @param <N> The type of the nested POJO item.
-     * @return This category builder.
+     * @param mapKey key of a {@code Map} option with {@code String} keys
+     * @param binding how to read and write the list of each POJO
+     * @param <N> the POJO type of the map values
+     * @return this builder
+     * @throws IllegalArgumentException if no option has that key, or the map keys are not {@code String}
+     * @throws UnsupportedOperationException if the list elements can't be converted from text
      */
     public <N> YaclCategoryBuilder<T> nestedMapLists(String mapKey, NestListBinding<N> binding) {
         OptionInfo mapInfo = requireOptionInfo(mapKey);
@@ -263,10 +385,15 @@ public class YaclCategoryBuilder<T> {
     }
 
     /**
-     * Automatically discovers all options, collections, maps, and nested POJO categories
-     * from the {@link OptionTree} schema in declaration order.
+     * Fills the tab from the fields of the config, in declaration order with the superclass
+     * fields first. Simple options in a row go into one group, and a {@code @Title} starts a new
+     * group with that name. {@code @Nest} lists and maps of POJOs go to {@link #nestedList(String)}
+     * and {@link #nestedMap(String)}, other lists and maps to {@link #listOption(String)} and
+     * {@link #mapPairsOption(String)}, and every other {@code @Nest} field to {@link #nested(String)}.
      *
-     * @return This category builder.
+     * @return this builder
+     * @throws IllegalArgumentException if a method it calls throws one, for example for an invalid {@code @EnabledIf}
+     * @throws UnsupportedOperationException if an option has no controller
      */
     public YaclCategoryBuilder<T> autoGenerate() {
         CategoryNode root = context.session().getOptionTree().getSchemaRoot();

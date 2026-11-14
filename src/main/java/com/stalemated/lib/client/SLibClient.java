@@ -30,9 +30,15 @@ import net.neoforged.fml.common.Mod.EventBusSubscriber;
 ^///?}
 import net.neoforged.api.distmarker.Dist;
 import com.stalemated.lib.SLib;
-
-@EventBusSubscriber(modid = SLib.MOD_ID, value = Dist.CLIENT)
 *///?}
+
+/**
+ * S-Lib's client entrypoint. It tells the synced configs when the player joins or leaves a world
+ * and, on Forge and NeoForge, registers the pending key mappings. The loader or {@code SLib}
+ * calls it; mods don't use it. Client only.
+ */
+//? if neoforge
+//@EventBusSubscriber(modid = SLib.MOD_ID, value = Dist.CLIENT)
 //? if forge
 //@SuppressWarnings("removal")
 public final class SLibClient 
@@ -41,6 +47,10 @@ implements ClientModInitializer
 {
 
     //? if fabric{
+    /**
+     * Fabric {@link ClientModInitializer} entrypoint. Registers the join and disconnect hooks of
+     * the synced configs.
+     */
     @Override
     public void onInitializeClient() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
@@ -52,14 +62,22 @@ implements ClientModInitializer
     //?}
 
     //? if forge {
-    /*public static void init() {
+    /*/^* Listens to {@code RegisterKeyMappingsEvent} on the mod bus and to the client login and
+     * logout events on the Forge bus. {@code SLib} calls it.
+     ^/
+    public static void init() {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibClient::onRegisterKeyMappings);
 
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogIn);
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogOut);
     }
     *///?} elif neoforge {
-    /*public static void registerModBusListeners(IEventBus modBus) {
+    /*/^* Listens to {@code RegisterKeyMappingsEvent} on the mod bus. The login and logout events
+     * arrive through {@code @EventBusSubscriber}. {@code SLib} calls it.
+     *
+     * @param modBus the S-Lib mod event bus
+     ^/
+    public static void registerModBusListeners(IEventBus modBus) {
         modBus.addListener(RegisterKeyMappingsEvent.class, SLibClient::onRegisterKeyMappings);
     }
     *///?}

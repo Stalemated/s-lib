@@ -16,6 +16,14 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+/**
+ * Mixin config plugin that applies a mixin with {@link RequiresMod} only when all its mods are
+ * loaded. Mixins without it always apply.
+ * <p>
+ * Name this class as {@code "plugin"} in your mixin config JSON. The check uses
+ * {@link PlatformHelper#isModLoadedAtLaunch(String)}, because the normal mod list does not exist
+ * yet when Mixin loads the config.
+ */
 public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
 
     private static final String REQUIRES_MOD = Type.getDescriptor(RequiresMod.class);
@@ -23,6 +31,10 @@ public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
     private final Predicate<String> isModPresent;
     private final Function<String, ClassNode> mixinClasses;
 
+    /**
+     * Creates a plugin instance using {@link PlatformHelper#isModLoadedAtLaunch(String)} and
+     * Mixin's bytecode provider. Mixin calls it.
+     */
     public ConditionalMixinPlugin() {
         this(PlatformHelper::isModLoadedAtLaunch, mixinClassName -> readMixin(MixinService.getService().getBytecodeProvider(), mixinClassName));
     }
@@ -32,6 +44,15 @@ public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
         this.mixinClasses = Objects.requireNonNull(mixinClasses, "mixinClasses cannot be null");
     }
 
+    /**
+     * Returns whether the mixin applies: {@code true} if every mod in its {@link RequiresMod} is
+     * loaded, or if it has no {@link RequiresMod}. The mixin class is read again on every call.
+     *
+     * @param targetClassName not used
+     * @param mixinClassName full name of the mixin class
+     * @return {@code true} to apply the mixin
+     * @throws IllegalStateException if the mixin class can't be read, or its {@link RequiresMod} has no {@code value}
+     */
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         return requiredMods(mixinClasses.apply(mixinClassName)).stream().allMatch(isModPresent);

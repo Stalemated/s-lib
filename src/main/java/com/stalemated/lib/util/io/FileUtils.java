@@ -7,6 +7,9 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * File helpers for config files: checking whether a file is new or empty, and making backups.
+ */
 public final class FileUtils {
 
     private static final DateTimeFormatter BACKUP_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -14,22 +17,24 @@ public final class FileUtils {
     private FileUtils() {}
 
     /**
-     * Checks if a file does not exist or is empty.
+     * Returns whether {@code file} does not exist or has zero bytes.
      *
-     * @param file The file to check.
-     * @return True if the file does not exist or is empty.
+     * @param file the file to inspect
+     * @return {@code true} if the file is absent or empty
      */
     public static boolean isNewOrEmpty(File file) {
         return !file.exists() || file.length() == 0;
     }
 
     /**
-     * Copies the given file next to itself as {@code name_backup_yyyyMMdd-HHmmss.ext}.
-     * Existing backups are never overwritten.
+     * Copies {@code path} next to itself as {@code <name>_backup_yyyyMMdd-HHmmss.<ext>}, using
+     * local time. If that name is taken, it adds {@code -2}, {@code -3}, and so on before the
+     * extension, so existing backups are never overwritten. A name without an extension gets
+     * no dot.
      *
-     * @param path The path of the original file.
-     * @return The path of the backup.
-     * @throws IOException If the backup could not be written.
+     * @param path path to the existing source file
+     * @return path to the newly created backup file
+     * @throws IOException if copying fails, for example when {@code path} does not exist
      */
     public static Path createTimestampedBackup(Path path) throws IOException {
         String fileName = path.getFileName().toString();

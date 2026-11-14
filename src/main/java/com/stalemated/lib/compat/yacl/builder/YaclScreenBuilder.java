@@ -33,10 +33,14 @@ import java.util.stream.Stream;
 import static com.stalemated.lib.SLib.LOGGER;
 
 /**
- * Top-level fluent builder for creating YACL configuration screens backed by atomic session buffers.
- * Keeps one session per config manager and commits all of them when the screen saves.
- * Categories are built in {@link #buildLib()}, so the naming strategy, controller registry, and availability rule
- * apply to every category whatever the order of the calls.
+ * Builds a YACL config screen for one or more {@link ConfigManager}s. Client only.
+ * <p>
+ * Each manager gets a draft: edits stay there until the player saves, then each changed config
+ * is saved once. If a save fails, its edits stay pending. The tabs are built in
+ * {@link #buildLib()} and {@link #generateScreen()}, so
+ * {@link #namingStrategy(YaclNamingStrategy)}, {@link #controllerRegistry(YaclControllerRegistry)}
+ * and {@link #availabilityRule(OptionAvailabilityRule)} apply to every tab whatever the order of
+ * the calls.
  */
 public class YaclScreenBuilder {
     private final Screen parent;
@@ -59,35 +63,76 @@ public class YaclScreenBuilder {
         this.translationPrefix = Objects.requireNonNull(translationPrefix, "translationPrefix cannot be null");
     }
 
+    /**
+     * Creates a new screen builder.
+     *
+     * @param parent the screen to return to when closing, or {@code null}
+     * @param title the screen title displayed by YACL
+     * @param translationPrefix prefix of every generated translation key, usually the mod id
+     * @return a new {@link YaclScreenBuilder}
+     * @throws NullPointerException if {@code title} or {@code translationPrefix} is {@code null}
+     */
     public static YaclScreenBuilder create(Screen parent, Component title, String translationPrefix) {
         return new YaclScreenBuilder(parent, title, translationPrefix);
     }
 
+    /**
+     * Sets the naming strategy that makes the translation keys of the screen. The default is
+     * {@link YaclNamingStrategy#DEFAULT}.
+     *
+     * @param namingStrategy the strategy to use
+     * @return this builder
+     * @throws NullPointerException if {@code namingStrategy} is {@code null}
+     */
     public YaclScreenBuilder namingStrategy(YaclNamingStrategy namingStrategy) {
         this.namingStrategy = Objects.requireNonNull(namingStrategy, "namingStrategy cannot be null");
         return this;
     }
 
+    /**
+     * Sets the registry that picks the controller of each option type, for example one with your
+     * own types registered. By default each builder gets its own
+     * {@link YaclControllerRegistry#createDefault()}. A registry can be shared between screens.
+     *
+     * @param controllerRegistry the registry to use
+     * @return this builder
+     * @throws NullPointerException if {@code controllerRegistry} is {@code null}
+     */
     public YaclScreenBuilder controllerRegistry(YaclControllerRegistry controllerRegistry) {
         this.controllerRegistry = Objects.requireNonNull(controllerRegistry, "controllerRegistry cannot be null");
         return this;
     }
 
+    /**
+     * Sets the rule that locks options and gives the reason shown under their description. The
+     * default is {@link OptionAvailabilityRule#DEFAULT}; to keep its permission lock, pass
+     * {@code OptionAvailabilityRule.DEFAULT.and(yourRule)}.
+     * <p>
+     * When the screen rebuilds after a change made elsewhere, it drops the pending edits of the
+     * options this rule locks.
+     *
+     * @param availabilityRule the rule to use
+     * @return this builder
+     * @throws NullPointerException if {@code availabilityRule} is {@code null}
+     */
     public YaclScreenBuilder availabilityRule(OptionAvailabilityRule availabilityRule) {
         this.availabilityRule = Objects.requireNonNull(availabilityRule, "availabilityRule cannot be null");
         return this;
     }
 
     /**
-     * Binds a live preview instance to the session for {@code manager} so any pending option change
-     * in the YACL screen immediately updates {@code previewInstance} and invokes {@code onPreviewUpdate}
-     * without mutating the uncommitted session draft.
+     * Binds a preview object to the draft of {@code manager}. Every pending change on the screen
+     * updates {@code previewInstance} right away and calls {@code onPreviewUpdate}, without
+     * touching the draft. When the screen rebuilds, the preview gets the draft values again. A
+     * second call for the same manager replaces the preview.
      *
-     * @param manager         The config manager whose session should drive the preview.
-     * @param previewInstance The live preview instance to mutate on pending UI changes.
-     * @param onPreviewUpdate Optional callback invoked after each preview update (e.g., {@code TooltipEntry::invalidateCaches}).
-     * @param <T>             The config model type.
-     * @return This screen builder.
+     * @param manager the manager whose options drive the preview, the same one passed to {@code category}
+     * @param previewInstance object that receives every pending edit; {@code null} removes the preview
+     * @param onPreviewUpdate called after each update, for example {@code TooltipEntry::invalidateCaches}, or {@code null}
+     * @param <T> the config model type
+     * @return this builder
+     * @throws NullPointerException if {@code manager} is {@code null}
+     * @throws IllegalStateException if {@code manager} is not registered yet
      */
     public <T> YaclScreenBuilder livePreview(
             ConfigManager<T> manager,
@@ -98,12 +143,40 @@ public class YaclScreenBuilder {
         return this;
     }
 
+    /**
+     * Adds a tab for {@code manager}. Its name comes from
+     * {@link YaclNamingStrategy#categoryName(String, String)}, {@code <prefix>.category.<tabKey>}
+     * by default, and its tooltip from {@code <prefix>.category.<tabKey>.desc}. Tabs of the same
+     * manager share one draft.
+     * <p>
+     * {@code contents} fills the tab every time the screen is built or rebuilt (save, undo,
+     * adding or removing entries, server changes), so it must be safe to run more than once. Its
+     * errors, and a {@code null} {@code tabKey} or {@code contents}, show up when the screen is
+     * built.
+     *
+     * @param manager the config to edit
+     * @param tabKey key of the tab
+     * @param contents fills the tab, for example {@code YaclCategoryBuilder::autoGenerate}
+     * @param <T> the config model type
+     * @return this builder
+     * @throws NullPointerException if {@code manager} is {@code null}
+     * @throws IllegalStateException if {@code manager} is not registered yet
+     */
     public <T> YaclScreenBuilder category(ConfigManager<T> manager, String tabKey, Consumer<YaclCategoryBuilder<T>> contents) {
         ConfigSession<T> session = sessionOf(manager);
         categories.add(synchronizers -> buildCategory(session, synchronizers.computeIfAbsent(session, YaclBindingSynchronizer::new), tabKey, contents));
         return this;
     }
 
+    /**
+     * Adds a YACL category made by {@code customCategory}. The supplier runs every time the
+     * screen is built or rebuilt, so it must create a new category on each call. Its options are
+     * saved by their own YACL bindings, not by S-Lib.
+     *
+     * @param customCategory makes the category
+     * @return this builder
+     * @throws NullPointerException if {@code customCategory} is {@code null}
+     */
     public YaclScreenBuilder category(Supplier<ConfigCategory> customCategory) {
         Objects.requireNonNull(customCategory, "customCategory cannot be null");
         categories.add(synchronizers -> customCategory.get());
@@ -132,6 +205,16 @@ public class YaclScreenBuilder {
         return builder.build();
     }
 
+    /**
+     * Builds the tabs and returns the YACL object, without a screen. It is mostly for tests, like
+     * {@code SLibTesting}. A screen made with {@code lib.generateScreen(parent)} doesn't rebuild
+     * itself, and its Add Entry and Remove Entry buttons throw an {@code IllegalStateException}.
+     * <p>
+     * Errors from the tab contents, like an unknown option key, are thrown here.
+     *
+     * @return the YACL object; saving it saves the drafts
+     * @throws IllegalStateException if two options of the same config get the same name
+     */
     public YetAnotherConfigLib buildLib() {
         return build().lib();
     }
@@ -215,6 +298,16 @@ public class YaclScreenBuilder {
         }
     }
 
+    /**
+     * Builds the S-Lib config screen. It rebuilds itself after save, undo, adding or removing
+     * entries, and when the server or another player changes the config, keeping the open tab,
+     * the scroll and the open groups.
+     * <p>
+     * Errors from the tab contents, like an unknown option key, are thrown here.
+     *
+     * @return the new screen
+     * @throws IllegalStateException if two options of the same config get the same name
+     */
     public Screen generateScreen() {
         return new YaclConfigScreen(this, build(), parent, YaclScreenView.FIRST_TAB);
     }

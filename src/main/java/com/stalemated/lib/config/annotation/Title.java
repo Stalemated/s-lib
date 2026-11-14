@@ -6,19 +6,22 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares a section header label to be rendered above the annotated config field in GUI screens.
+ * Puts a header above the option in YACL screens. By default its key is
+ * {@code <prefix>.group.<value in snake_case>}, the same key that {@code group(...)} uses, so
+ * {@code @Title("primitives")} shows {@code <prefix>.group.primitives}.
  * <p>
- * The {@link #value()} is resolved via the naming strategy, which builds
- * {@code <translationPrefix>.group.<value in snake_case>} by default
- * (e.g. {@code @Title("primitives")} resolves to {@code <translationPrefix>.group.primitives}).
+ * On a {@link Nest} field it names that group instead. In {@code autoGenerate}, a title on a
+ * simple option starts a new group. On the first option of a group without a name, it names the
+ * group. Blank values are ignored.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 public @interface Title {
     /**
-     * The title key, appended to the group translation prefix (e.g. {@code "primitives"}).
+     * Key of the title, without the {@code <prefix>.group.} part, for example
+     * {@code "primitives"}. A custom {@code YaclNamingStrategy} can change the full key.
      *
-     * @return The title key.
+     * @return the title key
      */
     String value();
 }

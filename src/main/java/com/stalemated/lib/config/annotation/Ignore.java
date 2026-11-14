@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a config field as ignored by the config manager.
+ * Leaves a field out of the config: it is not saved, loaded, synced or shown in screens, and
+ * comparisons of option values skip it.
  * <p>
- * Fields annotated with {@code @Ignore} won't be saved to disk, read from disk,
- * or be synced over network packets.
+ * {@code static} and {@code transient} fields are left out even without this annotation.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
