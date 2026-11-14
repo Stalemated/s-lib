@@ -11,15 +11,17 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 //?}
 
 //? if forge || neoforge {
-/*import java.util.Collections;
-import java.util.List;
+/*import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 *///?}
 
 public final class ClientPlatformHelper {
 
-    //? if forge || neoforge
-    //private static final List<KeyMapping> PENDING_KEY_MAPPINGS = new CopyOnWriteArrayList<>();
+    //? if forge || neoforge {
+    /*private static final List<KeyMapping> PENDING_KEY_MAPPINGS = new CopyOnWriteArrayList<>();
+    private static volatile boolean keyMappingsRegistered;
+    *///?}
 
     private ClientPlatformHelper() {}
 
@@ -30,16 +32,18 @@ public final class ClientPlatformHelper {
     public static void registerKeyBinding(KeyMapping keyBinding) {
         //? if fabric && <26.1 {
         KeyBindingHelper.registerKeyBinding(keyBinding);
-        //?} elif fabric && >=26.1 {
+        //?} elif fabric {
         /*KeyMappingHelper.registerKeyMapping(keyBinding);
         *///?} elif forge || neoforge {
-        /*PENDING_KEY_MAPPINGS.add(keyBinding);
+        /*if (keyMappingsRegistered) throw new IllegalStateException("Key mapping '" + keyBinding.getName() + "' was registered after RegisterKeyMappingsEvent; register it from the mod constructor");
+        PENDING_KEY_MAPPINGS.add(keyBinding);
         *///?}
     }
 
     //? if forge || neoforge {
-    /*static List<KeyMapping> pendingKeyMappings() {
-        return Collections.unmodifiableList(PENDING_KEY_MAPPINGS);
+    /*static void registerPendingKeyMappings(Consumer<KeyMapping> register) {
+        keyMappingsRegistered = true;
+        PENDING_KEY_MAPPINGS.forEach(register);
     }
     *///?}
 }

@@ -42,13 +42,15 @@ public final class ConditionalMixinPlugin implements IMixinConfigPlugin {
         return mixin.invisibleAnnotations.stream()
                 .filter(annotation -> REQUIRES_MOD.equals(annotation.desc))
                 .findFirst()
-                .map(ConditionalMixinPlugin::modIds)
+                .map(requiresMod -> modIds(mixin.name, requiresMod))
                 .orElse(List.of());
     }
 
     @SuppressWarnings("unchecked")
-    private static List<String> modIds(AnnotationNode requiresMod) {
-        return (List<String>) requiresMod.values.get(1);
+    private static List<String> modIds(String mixinName, AnnotationNode requiresMod) {
+        for (int i = 0; i < requiresMod.values.size(); i += 2)
+            if ("value".equals(requiresMod.values.get(i))) return (List<String>) requiresMod.values.get(i + 1);
+        throw new IllegalStateException("@RequiresMod on " + mixinName + " has no value");
     }
 
     static ClassNode readMixin(IClassBytecodeProvider bytecode, String mixinClassName) {

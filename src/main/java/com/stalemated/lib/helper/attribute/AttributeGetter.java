@@ -18,7 +18,6 @@ import net.minecraft.world.entity.MobType;
 //?} else {
 /*import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 *///?}
 
@@ -109,8 +108,7 @@ public final class AttributeGetter {
 
     private static AttributeTotal mainHandTotal(ItemStack stack, Holder<Attribute> attribute) {
         AttributeTotal total = new AttributeTotal();
-        ItemAttributeModifiers modifiers = stack.getOrDefault(DataComponents.ATTRIBUTE_MODIFIERS, ItemAttributeModifiers.EMPTY);
-        modifiers.forEach(EquipmentSlot.MAINHAND, (modified, modifier) -> {
+        stack.forEachModifier(EquipmentSlot.MAINHAND, (modified, modifier) -> {
             if (!modified.equals(attribute)) return;
             switch (modifier.operation()) {
                 case ADD_VALUE -> total.add(modifier.amount());

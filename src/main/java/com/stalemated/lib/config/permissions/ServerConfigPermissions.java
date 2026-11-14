@@ -5,7 +5,10 @@ import net.minecraft.server.level.ServerPlayer;
 //? if >=1.21.11
 //import net.minecraft.server.permissions.Permissions;
 
-public class ServerConfigPermissions {
+public final class ServerConfigPermissions {
+
+    private ServerConfigPermissions() {}
+
     //? if <1.21.11 {
     public static final Predicate<ServerPlayer> OP_ONLY = player -> player.hasPermissions(2);
     //?} else {

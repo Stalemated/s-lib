@@ -18,8 +18,8 @@ public final class GradientGenerator {
         );
     }
 
-    public static MutableComponent getSlideGradient(Component text, int offset, int color1, int color2, int tickrate, boolean reversed) {
-        long time = getAnimationTime(tickrate);
+    public static MutableComponent getSlideGradient(Component text, int offset, int color1, int color2, int slowdown, boolean reversed) {
+        long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;
         return applyGradient(text, (index, ratio) -> {
             float hue = (float) (((time - (index * dir) - offset) % 45.0) / 22.5f);
@@ -27,8 +27,8 @@ public final class GradientGenerator {
         });
     }
 
-    public static MutableComponent getBreathingGradient(Component text, int offset, int color1, int color2, int tickrate, boolean reversed) {
-        long time = getAnimationTime(tickrate);
+    public static MutableComponent getBreathingGradient(Component text, int offset, int color1, int color2, int slowdown, boolean reversed) {
+        long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;
         return applyGradient(text, (index, ratio) -> {
             float animationFactor = (float) ((Math.sin((time - (index * dir) - offset) * 0.05) + 1.0) / 2.0);
@@ -36,8 +36,8 @@ public final class GradientGenerator {
         });
     }
 
-    public static MutableComponent getRainbowGradient(Component text, int offset, int tickrate, boolean reversed) {
-        long time = getAnimationTime(tickrate);
+    public static MutableComponent getRainbowGradient(Component text, int offset, int slowdown, boolean reversed) {
+        long time = getAnimationTime(slowdown);
         int dir = reversed ? -1 : 1;
         return applyGradient(text, (index, ratio) -> {
             float hue = (float) (((time - (index * dir) - offset) / 90.0) % 1.0);
@@ -47,8 +47,8 @@ public final class GradientGenerator {
 
     // Helpers
 
-    private static long getAnimationTime(int tickrate) {
-        return (long) (System.currentTimeMillis() / (double) Math.max(1, tickrate) * 3.0);
+    private static long getAnimationTime(int slowdown) {
+        return (long) (System.currentTimeMillis() / (double) Math.max(1, slowdown) * 3.0);
     }
 
     @FunctionalInterface

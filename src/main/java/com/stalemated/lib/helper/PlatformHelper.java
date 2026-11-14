@@ -28,7 +28,9 @@ import net.neoforged.fml.loading.FMLEnvironment;
 /**
  * An abstraction layer for retrieving platform-specific information and performing actions across different modloaders.
  */
-public class PlatformHelper {
+public final class PlatformHelper {
+
+    private PlatformHelper() {}
 
     /**
      * Gets the path to the config directory.

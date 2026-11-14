@@ -28,7 +28,7 @@ public final class ColorUtils {
     }
 
     public static String toHex(TextColor color) {
-        return color.serialize();
+        return String.format("#%06X", color.getValue());
     }
 
     public static TextColor parseTextColor(String colorStr) {

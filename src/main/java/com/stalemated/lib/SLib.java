@@ -54,7 +54,7 @@ implements ModInitializer
     public static final String MOD_ID = "s_lib";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public static void init() {
+    private static void init() {
         LOGGER.info("S-Lib loaded successfully");
     }
 

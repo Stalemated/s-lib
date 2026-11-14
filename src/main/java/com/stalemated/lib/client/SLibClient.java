@@ -8,8 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 //?}
 
 //? if forge || neoforge {
-/*import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Minecraft;
+/*import net.minecraft.client.Minecraft;
 *///?}
 
 //? if forge{
@@ -67,9 +66,7 @@ implements ClientModInitializer
 
     //? if forge || neoforge {
     /*private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        for (KeyMapping kb : ClientPlatformHelper.pendingKeyMappings()) {
-            event.register(kb);
-        }
+        ClientPlatformHelper.registerPendingKeyMappings(event::register);
     }
 
     //? if neoforge

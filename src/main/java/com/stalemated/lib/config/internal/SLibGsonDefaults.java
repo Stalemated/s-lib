@@ -121,7 +121,7 @@ public final class SLibGsonDefaults {
     private static final class TextColorAdapter implements JsonSerializer<TextColor>, JsonDeserializer<TextColor> {
         @Override
         public JsonElement serialize(TextColor src, Type typeOfSrc, JsonSerializationContext context) {
-            return new JsonPrimitive(ColorUtils.toHex(src));
+            return new JsonPrimitive(src.serialize());
         }
 
         @Override

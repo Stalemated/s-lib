@@ -32,12 +32,12 @@ public final class SLibConfigScreens {
     public static void register(String modId, Supplier<Function<Screen, Screen>> factory) {
         Objects.requireNonNull(modId, "modId cannot be null");
         Objects.requireNonNull(factory, "factory cannot be null");
+        if (!PlatformHelper.isModLoaded(modId)) {
+            throw new IllegalArgumentException("Cannot register a config screen for '" + modId + "': no mod with that id is loaded");
+        }
         if (!SLibYacl.isAvailable()) {
             LOGGER.debug("Skipping the config screen of '{}': YACL is not installed", modId);
             return;
-        }
-        if (!PlatformHelper.isModLoaded(modId)) {
-            throw new IllegalArgumentException("Cannot register a config screen for '" + modId + "': no mod with that id is loaded");
         }
 
         Function<Screen, Screen> screens = Objects.requireNonNull(factory.get(), "The screen factory of '" + modId + "' is null");
