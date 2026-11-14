@@ -62,7 +62,7 @@ public record NestListBinding<N>(
      * @param setter writes a new list into a POJO
      * @param <N> the POJO type of the map values
      * @return a new binding
-     * @throws NullPointerException if {@code getter} is {@code null}
+     * @throws NullPointerException if {@code getter} or {@code setter} is {@code null}
      */
     public static <N> NestListBinding<N> of(
             Function<N, List<String>> getter,
@@ -82,7 +82,7 @@ public record NestListBinding<N>(
      * @param <N> the POJO type of the map values
      * @param <E> the list element type
      * @return a new binding
-     * @throws NullPointerException if {@code elementType} or {@code getter} is {@code null}
+     * @throws NullPointerException if {@code elementType}, {@code getter} or {@code setter} is {@code null}
      */
     @SuppressWarnings("unchecked")
     public static <N, E> NestListBinding<N> of(
@@ -90,6 +90,7 @@ public record NestListBinding<N>(
             Function<N, List<E>> getter,
             BiConsumer<N, List<E>> setter
     ) {
+        Objects.requireNonNull(setter, "setter cannot be null");
         return new NestListBinding<>(elementType, getter, (item, list) -> setter.accept(item, (List<E>) list), List::of, null, Component::literal, null);
     }
 

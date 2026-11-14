@@ -52,7 +52,7 @@ public final class ColorUtils {
      * @return the {@code #RRGGBB} hex string
      */
     public static String toHex(TextColor color) {
-        return String.format("#%06X", color.getValue());
+        return String.format("#%06X", color.getValue() & 0xFFFFFF);
     }
 
     /**
