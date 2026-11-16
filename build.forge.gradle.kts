@@ -24,6 +24,11 @@ dependencies {
     testRuntimeOnly("org.apache.logging.log4j:log4j-core:${property("deps.log4j")}")
 }
 
+val reobfPublishedVariants = setOf("reobfApiElements", "reobfRuntimeElements")
+configurations.matching { it.name in reobfPublishedVariants }.configureEach {
+    extendsFrom(configurations.api.get())
+}
+
 configurations.all {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.apache.logging.log4j" && requested.name == "log4j-core") {
