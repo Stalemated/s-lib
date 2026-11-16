@@ -17,6 +17,8 @@ dependencies {
 
     jarJar("blue.endless:jankson:${property("deps.jankson")}")
 
+    jarJar("io.github.llamalad7:mixinextras-forge:${property("deps.mixinextras")}")
+
     annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
 
     testRuntimeOnly(files(sourceSets.main.get().runtimeClasspath))
