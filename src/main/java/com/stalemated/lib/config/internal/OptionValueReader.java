@@ -4,17 +4,14 @@ import blue.endless.jankson.JsonArray;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonObject;
 import com.google.gson.Gson;
-import com.stalemated.lib.config.io.InvalidEntry;
 import com.stalemated.lib.config.OptionInfo;
 import com.stalemated.lib.config.OptionTree;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,8 +27,11 @@ final class OptionValueReader {
     }
 
     Object read(OptionInfo option, String path, JsonElement raw, LoadReport report) {
-        Type type = option.genericType();
-        if (type instanceof ParameterizedType parameterized) {
+        return readValue(option, option.genericType(), path, raw, report);
+    }
+
+    private Object readValue(ConfigNode node, Type type, String path, JsonElement raw, LoadReport report) {
+        if (node instanceof OptionInfo option && type instanceof ParameterizedType parameterized) {
             Type[] typeArguments = parameterized.getActualTypeArguments();
             if (option.isCollection() && raw instanceof JsonArray elements) {
                 return readCollection(option.getElementTemplate(), type, typeArguments[0], path, elements, report);
@@ -40,7 +40,7 @@ final class OptionValueReader {
                 return readMap(option.getElementTemplate(), type, typeArguments[0], typeArguments[1], path, entries, report);
             }
         }
-        return parse(raw, type);
+        return parseOrSalvage(node, type, path, raw, report);
     }
 
     private Collection<Object> readCollection(ConfigNode template, Type collectionType, Type elementType, String path, JsonArray elements, LoadReport report) {
@@ -80,8 +80,8 @@ final class OptionValueReader {
         try {
             return parse(raw, elementType);
         } catch (RuntimeException elementFailure) {
-            if (template instanceof CategoryNode && raw instanceof JsonObject fields) {
-                return salvageFields(elementType, path, fields, elementFailure, report);
+            if (template instanceof CategoryNode category && raw instanceof JsonObject fields) {
+                return salvageFields(category, elementType, path, fields, elementFailure, report);
             }
             throw elementFailure;
         }
@@ -115,24 +115,25 @@ final class OptionValueReader {
         }
     }
 
-    private Object salvageFields(Type elementType, String path, JsonObject fields, RuntimeException elementFailure, LoadReport report) {
+    private Object salvageFields(CategoryNode template, Type elementType, String path, JsonObject fields, RuntimeException elementFailure, LoadReport report) {
         Object element = gson.fromJson("{}", elementType);
         Map<String, Field> fieldsByJsonName = fieldsByClass.computeIfAbsent(element.getClass(), this::indexSerializedFields);
 
-        List<InvalidEntry> fieldRejections = new ArrayList<>();
+        LoadReport fieldReport = new LoadReport();
         for (Map.Entry<String, JsonElement> entry : fields.entrySet()) {
             Field field = fieldsByJsonName.get(entry.getKey());
             if (field == null) continue;
 
+            String fieldPath = Json5KeyLayout.childPath(path, entry.getKey());
             try {
-                field.set(element, parse(entry.getValue(), field.getGenericType()));
+                field.set(element, readValue(template.getChild(field.getName()), field.getGenericType(), fieldPath, entry.getValue(), fieldReport));
             } catch (RuntimeException | IllegalAccessException e) {
-                fieldRejections.add(LoadReport.rejection(Json5KeyLayout.childPath(path, entry.getKey()), entry.getValue(), e));
+                fieldReport.reject(fieldPath, entry.getValue(), e);
             }
         }
 
-        if (fieldRejections.isEmpty()) throw elementFailure;
-        report.rejectAll(fieldRejections);
+        if (!fieldReport.hasRejections()) throw elementFailure;
+        report.rejectAllOf(fieldReport);
         return element;
     }
 

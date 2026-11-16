@@ -12,24 +12,24 @@ final class LoadReport {
     private final List<InvalidEntry> unknownKeys = new ArrayList<>();
     private boolean requiresMigration;
 
-    static InvalidEntry rejection(String path, JsonElement raw, Exception cause) {
-        return new InvalidEntry(path, raw.toJson(false, false), rootMessage(cause));
-    }
-
     void requireMigration() {
         requiresMigration = true;
     }
 
     void reject(String path, JsonElement raw, Exception cause) {
-        rejectedValues.add(rejection(path, raw, cause));
+        rejectedValues.add(new InvalidEntry(path, raw.toJson(false, false), rootMessage(cause)));
     }
 
     void reject(String path, JsonElement raw, String reason) {
         rejectedValues.add(new InvalidEntry(path, raw.toJson(false, false), reason));
     }
 
-    void rejectAll(List<InvalidEntry> rejections) {
-        rejectedValues.addAll(rejections);
+    void rejectAllOf(LoadReport other) {
+        rejectedValues.addAll(other.rejectedValues);
+    }
+
+    boolean hasRejections() {
+        return !rejectedValues.isEmpty();
     }
 
     void unknownKey(String path, JsonElement raw) {

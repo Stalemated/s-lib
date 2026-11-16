@@ -5,13 +5,14 @@ import java.util.List;
 
 /**
  * Why a load did not go as written: the file could not be read or parsed, invalid values were
- * replaced by their defaults, or the file could not be written or backed up. The
+ * reset to their defaults or removed from their list or map, or the file could not be written or
+ * backed up. The
  * {@code onLoadFailed} listeners get it, and {@link ConfigProvider#load()} returns it.
  *
  * @param file the config file
  * @param reason what went wrong, in English, for example
  *               {@code "3 invalid values were replaced by their defaults"}
- * @param rejectedValues the invalid values that were replaced by their defaults; empty if the
+ * @param rejectedValues the invalid values that were reset or removed; empty if the
  *                       file could not be read, and without the keys that are not options
  */
 public record ConfigLoadFailure(Path file, String reason, List<InvalidEntry> rejectedValues) {

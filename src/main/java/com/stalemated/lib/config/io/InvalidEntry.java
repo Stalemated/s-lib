@@ -3,10 +3,12 @@ package com.stalemated.lib.config.io;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * One value of the config file that was rejected when loading and replaced by its default. S-Lib
- * also uses it to log keys that are not options.
+ * One value of the config file that was rejected when loading. An option or a field of a nested
+ * object keeps its default, and an element of a list or map is removed. S-Lib also uses it to log
+ * keys that are not options.
  *
- * @param path the key of the value in the file, with dots
+ * @param path the key of the value in the file, with dots, and {@code [index]} for list elements,
+ *             for example {@code rules.minecraft:mending.allowed[1]}
  * @param rawJson the value as it was in the file, as compact JSON
  * @param reason why it was rejected, usually the message of the error that rejected it
  */

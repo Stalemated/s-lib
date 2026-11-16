@@ -183,8 +183,8 @@ public abstract class ConfigBuilder<T, M extends ConfigManager<T>, B extends Con
 
     /**
      * Adds a listener that runs when a load does not go as written: the file could not be read,
-     * is not valid JSON5, had invalid values that were replaced by their defaults, or could not be
-     * written or backed up. It runs before the {@link #onLoad(Consumer)} listeners.
+     * is not valid JSON5, had invalid values that were reset to their defaults or removed from
+     * their list or map, or could not be written or backed up. It runs before the {@link #onLoad(Consumer)} listeners.
      *
      * @param listener gets what went wrong
      * @return this builder

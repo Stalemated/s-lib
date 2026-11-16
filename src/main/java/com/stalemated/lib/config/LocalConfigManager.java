@@ -109,8 +109,10 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
      * load failed, and then the load listeners.
      * <p>
      * With the default JSON5 file, a missing or empty file is created with defaults. The file is
-     * rewritten when options are missing, clamped or stored under an old key. Before it drops
-     * unknown keys or invalid values, S-Lib saves a backup named
+     * rewritten when options are missing, clamped, or stored under an old key. An invalid value
+     * only drops itself: an option or a field of a nested object keeps its default, and an
+     * element of a list or map is removed, at any depth. Before it drops unknown keys or invalid
+     * values, S-Lib saves a backup named
      * {@code <name>_backup_<yyyyMMdd-HHmmss>.json5}. A file that is not valid JSON5 is backed up
      * and left as it is, and the config keeps its defaults.
      *
