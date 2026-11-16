@@ -5,6 +5,11 @@ import com.stalemated.lib.config.Subscription;
 import dev.isxander.yacl3.gui.YACLScreen;
 import net.minecraft.client.gui.components.tabs.Tab;
 import net.minecraft.client.gui.screens.Screen;
+//? if <26.1 {
+import net.minecraft.client.gui.GuiGraphics;
+//?} else {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
+*///?}
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -58,6 +63,20 @@ final class YaclConfigScreen extends YACLScreen {
             rebuild(owner::catchUpSessions);
         }
     }
+
+    //? if <26.1 {
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
+        owner.renderOverlays(graphics, mouseX, mouseY, partialTick);
+    }
+    //?} else {
+    /*@Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        owner.renderOverlays(graphics, mouseX, mouseY, partialTick);
+    }
+    *///?}
 
     @SuppressWarnings("ConstantConditions")
     private void followWindowSize() {

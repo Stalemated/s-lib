@@ -14,6 +14,11 @@ import dev.isxander.yacl3.api.Option;
 import dev.isxander.yacl3.api.YetAnotherConfigLib;
 import dev.isxander.yacl3.api.utils.OptionUtils;
 import net.minecraft.client.gui.screens.Screen;
+//? if <26.1 {
+import net.minecraft.client.gui.GuiGraphics;
+//?} else {
+/*import net.minecraft.client.gui.GuiGraphicsExtractor;
+*///?}
 import net.minecraft.network.chat.Component;
 
 import java.io.UncheckedIOException;
@@ -51,6 +56,7 @@ public class YaclScreenBuilder {
     private YaclNamingStrategy namingStrategy = YaclNamingStrategy.DEFAULT;
     private YaclControllerRegistry controllerRegistry = YaclControllerRegistry.createDefault();
     private OptionAvailabilityRule availabilityRule = OptionAvailabilityRule.DEFAULT;
+    private final List<ScreenOverlay> overlays = new ArrayList<>();
 
     @FunctionalInterface
     private interface PendingCategory {
@@ -141,6 +147,31 @@ public class YaclScreenBuilder {
     ) {
         sessionOf(manager).bindPreview(previewInstance, onPreviewUpdate);
         return this;
+    }
+
+    /**
+     * Draws {@code overlay} on top of the screen from {@link #generateScreen()} every frame,
+     * after YACL has drawn its widgets, for example, a tooltip that shows the
+     * {@link #livePreview(ConfigManager, Object, Consumer) live preview} at the mouse. It keeps
+     * drawing after the screen rebuilds and stops when the screen closes. Overlays draw in the
+     * order they were added. Screens made with {@code buildLib().generateScreen(parent)} don't
+     * draw them.
+     *
+     * @param overlay draws on top of the screen
+     * @return this builder
+     * @throws NullPointerException if {@code overlay} is {@code null}
+     */
+    public YaclScreenBuilder onRender(ScreenOverlay overlay) {
+        overlays.add(Objects.requireNonNull(overlay, "overlay cannot be null"));
+        return this;
+    }
+
+    //? if <26.1 {
+    void renderOverlays(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    //?} else {
+    /*void renderOverlays(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    *///?}
+        overlays.forEach(overlay -> overlay.render(graphics, mouseX, mouseY, partialTick));
     }
 
     /**
