@@ -63,43 +63,49 @@ public final class OptionAssembler {
     }
 
     public void applyEnabledIf(OptionInfo info, Option<?> built) {
-        List<ToggleCondition> conditions = conditionsOf(info);
-        if (conditions.isEmpty()) return;
-        synchronizer.enableWhen(built, built.available(), conditions);
+        info.annotation(EnabledIf.class).ifPresent(enabledIf ->
+                enableWhen(built, info.getKey(), enabledIfOrigin(info), enabledIf.value(), List.of(enabledIf.equals())));
     }
 
-    private List<ToggleCondition> conditionsOf(OptionInfo info) {
+    public void enableWhen(Option<?> built, String dependentKey, String origin, String toggleKey, List<String> enabledValues) {
+        synchronizer.enableWhen(built, built.available(), conditionsOf(dependentKey, origin, toggleKey, enabledValues));
+    }
+
+    private List<ToggleCondition> conditionsOf(String dependentKey, String origin, String toggleKey, List<String> enabledValues) {
         List<ToggleCondition> conditions = new ArrayList<>();
-        Set<String> chain = new LinkedHashSet<>(List.of(info.getKey()));
-        OptionInfo dependent = info;
-        Optional<EnabledIf> enabledIf = info.annotation(EnabledIf.class);
-        while (enabledIf.isPresent()) {
-            ToggleCondition condition = conditionOf(dependent, enabledIf.get());
-            if (!chain.add(condition.toggle().getKey())) {
-                throw new IllegalArgumentException("@EnabledIf on '" + info.getKey() + "' forms a cycle: " + String.join(" -> ", chain) + " -> " + condition.toggle().getKey());
+        Set<String> chain = new LinkedHashSet<>(List.of(dependentKey));
+        ToggleCondition condition = conditionOf(origin, toggleKey, enabledValues);
+        while (true) {
+            OptionInfo toggle = condition.toggle();
+            if (!chain.add(toggle.getKey())) {
+                throw new IllegalArgumentException(origin + " forms a cycle: " + String.join(" -> ", chain) + " -> " + toggle.getKey());
             }
             conditions.add(condition);
-            dependent = condition.toggle();
-            enabledIf = dependent.annotation(EnabledIf.class);
+            Optional<EnabledIf> next = toggle.annotation(EnabledIf.class);
+            if (next.isEmpty()) return conditions;
+            condition = conditionOf(enabledIfOrigin(toggle), next.get().value(), List.of(next.get().equals()));
         }
-        return conditions;
     }
 
-    private ToggleCondition conditionOf(OptionInfo dependent, EnabledIf enabledIf) {
-        OptionInfo toggle = session.getOptionTree().get(enabledIf.value());
+    private static String enabledIfOrigin(OptionInfo info) {
+        return "@EnabledIf on '" + info.getKey() + "'";
+    }
+
+    private ToggleCondition conditionOf(String origin, String toggleKey, List<String> enabledValues) {
+        OptionInfo toggle = session.getOptionTree().get(toggleKey);
         if (toggle == null) {
-            throw new IllegalArgumentException("@EnabledIf on '" + dependent.getKey() + "' names '" + enabledIf.value() + "', which is not an option of this config");
+            throw new IllegalArgumentException(origin + " names '" + toggleKey + "', which is not an option of this config");
         }
-        List<String> toggleValues = valuesOf(dependent, toggle);
-        for (String value : enabledIf.equals()) {
+        List<String> toggleValues = valuesOf(origin, toggle);
+        for (String value : enabledValues) {
             if (!toggleValues.contains(value)) {
-                throw new IllegalArgumentException("@EnabledIf on '" + dependent.getKey() + "' lists '" + value + "', which is not a value of '" + toggle.getKey() + "': " + toggleValues);
+                throw new IllegalArgumentException(origin + " lists '" + value + "', which is not a value of '" + toggle.getKey() + "': " + toggleValues);
             }
         }
-        return new ToggleCondition(toggle, Set.copyOf(Arrays.asList(enabledIf.equals())));
+        return new ToggleCondition(toggle, Set.copyOf(enabledValues));
     }
 
-    private static List<String> valuesOf(OptionInfo dependent, OptionInfo toggle) {
+    private static List<String> valuesOf(String origin, OptionInfo toggle) {
         Class<?> type = toggle.type();
         if (type == boolean.class || type == Boolean.class) {
             return List.of("true", "false");
@@ -107,7 +113,7 @@ public final class OptionAssembler {
         if (type.isEnum()) {
             return Arrays.stream(type.getEnumConstants()).map(constant -> ((Enum<?>) constant).name()).toList();
         }
-        throw new IllegalArgumentException("@EnabledIf on '" + dependent.getKey() + "' needs a boolean or enum option, '" + toggle.getKey() + "' is a " + type.getSimpleName());
+        throw new IllegalArgumentException(origin + " needs a boolean or enum option, '" + toggle.getKey() + "' is a " + type.getSimpleName());
     }
 
     public <M, G> Optional<TypeLens<M, G>> lensFor(Class<?> type, YaclOptionMetadata meta) {

@@ -12,8 +12,9 @@ import java.lang.annotation.Target;
  * <p>
  * The toggle is a boolean or enum option. If it has its own {@code @EnabledIf}, the whole chain
  * must match. It works on options, lists and {@code mapPairsOption}, not on the entries of
- * {@code nestedList}, {@code nestedMap}, {@code nestedMapLists} or {@code listElement}. A
- * misspelled key, a value the toggle cannot hold, or a cycle fails when the screen is built.
+ * {@code nestedList}, {@code nestedMap} or {@code nestedMapLists}. Each {@code listElement} takes
+ * its own toggle and values instead. A misspelled key, a value the toggle cannot hold, or a cycle
+ * fails when the screen is built.
  * <p>
  * Example: {@code @EnabledIf(value = "mode", equals = {"FADE", "SCROLL"})}
  */

@@ -211,6 +211,38 @@ public class YaclGroupBuilder<T> {
     }
 
     /**
+     * Same as {@link #listElement(String, int, String, Object)}, but the element is enabled only
+     * while the toggle option holds one of {@code enabledValues}, as with {@code @EnabledIf}: it
+     * follows the value shown on the screen before it is saved, and if the toggle has its own
+     * {@code @EnabledIf}, the whole chain must match.
+     * <p>
+     * Example: {@code listElement("colors", 1, "secondaryColor", white, "style", "STATIC_GRADIENT", "SLIDE_GRADIENT")}
+     *
+     * @param listKey key of a {@code List} option
+     * @param index position of the element, from 0
+     * @param optionKey key for the name and description, {@code <prefix>.option.<optionKey>} by default
+     * @param defaultElement value used by Reset and to fill the list when it is shorter than {@code index + 1}; {@code null} uses the fallback of the element type, if that is a valid value
+     * @param toggleKey full key of a boolean or enum option of this config
+     * @param enabledValues values of the toggle that enable the element: {@code "true"} or {@code "false"} for a boolean, the exact {@code name()} of each constant for an enum; none means {@code "true"}
+     * @param <E> the list element type
+     * @return this builder
+     * @throws NullPointerException when called, if {@code toggleKey}, {@code enabledValues} or one of its values is {@code null}
+     * @throws IllegalArgumentException when the screen is built, for the reasons of {@link #listElement(String, int, String, Object)}, or if {@code toggleKey} is not a boolean or enum option, a value is not one the toggle can hold, or the chain of toggles forms a cycle
+     * @throws UnsupportedOperationException when the screen is built, if the element type has no controller
+     * @throws IndexOutOfBoundsException when the screen is built, if {@code index} is negative
+     */
+    public <E> YaclGroupBuilder<T> listElement(String listKey, int index, String optionKey, E defaultElement, String toggleKey, String... enabledValues) {
+        Objects.requireNonNull(toggleKey, "toggleKey cannot be null");
+        List<String> values = enabledValues.length == 0 ? List.of("true") : List.of(enabledValues);
+        this.actions.add(list -> {
+            Option<?> element = buildListElementOption(listKey, index, optionKey, defaultElement);
+            context.assembler().enableWhen(element, listKey + "[" + index + "]", "listElement '" + optionKey + "'", toggleKey, values);
+            list.add(element);
+        });
+        return this;
+    }
+
+    /**
      * Adds the simple options with these keys, in this order, each one with the controller of its
      * type. A {@code @Title} on an option adds a label before it; on the first option of a group
      * with no name, it names the group instead. {@code @EnabledIf} and
