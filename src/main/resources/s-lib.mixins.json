@@ -7,6 +7,7 @@
     "client": [
         "client.accessor.OrderedTextTooltipComponentAccessor",
         "client.IntegratedServerMixin",
+        "client.PackRepositoryMixin",
         "client.yacl.CategoryTabAccessor",
         "client.yacl.ElementListWidgetExtInvoker",
         "client.yacl.GroupSeparatorEntryAccessor",

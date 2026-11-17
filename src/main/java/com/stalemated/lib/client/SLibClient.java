@@ -8,7 +8,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 //?}
 
 //? if forge || neoforge {
-/*import net.minecraft.client.Minecraft;
+/*import com.stalemated.lib.client.internal.resource.RegisteredClientPackSource;
+import net.minecraft.client.Minecraft;
+import net.minecraft.server.packs.PackType;
 *///?}
 
 //? if forge{
@@ -16,10 +18,12 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.event.AddPackFindersEvent;
 *///?}
 
 //? if neoforge{
 /*import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -34,8 +38,8 @@ import com.stalemated.lib.SLib;
 
 /**
  * S-Lib's client entrypoint. It tells the synced configs when the player joins or leaves a world
- * and, on Forge and NeoForge, registers the pending key mappings. The loader or {@code SLib}
- * calls it; mods don't use it. Client only.
+ * and, on Forge and NeoForge, registers the pending key mappings and the client packs of
+ * {@code SLibResourcePacks}. The loader or {@code SLib} calls it; mods don't use it. Client only.
  */
 //? if neoforge
 //@EventBusSubscriber(modid = SLib.MOD_ID, value = Dist.CLIENT)
@@ -62,29 +66,35 @@ implements ClientModInitializer
     //?}
 
     //? if forge {
-    /*/^* Listens to {@code RegisterKeyMappingsEvent} on the mod bus and to the client login and
-     * logout events on the Forge bus. {@code SLib} calls it.
+    /*/^* Listens to {@code RegisterKeyMappingsEvent} and {@code AddPackFindersEvent} on the mod bus
+     * and to the client login and logout events on the Forge bus. {@code SLib} calls it.
      ^/
     public static void init() {
         FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibClient::onRegisterKeyMappings);
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(SLibClient::onAddPackFinders);
 
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogIn);
         MinecraftForge.EVENT_BUS.addListener(SLibClient::onClientLogOut);
     }
     *///?} elif neoforge {
-    /*/^* Listens to {@code RegisterKeyMappingsEvent} on the mod bus. The login and logout events
-     * arrive through {@code @EventBusSubscriber}. {@code SLib} calls it.
+    /*/^* Listens to {@code RegisterKeyMappingsEvent} and {@code AddPackFindersEvent} on the mod bus.
+     * The login and logout events arrive through {@code @EventBusSubscriber}. {@code SLib} calls it.
      *
      * @param modBus the S-Lib mod event bus
      ^/
     public static void registerModBusListeners(IEventBus modBus) {
         modBus.addListener(RegisterKeyMappingsEvent.class, SLibClient::onRegisterKeyMappings);
+        modBus.addListener(AddPackFindersEvent.class, SLibClient::onAddPackFinders);
     }
     *///?}
 
     //? if forge || neoforge {
     /*private static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
         ClientPlatformHelper.registerPendingKeyMappings(event::register);
+    }
+
+    private static void onAddPackFinders(AddPackFindersEvent event) {
+        if (event.getPackType() == PackType.CLIENT_RESOURCES) event.addRepositorySource(new RegisteredClientPackSource());
     }
 
     //? if neoforge
