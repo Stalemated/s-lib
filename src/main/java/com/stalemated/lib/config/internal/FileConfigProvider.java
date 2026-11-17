@@ -9,12 +9,15 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 /**
@@ -23,6 +26,9 @@ import java.util.function.Supplier;
  * @param <T> The config data model class.
  */
 public class FileConfigProvider<T> implements ConfigProvider<T> {
+
+    private static final int REPLACE_ATTEMPTS = 5;
+    private static final long REPLACE_PAUSE_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
 
     private final Path configPath;
     private final Supplier<T> defaultFactory;
@@ -131,10 +137,22 @@ public class FileConfigProvider<T> implements ConfigProvider<T> {
     }
 
     private void replaceWith(Path tempPath) throws IOException {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                moveAtomically(tempPath, configPath);
+                return;
+            } catch (AccessDeniedException denied) {
+                if (attempt == REPLACE_ATTEMPTS) throw denied;
+                LockSupport.parkNanos(REPLACE_PAUSE_NANOS);
+            }
+        }
+    }
+
+    private static void moveAtomically(Path source, Path target) throws IOException {
         try {
-            Files.move(tempPath, configPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (AtomicMoveNotSupportedException e) {
-            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
