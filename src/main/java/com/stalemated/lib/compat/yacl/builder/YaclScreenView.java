@@ -7,6 +7,7 @@ import com.stalemated.lib.mixin.internal.client.yacl.ElementListWidgetExtInvoker
 import com.stalemated.lib.mixin.internal.client.yacl.GroupSeparatorEntryAccessor;
 import dev.isxander.yacl3.api.ListOption;
 import dev.isxander.yacl3.gui.OptionListWidget;
+import dev.isxander.yacl3.gui.SearchFieldWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 import net.minecraft.client.gui.components.tabs.Tab;
 //? if yacl: <3.8.0 {
@@ -15,28 +16,47 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 
 import java.util.List;
 
-record YaclScreenView(int tab, double scroll, List<GroupExpansion> groupsByTab) {
-    static final YaclScreenView FIRST_TAB = new YaclScreenView(0, 0, List.of());
+record YaclScreenView(int tab, double scroll, List<String> searchesByTab, List<GroupExpansion> groupsByTab) {
+    static final YaclScreenView FIRST_TAB = new YaclScreenView(0, 0, List.of(), List.of());
 
     static YaclScreenView of(YACLScreen screen) {
         List<Tab> tabs = screen.tabNavigationBar.getTabs();
         Tab current = screen.tabManager.getCurrentTab();
         int tab = Math.max(tabs.indexOf(current), 0);
         double scroll = current instanceof YACLScreen.CategoryTab categoryTab ? scrollOf(optionListOf(categoryTab)) : 0;
+        List<String> searchesByTab = tabs.stream().map(YaclScreenView::searchOf).toList();
         List<GroupExpansion> groupsByTab = tabs.stream().map(YaclScreenView::expansionOf).toList();
-        return new YaclScreenView(tab, scroll, groupsByTab);
+        return new YaclScreenView(tab, scroll, searchesByTab, groupsByTab);
     }
 
     void restore(YACLScreen screen) {
         List<Tab> tabs = screen.tabNavigationBar.getTabs();
         for (int index = 0; index < Math.min(groupsByTab.size(), tabs.size()); index++) {
             if (tabs.get(index) instanceof YACLScreen.CategoryTab categoryTab) {
+                restoreSearch(categoryTab, searchesByTab.get(index));
                 restoreGroups(optionListOf(categoryTab), groupsByTab.get(index));
             }
         }
+        //? if yacl: >=3.9.0 {
+        /*screen.tabNavigationBar.updateTabNames();
+        *///?}
         if (tab < tabs.size() && tabs.get(tab) instanceof YACLScreen.CategoryTab categoryTab) {
             restoreScroll(screen, optionListOf(categoryTab));
         }
+    }
+
+    private static String searchOf(Tab tab) {
+        return tab instanceof YACLScreen.CategoryTab categoryTab ? searchFieldOf(categoryTab).getValue() : "";
+    }
+
+    private static void restoreSearch(YACLScreen.CategoryTab tab, String search) {
+        if (search.isEmpty()) return;
+        //? if yacl: <3.9.0 {
+        searchFieldOf(tab).setValue(search);
+        //?} else {
+        /*searchFieldOf(tab).setValueDoNotUpdate(search);
+        optionListOf(tab).updateSearchQuery(search);
+        *///?}
     }
 
     private void restoreScroll(YACLScreen screen, OptionListWidget list) {
@@ -96,6 +116,10 @@ record YaclScreenView(int tab, double scroll, List<GroupExpansion> groupsByTab) 
         //?} else {
         /*return ((CategoryTabAccessor) tab).s_lib$optionList().getType();
         *///?}
+    }
+
+    private static SearchFieldWidget searchFieldOf(YACLScreen.CategoryTab tab) {
+        return ((CategoryTabAccessor) tab).s_lib$searchField();
     }
 
     private static double scrollOf(OptionListWidget list) {

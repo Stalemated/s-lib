@@ -2,6 +2,7 @@ package com.stalemated.lib.mixin.internal.client.yacl;
 
 import com.stalemated.lib.mixin.RequiresMod;
 import dev.isxander.yacl3.gui.OptionListWidget;
+import dev.isxander.yacl3.gui.SearchFieldWidget;
 import dev.isxander.yacl3.gui.YACLScreen;
 //? if yacl: <3.8.0 {
 import dev.isxander.yacl3.gui.tab.ListHolderWidget;
@@ -22,4 +23,7 @@ public interface CategoryTabAccessor {
     /*@Accessor("optionList")
     WidgetAndType<OptionListWidget> s_lib$optionList();
     *///?}
+
+    @Accessor("searchField")
+    SearchFieldWidget s_lib$searchField();
 }
