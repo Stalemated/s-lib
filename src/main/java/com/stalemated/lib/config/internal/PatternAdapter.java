@@ -12,7 +12,9 @@ import com.google.gson.JsonSerializer;
 import com.stalemated.lib.util.internal.RegexFlag;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 final class PatternAdapter implements JsonSerializer<Pattern>, JsonDeserializer<Pattern> {
 
@@ -40,19 +42,44 @@ final class PatternAdapter implements JsonSerializer<Pattern>, JsonDeserializer<
     @Override
     public Pattern deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
         if (json.isJsonPrimitive()) {
-            return Pattern.compile(json.getAsString());
+            return compile(json, json.getAsString(), 0);
         }
         if (!json.isJsonObject() || !json.getAsJsonObject().has(PATTERN)) {
             throw new JsonParseException(json + " is not a regex");
         }
 
         JsonObject object = json.getAsJsonObject();
-        int flags = 0;
-        if (object.has(FLAGS)) {
-            for (JsonElement name : object.getAsJsonArray(FLAGS)) {
-                flags |= RegexFlag.named(name.getAsString()).bit();
-            }
+        JsonElement pattern = object.get(PATTERN);
+        return compile(pattern, SLibGsonDefaults.textOf(pattern, "a regex"), flagsOf(object));
+    }
+
+    private static int flagsOf(JsonObject object) {
+        if (!object.has(FLAGS)) return 0;
+        JsonElement names = object.get(FLAGS);
+        if (!names.isJsonArray()) {
+            throw new JsonParseException(names + " is not a list of regex flags");
         }
-        return Pattern.compile(object.get(PATTERN).getAsString(), flags);
+
+        int flags = 0;
+        for (JsonElement name : names.getAsJsonArray()) {
+            flags |= flagNamed(name).bit();
+        }
+        return flags;
+    }
+
+    private static RegexFlag flagNamed(JsonElement name) {
+        try {
+            return RegexFlag.named(SLibGsonDefaults.textOf(name, "a regex flag"));
+        } catch (IllegalArgumentException e) {
+            throw new JsonParseException(name + " is not a regex flag, expected one of " + Arrays.toString(RegexFlag.values()), e);
+        }
+    }
+
+    private static Pattern compile(JsonElement json, String regex, int flags) {
+        try {
+            return Pattern.compile(regex, flags);
+        } catch (PatternSyntaxException e) {
+            throw new JsonParseException(json + " is not a regex: " + e.getDescription(), e);
+        }
     }
 }

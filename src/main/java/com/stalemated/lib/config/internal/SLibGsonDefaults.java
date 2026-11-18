@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.stalemated.lib.config.annotation.Ignore;
 import com.stalemated.lib.util.ResourceIds;
 import com.stalemated.lib.util.color.ColorUtils;
+import net.minecraft.ResourceLocationException;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceLocation;
 
@@ -68,12 +69,20 @@ public final class SLibGsonDefaults {
 
     // Adapter Definitions
 
+    static String textOf(JsonElement json, String kind) {
+        try {
+            return json.getAsString();
+        } catch (UnsupportedOperationException | IllegalStateException e) {
+            throw new JsonParseException(json + " is not " + kind, e);
+        }
+    }
+
     private static JsonDeserializer<String> stringDeserializer() {
         return (json, typeOfT, context) -> {
             if (json.isJsonObject() && json.getAsJsonObject().has("value")) {
-                return json.getAsJsonObject().get("value").getAsString();
+                return textOf(json.getAsJsonObject().get("value"), "a string");
             }
-            return json.getAsString();
+            return textOf(json, "a string");
         };
     }
 
@@ -142,7 +151,12 @@ public final class SLibGsonDefaults {
 
         @Override
         public ResourceLocation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return ResourceIds.parse(json.getAsString());
+            String id = textOf(json, "a resource location");
+            try {
+                return ResourceIds.parse(id);
+            } catch (ResourceLocationException e) {
+                throw new JsonParseException(json + " is not a resource location", e);
+            }
         }
     }
 
@@ -154,7 +168,12 @@ public final class SLibGsonDefaults {
 
         @Override
         public UUID deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            return UUID.fromString(json.getAsString());
+            String uuid = textOf(json, "a UUID");
+            try {
+                return UUID.fromString(uuid);
+            } catch (IllegalArgumentException e) {
+                throw new JsonParseException(json + " is not a UUID", e);
+            }
         }
     }
 

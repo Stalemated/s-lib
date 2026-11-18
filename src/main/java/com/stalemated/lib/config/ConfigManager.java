@@ -162,7 +162,7 @@ public interface ConfigManager<T> {
      * @param type the class to read
      * @param <V> the type to read
      * @return the value, or {@code null} if the JSON is {@code null}
-     * @throws com.google.gson.JsonSyntaxException if {@code json} is not valid JSON for {@code type}
+     * @throws com.google.gson.JsonParseException if {@code json} is not valid JSON for {@code type}, including a value the S-Lib adapters cannot read
      */
     default <V> V fromJson(String json, Class<V> type) {
         return getOptionTree().gson().fromJson(json, type);
