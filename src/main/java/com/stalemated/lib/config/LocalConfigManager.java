@@ -129,7 +129,33 @@ public final class LocalConfigManager<T> implements ConfigManager<T> {
         }
         claim.run();
         registered = true;
+        load();
+    }
 
+    /**
+     * Reads the config again with its {@link ConfigProvider}, as {@link #register()} does after
+     * it claims the file: it loads, runs the load failure listeners if the load failed, and then
+     * the load listeners. If a value changed, the change listeners run after them.
+     * <p>
+     * The default JSON5 file is read with the same rules as in {@link #register()}. An invalid
+     * value only drops itself, and a file that is not valid JSON5 is backed up and left as it is,
+     * and the config keeps the values it had in memory. A missing file is created again with
+     * defaults, which become the values of the config.
+     * <p>
+     * After a reload, {@link #get()} returns a new instance; code that kept the old one still sees
+     * the old values. Call it on the thread that uses the config, like the game thread: it is not
+     * synchronized with {@code modify} or {@code save} on other threads.
+     *
+     * @throws IllegalStateException if called before {@link #register()}
+     */
+    public void reload() {
+        requireRegistered();
+        T previous = provider.instance();
+        load();
+        if (!optionTree.findChanges(previous, provider.instance()).isEmpty()) fireChanged();
+    }
+
+    private void load() {
         Optional<ConfigLoadFailure> failure = provider.load();
         failure.ifPresent(f -> loadFailedListeners.fire(listener -> listener.accept(f)));
 
