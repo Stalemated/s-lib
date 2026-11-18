@@ -3,6 +3,7 @@ package com.stalemated.lib.config.internal;
 import blue.endless.jankson.Jankson;
 import blue.endless.jankson.JsonElement;
 import blue.endless.jankson.JsonGrammar;
+import blue.endless.jankson.JsonNull;
 import blue.endless.jankson.JsonObject;
 import blue.endless.jankson.api.SyntaxError;
 import com.google.gson.Gson;
@@ -106,7 +107,12 @@ public class Json5Serializer<T> implements ConfigSerializer<T> {
 
         String path = layout.pathOf(option);
         try {
+            Object fallback = option.getValue(instance);
             Object value = reader.read(option, path, raw, report);
+            if (value == null && fallback != null) {
+                report.reject(path, raw, raw instanceof JsonNull ? "cannot be null" : "not a " + option.type().getSimpleName());
+                return;
+            }
             option.setValue(instance, value);
             if (!Objects.equals(value, option.getValue(instance))) {
                 report.requireMigration();
