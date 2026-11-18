@@ -138,8 +138,9 @@ public abstract class ConfigBuilder<T, M extends ConfigManager<T>, B extends Con
     }
 
     /**
-     * Adds a listener that runs after {@code register()} loads the config, with the loaded
-     * instance. It also runs when the load failed; it then gets the values left in memory.
+     * Adds a listener that runs after {@code register()} or {@link LocalConfigManager#reload()}
+     * loads the config, with the loaded instance. It also runs when the load failed; it then gets
+     * the values left in memory.
      *
      * @param listener gets the loaded config
      * @return this builder
@@ -167,7 +168,8 @@ public abstract class ConfigBuilder<T, M extends ConfigManager<T>, B extends Con
     /**
      * Adds a listener that gets the current config after each {@code save()}, after a
      * {@code modify} that changed something and, in synced configs, when the values from the
-     * server change. It does not run on load.
+     * server change. It does not run on load, only on a {@link LocalConfigManager#reload()}
+     * that changed a value.
      * <p>
      * Same as {@link ConfigManager#onChange(Consumer)} on the built manager, but there is no
      * {@link Subscription} to remove it.

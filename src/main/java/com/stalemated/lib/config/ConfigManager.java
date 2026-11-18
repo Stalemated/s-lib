@@ -94,7 +94,8 @@ public interface ConfigManager<T> {
     /**
      * Adds a listener that gets the current config after each save, after a
      * {@link #modify(Consumer)} that changed something and, in a {@link SyncedConfigManager},
-     * when the values from the server change. It does not run on load.
+     * when the values from the server change. It does not run on load, only on a
+     * {@link LocalConfigManager#reload()} that changed a value.
      * <p>
      * If a listener throws, the error is logged and the other listeners still run.
      *
