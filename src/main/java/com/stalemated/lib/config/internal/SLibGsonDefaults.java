@@ -56,6 +56,7 @@ public final class SLibGsonDefaults {
     // Registration
 
     private static void registerJavaDefaults(GsonBuilder builder) {
+        builder.registerTypeAdapterFactory(new StrictEnumAdapterFactory());
         builder.registerTypeAdapter(String.class, stringDeserializer());
         builder.registerTypeAdapter(Color.class, colorAdapter());
         builder.registerTypeAdapter(UUID.class, uuidAdapter());
