@@ -42,9 +42,6 @@ import net.neoforged.neoforge.network.registration.IPayloadRegistrar;
 /^import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 ^///?}
-
-//? if >=1.21.7
-//import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 *///?}
 public final class WrapperChannel {
 
@@ -210,8 +207,10 @@ public final class WrapperChannel {
         //channel().send(PacketDistributor.PLAYER.with(() -> player), new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.PLAYER.with(player).send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4
-        //PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));
+        //? if neoforge && >1.20.4 {
+        /*if (!player.connection.hasChannel(WrapperPayload.ID)) return;
+        PacketDistributor.sendToPlayer(player, new WrapperPayload(id, data));
+        *///?}
     }
 
     public static void sendToServer(ResourceLocation id, byte[] data) {
@@ -223,9 +222,7 @@ public final class WrapperChannel {
         //channel().sendToServer(new WrapperPacket(id, data));
         //? if neoforge && <=1.20.4
         //PacketDistributor.SERVER.noArg().send(new WrapperPayload(id, data));
-        //? if neoforge && >1.20.4 <1.21.7
-        //PacketDistributor.sendToServer(new WrapperPayload(id, data));
-        //? if neoforge && >=1.21.7
-        //ClientPacketDistributor.sendToServer(new WrapperPayload(id, data));
+        //? if neoforge && >1.20.4
+        //ClientNetworkHelper.sendToServer(new WrapperPayload(id, data));
     }
 }
